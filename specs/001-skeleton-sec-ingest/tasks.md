@@ -323,7 +323,7 @@ description: "Task list for feature 001: project skeleton, SEC insider-data inge
 - [X] T042 [P] Write `README.md`: a one-line purpose, setup (`uv sync`, and a `.env` with `SEC_USER_AGENT="Name email"` and `TIINGO_API`), the commands implemented so far, and links to `docs/initialplan.md` and `specs/001-skeleton-sec-ingest/quickstart.md`.
 - [X] T043 Run `uv run ruff check .`, `uv run ruff format --check .` and `uv run pytest` (offline) until all pass. Then run `uv run pytest --run-network tests/network` once.
 - [X] T044 Walk through `specs/001-skeleton-sec-ingest/quickstart.md` end to end, and record each step's outcome in `specs/001-skeleton-sec-ingest/run-notes.md`. Include the secrets scan, `git log -p | grep -c "<TIINGO key>"` = 0 (SC-009).
-- [ ] T045 With the researcher's approval, commit on branch `001-skeleton-sec-ingest` in small logical commits: setup, foundation, US1, US2, US3, docs. Never commit `data/` or `.env`.
+- [X] T045 With the researcher's approval, commit on branch `001-skeleton-sec-ingest` in small logical commits: setup, foundation, US1, US2, US3, docs. Never commit `data/` or `.env`.
 
 ---
 

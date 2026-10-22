@@ -913,6 +913,9 @@ Every significant choice, what else was considered, and why. "v1" refers to the 
 | D36 | FastAPI + server-rendered pages; a third-party chart widget | React front end; Streamlit | The smallest stack that serves both API and pages, and avoids redistributing price data |
 | D37 | MLflow tracking | Ad-hoc logs | Every run reproducible; the trial count feeds the deflated Sharpe ratio |
 | D38 | Pre-registration locked after review, pushed, and the hash emailed | Tag on Day 1; local tag only | Review changes are not counted as deviations; a pushed tag plus an emailed hash is verifiable |
+| D39 | One month of Tiingo Power ($30) for delisted prices (decided 2026-10-22); the project finishes within that month, Tiingo data is deleted when the plan ends, and the Step 21 offline rebuild runs before then | Free Starter plan; free plan with in-memory processing only; drop delisted stocks | Tiingo's Starter terms (ToS §1.6(a), updated 2026-10-06) forbid storing its data, and in-memory processing cannot fit a rebuild into the 500-symbol and 50-request limits. Dropping delisted stocks would bring back survivorship bias (§5.1). A paid plan allows storage while it is active (§1.6(b)). Requires amending constitution Principle VI ("free sources only") |
+| D40 | The §5.2 budget rule no longer binds; the provisional candidate list covers 2006 onward; the labelled-window start is revisited on research grounds before `prereg-v1` | Keep 2016 because of the free budget | With Power's 110,346 symbols a month, all ~2,200 matched delisted companies can be priced. A 2016 start was forced only by the free budget |
+| D41 | New dependencies typer (CLI), python-dotenv (`.env`) and respx (test-only HTTP mocks); DuckDB pinned below 2 | argparse; a hand-written `.env` parser; live HTTP in tests; DuckDB 2.0 | Help grouped by phase; standard secret loading; offline tests (FR-007). DuckDB 2.0.0 was released on 2026-10-21, too new to adopt mid-project |
 
 ---
 
