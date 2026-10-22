@@ -1,0 +1,330 @@
+# EDGAR-SENTINEL parameter file — the single home of every numeric parameter
+# (constitution Principle III). Structure: specs/001-skeleton-sec-ingest/contracts/params-schema.md
+#
+# registered:  one entry per row of docs/initialplan.md Appendix E. The `register` block holds the
+#              row's cells VERBATIM; tests/unit/test_params_register.py fails if they drift.
+# ops:         operational settings (rate limits, URLs) — not research parameters.
+# provisional: the pilot's simplified rules (Appendix A) — NOT pre-registered.
+
+version: 2
+
+registered:
+  insider_data_period:
+    value: {start: 2006q1, end: 2026q3}
+    unit: quarter
+    register:
+      parameter: "Insider data period"
+      value: "2006 Q1 – 2026 Q3"
+      sensitivity: "—"
+  labelled_window_start:
+    value: 2016-01-01
+    unit: date
+    sensitivity: [2017-01-01]
+    register:
+      parameter: "Labelled window start"
+      value: "1 Jan 2016 (pilot)"
+      sensitivity: "Moves to 2017 if the budget is exceeded"
+  holdout:
+    value: {start: 2023-01-01, end: 2026-06-01}
+    unit: signal_date_range
+    register:
+      parameter: "Holdout"
+      value: "Signal dates 1 Jan 2023 – 1 Jun 2026"
+      sensitivity: "Fixed"
+  g6_min_value:
+    value: 10000
+    unit: usd_per_entity_per_filing
+    sensitivity: [5000, 25000]
+    register:
+      parameter: "G6 minimum value"
+      value: "$10,000 per entity per filing"
+      sensitivity: "$5k; $25k"
+  g6_timeliness:
+    value: 30
+    unit: calendar_days_after_trade
+    sensitivity: [10, 90]
+    register:
+      parameter: "G6 timeliness"
+      value: "Filed ≤ 30 days after the trade"
+      sensitivity: "10; 90 days"
+  g8_tolerance:
+    value: 0.10
+    unit: fraction_of_day_range
+    register:
+      parameter: "G8 tolerance"
+      value: "±10% of the day's range"
+      sensitivity: "Convention"
+  cluster_window:
+    value: 14
+    unit: calendar_days
+    sensitivity: [7, 30]
+    register:
+      parameter: "Cluster window"
+      value: "14 calendar days"
+      sensitivity: "7; 30 days"
+  cluster_min_entities:
+    value: 2
+    unit: entities_incl_officer_or_director
+    sensitivity: [3]
+    register:
+      parameter: "Cluster minimum entities"
+      value: "2, including an officer or director"
+      sensitivity: "3"
+  cluster_min_value:
+    value: 100000
+    unit: usd
+    sensitivity: [50000, 250000]
+    register:
+      parameter: "Cluster / solo minimum value"
+      value: "$100,000"
+      sensitivity: "$50k; $250k"
+  cooldown:
+    value: 63
+    unit: sessions
+    sensitivity: [{calendar_days: 21}]
+    register:
+      parameter: "Cooldown"
+      value: "63 sessions"
+      sensitivity: "21 calendar days"
+  price_floor:
+    value: 2.00
+    unit: usd_unadjusted_close
+    sensitivity: [1.00, 5.00]
+    register:
+      parameter: "Price floor"
+      value: "Unadjusted close ≥ $2"
+      sensitivity: "$1; $5"
+  position_size:
+    value: 10000
+    unit: usd
+    sensitivity: [25000, 50000]
+    register:
+      parameter: "Position size Q"
+      value: "$10,000"
+      sensitivity: "$25k; $50k"
+  liquidity_floor:
+    value: {addv_window_sessions: 20, min_addv_usd: 100000, max_share_of_volume: 0.10}
+    unit: usd_addv20
+    sensitivity: [250000, 500000]
+    register:
+      parameter: "Liquidity floor"
+      value: "ADDV20 ≥ $100k (= Q ÷ 10%)"
+      sensitivity: "$250k (Q = $25k); $500k (Q = $50k)"
+  activity_floor:
+    value: {min_active_sessions: 18, window_sessions: 20}
+    unit: sessions_with_volume
+    sensitivity: [{min_active_sessions: 15, window_sessions: 20}]
+    register:
+      parameter: "Activity floor"
+      value: "Volume on ≥ 18 of 20 sessions"
+      sensitivity: "15 of 20"
+  horizons:
+    value: [5, 21, 63, 126, 252]
+    unit: sessions
+    register:
+      parameter: "Horizons"
+      value: "5, 21, 63, 126, 252 sessions"
+      sensitivity: "—"
+  primary_horizon:
+    value: 63
+    unit: sessions
+    register:
+      parameter: "Primary horizon"
+      value: "63 sessions"
+      sensitivity: "Other horizons reported"
+  factor_beta_window:
+    value: {start_offset: -252, end_offset: -21, min_observations: 120}
+    unit: sessions_relative_to_T
+    register:
+      parameter: "Factor beta window"
+      value: "Sessions T−252 to T−21, ≥ 120 observations"
+      sensitivity: "Convention"
+  spread_addv_window:
+    value: 20
+    unit: sessions
+    register:
+      parameter: "Spread and ADDV window"
+      value: "20 sessions"
+      sensitivity: "Convention"
+  volatility_window:
+    value: 63
+    unit: sessions
+    register:
+      parameter: "Volatility window"
+      value: "63 sessions"
+      sensitivity: "Convention"
+  impact_coefficient:
+    value: 1.0
+    unit: dimensionless
+    sensitivity: [0.5, 2.0]
+    register:
+      parameter: "Impact coefficient"
+      value: "1"
+      sensitivity: "0.5; 2"
+  delisting_returns:
+    value:
+      acquired: 0.0
+      performance_nyse_or_nyse_american: -0.30
+      performance_nasdaq: -0.55
+      unknown_treated_as: performance
+    unit: return
+    sensitivity: [0.0, -1.0]
+    register:
+      parameter: "Delisting returns"
+      value: "0% acquired; −30% NYSE/NYSE American; −55% Nasdaq; unknown = performance-related"
+      sensitivity: "0%; −100%"
+  merger_lookback:
+    value: 12
+    unit: months_before_last_trade
+    register:
+      parameter: "Merger look-back"
+      value: "12 months before the last trade"
+      sensitivity: "Convention"
+  selling_lookback:
+    value: 90
+    unit: calendar_days
+    register:
+      parameter: "Selling look-back (F12, F13)"
+      value: "90 days"
+      sensitivity: "Convention"
+  repeat_buying_lookback:
+    value: 365
+    unit: calendar_days
+    register:
+      parameter: "Repeat-buying look-back (F14)"
+      value: "365 days"
+      sensitivity: "Convention"
+  routine_definition:
+    value: {same_calendar_month_prior_years: 3}
+    unit: years
+    register:
+      parameter: "Routine definition (F9)"
+      value: "Same calendar month in each of 3 prior years"
+      sensitivity: "—"
+  f10_shrinkage:
+    value: {k: 5, base_rate_months: 36}
+    unit: pseudo_events
+    register:
+      parameter: "F10 shrinkage"
+      value: "k = 5, toward the 36-month base rate"
+      sensitivity: "Convention"
+  winsorising:
+    value: {lower: 0.01, upper: 0.99}
+    unit: percentile
+    register:
+      parameter: "Winsorising"
+      value: "1st / 99th percentiles"
+      sensitivity: "Convention"
+  training_window_split:
+    value: {tuning_months: 6, calibration_months: 6}
+    unit: months
+    register:
+      parameter: "Training-window split"
+      value: "Last 12 months = 6 tuning + 6 calibration"
+      sensitivity: "Convention"
+  fold1_min_fit_size:
+    value: 500
+    unit: events
+    register:
+      parameter: "Fold-1 minimum fit size"
+      value: "500 events"
+      sensitivity: "Convention"
+  portfolio_cutoff:
+    value: 0.80
+    unit: percentile
+    sensitivity: [0.6667]
+    register:
+      parameter: "Portfolio cut-off"
+      value: "80th percentile (top quintile)"
+      sensitivity: "Top tercile"
+  calendar_time_min_positions:
+    value: 10
+    unit: positions_per_day
+    sensitivity: [1]
+    register:
+      parameter: "Calendar-time minimum positions"
+      value: "10 per day"
+      sensitivity: "Keep all days"
+  newey_west_lags:
+    value: {monthly_series: "ceil(H/21)", daily_regressions: 10}
+    unit: lags
+    register:
+      parameter: "Newey–West lags"
+      value: "⌈H/21⌉ (monthly series); 10 (daily regressions)"
+      sensitivity: "Convention"
+  significance:
+    value: {alpha: 0.05, sided: one, correction: holm_bonferroni, n_tests: 5}
+    unit: probability
+    register:
+      parameter: "Significance"
+      value: "One-sided 5%; Holm–Bonferroni over five tests"
+      sensitivity: "—"
+  model_grids:
+    value: {n_configurations: 25, defined_in: "docs/initialplan.md §7.2"}
+    unit: configurations
+    register:
+      parameter: "Model grids"
+      value: "§7.2 (25 configurations)"
+      sensitivity: "—"
+
+ops:
+  sec_target_requests_per_second: 5
+  sec_max_requests_per_second: 10
+  http_timeout_seconds: 60
+  http_max_attempts: 5
+  http_backoff_base_seconds: 2
+  http_backoff_max_seconds: 120
+  sec_landing_page: "https://www.sec.gov/data-research/sec-markets-data/insider-transactions-data-sets"
+  sec_folder_patterns:
+    - "https://www.sec.gov/files/structureddata/data/insider-transactions-data-sets/{key}_form345.zip"
+    - "https://www.sec.gov/files/datastandardsinnovation/data/insider-transactions-data-sets/{key}_form345.zip"
+  sec_company_tickers_url: "https://www.sec.gov/files/company_tickers_exchange.json"
+  tiingo_supported_tickers_url: "https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip"
+  required_archive_tables: [SUBMISSION, REPORTINGOWNER, NONDERIV_TRANS, FOOTNOTES]
+
+provisional:
+  price_standin_floor: 2.0
+  cooldown_calendar_days: 91
+  min_buyers_cluster: 2
+  # Regular expressions are applied case-insensitively (research.md R3, R6).
+  common_title_regex: 'common|ordinary|\bclass [a-z]\b|\bshares?\b'
+  excluded_title_regex: 'preferred|warrant|\bunits?\b|\bnotes?\b|option|\brights?\b|debenture'
+  plan_footnote_regex: '10b5-?1|10b-?5-?1|dividend reinvest|\bDRIP\b|employee stock purchase|\bESPP\b|automatic(ally)?\s+(purchase|reinvest)|reinvest(ed|ment) of dividends'
+  offering_footnote_regex: 'public offering|underwrit|private placement|registered direct|subscription agreement|securities purchase agreement|\bPIPE\b|rights offering|directly from the (company|issuer)|from the issuer'
+  ceo_cfo_title_regex: '\bCEO\b|\bCFO\b|chief executive|chief financial|principal executive|principal financial'
+  # Every US venue in Tiingo's list, OTC included: Tiingo files a delisted company's whole history
+  # under its final (often OTC, Q-suffixed) ticker. Excludes foreign venues and blank exchanges.
+  tiingo_us_exchanges: [NYSE, NASDAQ, NYSE MKT, AMEX, NYSE ARCA, NYSE NAT, BATS, PINK, OTCMKTS, OTCGREY, EXPM, OTCBB, OTCQB, OTCQX, OTCCE, OTCD]
+  pilot_reference:
+    by_start_year:
+      2006: {events: 21904, companies: 6682, delisted_in_tiingo: 1982, unmatched: 1233}
+      2009: {events: 17636, companies: 5560, delisted_in_tiingo: 1657, unmatched: 708}
+      2011: {events: 16085, companies: 5179, delisted_in_tiingo: 1515, unmatched: 572}
+      2014: {events: 13404, companies: 4545, delisted_in_tiingo: 1234, unmatched: 413}
+      2016: {events: 11162, companies: 4039, delisted_in_tiingo: 955, unmatched: 340}
+    # Appendix A.1: line counts are each a subset of all purchase lines (not a sequential funnel).
+    funnel_2019q1: {purchase_lines: 12796, original_form4: 11938, common: 12385, plan_fn: 5009, offering_fn: 107, filings_g1_g5: 3023, clean_filings: 1632}
+    funnel_2023q1: {purchase_lines: 6539, original_form4: 6015, common: 6240, plan_fn: 957, offering_fn: 118, filings_g1_g5: 2773, clean_filings: 1864}
+    # Appendix A.3: [clusters (A), solo CEO/CFO >= $100k (B1)] per signal year; 2026 is Q1-Q3.
+    by_year:
+      2006: [853, 240]
+      2007: [1260, 279]
+      2008: [1329, 307]
+      2009: [646, 181]
+      2010: [549, 175]
+      2011: [871, 263]
+      2012: [624, 176]
+      2013: [572, 175]
+      2014: [751, 269]
+      2015: [913, 309]
+      2016: [718, 226]
+      2017: [669, 237]
+      2018: [867, 251]
+      2019: [792, 277]
+      2020: [1080, 284]
+      2021: [825, 278]
+      2022: [834, 301]
+      2023: [739, 259]
+      2024: [562, 233]
+      2025: [698, 290]
+      2026: [524, 218]
