@@ -103,7 +103,7 @@ Rationale: four weeks leaves no room for infrastructure that does not serve the 
   - Tiingo Power, for one month (delisted stocks; decision D39). Outside the paid month, only Tiingo's public ticker list, in memory;
   - FINRA Tick Size Pilot lists;
   - the Kenneth French Data Library.
-- **Study window.** Returns are studied for events from 2016 onward by default. The free delisted-price budget that set this start no longer binds (decision D40), so the start year MUST be fixed on research grounds before the `prereg-v1` tag and recorded in the decision log. Insider history from 2006 onward feeds the features.
+- **Study window.** Returns are studied for events from 1 January 2012 onward (decision D42): the earliest year in which every data source is complete without workarounds, XBRL share counts being the binding source. Insider history from 2006 onward feeds the features.
 - **Parameter values.** The authoritative values (thresholds, floors, horizons, grids) are those in the parameter register of `docs/initialplan.md` and in `config/params.yaml`.
 
 ## Development Workflow and Quality Gates
@@ -131,4 +131,4 @@ Rationale: four weeks leaves no room for infrastructure that does not serve the 
   - PATCH: clarifications and wording.
 - **Compliance review.** Every plan and code review MUST verify point-in-time integrity, holdout sealing and net-of-cost reporting. Any added complexity MUST be justified against Principle VII.
 
-**Version**: 2.0.0 | **Ratified**: 2026-10-21 | **Last Amended**: 2026-10-22
+**Version**: 2.0.1 | **Ratified**: 2026-10-21 | **Last Amended**: 2026-10-22
