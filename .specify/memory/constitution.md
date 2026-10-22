@@ -16,7 +16,7 @@ Rationale: look-ahead bias is silent and invalidates every downstream result. It
 
 ### II. Survivorship-Complete Data
 
-- **Delisted stocks.** They MUST stay in the sample. Listed stocks are priced from Yahoo Finance and delisted stocks from Tiingo.
+- **Delisted stocks.** They MUST stay in the sample. Listed stocks are priced from Yahoo Finance and delisted stocks from Tiingo. The only exception is the MVP pilot sample (see Prototype Exception).
 - **Early-ending price series.** Every series that ends before its label window does MUST receive a classified delisting return: acquired, performance-related or unknown. A data gap MUST NOT be treated as a failure without evidence.
 - **Unpriced events.** These MUST be counted, compared with priced events, and bounded with worst-case and best-case results.
 - **Coverage reporting.** Price coverage MUST be reported by year and by delisting status. A coverage shortfall MUST NOT be fixed by moving the study window after the fact.
@@ -26,7 +26,7 @@ Rationale: dropping companies that disappeared changes the answer, and the direc
 ### III. Pre-Registration and a Sealed Holdout (NON-NEGOTIABLE)
 
 - **Parameter file.** Every numeric parameter MUST live in `config/params.yaml` and in the spec's parameter register.
-- **Pre-registration tag.** Before any post-event return is computed, the spec and parameter file MUST be:
+- **Pre-registration tag.** Before any post-event return is computed, the spec and parameter file MUST be (the only exception is the MVP pilot sample, see Prototype Exception):
   1. tagged `prereg-v1`;
   2. pushed to the remote;
   3. recorded by emailing the commit hash to the supervisor.
@@ -121,6 +121,22 @@ Rationale: four weeks leaves no room for infrastructure that does not serve the 
 - **Order of results.** Event-study results MUST be written up before any ML result exists.
 - **Commits.** Commits stay small and descriptive. Generated data, `data/` and secrets are never committed.
 
+## Prototype Exception (MVP)
+
+A self-contained MVP prototype, built before the `prereg-v1` tag to show what the product will look like (decision D44, 2026-10-22), is bound by these rules instead of the parts of Principles II and III that they name.
+
+- **Pilot sample only.** Post-event returns MAY be computed before `prereg-v1` only for events with signal dates **before the labelled-window start (2012-01-01)**. These events lie outside both the development period (2012–2022) and the holdout (2023-01-01 to 2026-06-01).
+- **Survivors only, labelled.** The pilot sample MAY use listed-stock prices only (Yahoo Finance), without delisted stocks. Every MVP output that shows returns or model performance MUST carry the label "Pilot sample (2006–2011), survivors only — prototype, not research results".
+- **Scoring, not outcomes, after 2011.** A model trained on the pilot sample MAY score recent events, including the live period after 2026-06-01. Outcomes (returns, labels, hit rates) MUST NOT be computed for any event dated 2012-01-01 or later until `prereg-v1`, and after that only under Principle III.
+- **Containment.**
+  - MVP code and outputs MUST live in `mvp/` and its own git-ignored data folder.
+  - Production code (`src/sentinel`) MUST NOT import MVP code.
+  - MVP results MUST NOT feed any pre-registered test, parameter or feature definition.
+- **Disclosure.** The exception, and anything learned from the pilot that changes the design, MUST be recorded in the decision log before `prereg-v1` and disclosed in the final report.
+- **Provider terms still apply** (Principle VI). The dashboard shows derived results such as averages, scores and aggregate return paths. Raw price charts come from an embeddable widget licensed for display.
+
+Rationale: a working prototype is needed early for the course, but seeing study-period results before the plan is locked would defeat the pre-registration. The pre-2012 pilot sample gives a real demonstration without touching the data the confirmatory tests use.
+
 ## Governance
 
 - **Precedence.** This constitution supersedes other practices. `docs/initialplan.md` is the detailed design and runtime guidance. Where it conflicts with this constitution, the constitution wins, and the spec MUST be corrected.
@@ -131,4 +147,4 @@ Rationale: four weeks leaves no room for infrastructure that does not serve the 
   - PATCH: clarifications and wording.
 - **Compliance review.** Every plan and code review MUST verify point-in-time integrity, holdout sealing and net-of-cost reporting. Any added complexity MUST be justified against Principle VII.
 
-**Version**: 2.0.1 | **Ratified**: 2026-10-21 | **Last Amended**: 2026-10-22
+**Version**: 3.0.0 | **Ratified**: 2026-10-21 | **Last Amended**: 2026-10-22
