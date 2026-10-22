@@ -8,7 +8,7 @@
   const $ = (s, el) => (el || document).querySelector(s);
   const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const TABS = ["overview", "findings", "model", "screener", "company", "method"];
+  const TABS = ["screener", "overview", "findings", "model", "company", "method"];
   const GROUPS = { A: "Clusters", B1: "Solo CEO/CFO" };
 
   /* ---------- formatting ---------- */
@@ -342,22 +342,30 @@
     if (r.g8_fail) return '<span class="muted">price check failed</span>';
     if (r.score === null) return '<span class="muted">not priced</span>';
     return '<span class="scorebar"><span class="track"><span class="fill" style="width:' + Math.round(r.score * 100) +
-      '%"></span></span><span>' + Math.round(r.score * 100) + "%</span></span>" + (r.partial ? '<span class="flag">partial data</span>' : "");
+      '%"></span></span><span>' + Math.round(r.score * 100) + "%</span></span>" +
+      (r.pct === null ? "" : '<span class="ago">higher than ' + Math.round(r.pct * 100) + "% of pilot events</span>") +
+      (r.partial ? '<span class="flag">partial data</span>' : "");
   }
   function screenerRow(r) {
-    return "<tr><td class=\"mono\">" + esc(r.date) + "</td>" +
+    const win = r.window_open
+      ? '<span class="winbar"><span class="track"><span class="fill" style="width:' +
+        Math.round((r.left / DATA.meta.horizon) * 100) + '%"></span></span><span>' + r.left + " days</span></span>"
+      : '<span class="muted">Window over</span>';
+    return '<tr><td><span class="mono">' + esc(r.date) + '</span><span class="ago">' + r.days_since + " days ago</span></td>" +
+      "<td>" + win + "</td>" +
       '<td class="wrap-cell"><button class="linkish" data-company="' + esc(r.cik) + '"><span class="ticker">' + esc(r.ticker || "—") + "</span></button> " + esc(r.name) + "</td>" +
       "<td>" + chip(r.group) + "</td>" +
       '<td class="num">' + r.insiders + '</td><td class="num">' + money(r.value) + "</td>" +
-      '<td class="muted">' + esc(r.roles) + "</td><td>" + scoreCell(r) + "</td>" +
-      '<td class="num">' + (r.pct === null ? "–" : Math.round(r.pct * 100) + "th") + "</td></tr>";
+      '<td class="muted">' + esc(r.roles) + "</td><td>" + scoreCell(r) + "</td></tr>";
   }
   function renderScreener() {
+    const w = $("#f-window").value;
     const g = $("#f-group").value;
     const minS = Number($("#f-score").value);
     const minV = Number($("#f-value").value);
     const q = $("#f-text").value.trim().toLowerCase();
     const list = DATA.screener.filter((r) =>
+      (w === "all" || r.window_open) &&
       (g === "all" || r.group === g) &&
       (minS === 0 || (r.score !== null && r.score >= minS)) &&
       r.value >= minV &&
@@ -370,7 +378,7 @@
       th.setAttribute("aria-sort", th.dataset.sort === sortKey ? (sortDir > 0 ? "ascending" : "descending") : "none");
     });
   }
-  ["f-group", "f-score", "f-value"].forEach((id) => $("#" + id).addEventListener("change", renderScreener));
+  ["f-window", "f-group", "f-score", "f-value"].forEach((id) => $("#" + id).addEventListener("change", renderScreener));
   $("#f-text").addEventListener("input", renderScreener);
   $$("#screener-table th.sortable").forEach((th) => {
     th.tabIndex = 0;
@@ -562,7 +570,7 @@
     }));
   }
   function show(tab, updateHash) {
-    if (!TABS.includes(tab)) tab = "overview";
+    if (!TABS.includes(tab)) tab = "screener";
     $$('[role="tabpanel"]').forEach((p) => { p.hidden = p.id !== tab; });
     $$(".tab").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === tab ? "true" : "false"));
     if (updateHash !== false) { try { history.replaceState(null, "", "#" + tab); } catch (e) { /* sandboxed */ } }
@@ -596,6 +604,7 @@
   });
 
   const start = (location.hash || "").replace("#", "");
-  show(TABS.includes(start) ? start : "overview", false);
+  renderScreener();
+  show(TABS.includes(start) ? start : "screener", false);
   window.addEventListener("load", () => { if (start) window.scrollTo(0, 0); });
 })();

@@ -76,7 +76,10 @@ def _coverage(events: pd.DataFrame, ret: pd.DataFrame) -> dict:
     return out
 
 
-def _screener(events, features, scores, g8_fail) -> list[dict]:
+def _screener(events, features, scores, g8_fail, calendar, horizon) -> list[dict]:
+    """Recent events for the screener. Elapsed time uses the trading calendar only (no prices
+    of the stock, no outcomes): sessions after the filing date up to the latest session."""
+    as_of = calendar[-1]
     recent = events[events["sample"] == "recent"].copy()
     recent = recent.merge(
         features[["event_id", "f04_ceo_cfo", "f05_directors", "f06_ten_pct"]],
@@ -88,6 +91,7 @@ def _screener(events, features, scores, g8_fail) -> list[dict]:
     rows = []
     for r in recent.sort_values(["signal_date", "total_value_usd"], ascending=False).itertuples():
         score = getattr(r, "score", np.nan)
+        elapsed = len(calendar) - int(calendar.searchsorted(pd.Timestamp(r.signal_date), "right"))
         rows.append(
             {
                 "id": r.event_id,
@@ -107,6 +111,10 @@ def _screener(events, features, scores, g8_fail) -> list[dict]:
                 else round(float(r.percentile), 3),
                 "partial": bool(getattr(r, "partial", False)) if pd.notna(score) else False,
                 "listed": bool(r.listed),
+                "days_since": int((as_of - pd.Timestamp(r.signal_date)).days),
+                "elapsed": int(elapsed),
+                "left": int(max(horizon - elapsed, 0)),
+                "window_open": bool(elapsed < horizon),
                 "g8_fail": r.event_id in g8_fail,
             }
         )
@@ -189,7 +197,10 @@ def run(skip_prices: bool, echo, timed) -> None:
     with timed("company profiles"):
         lookup = company_data.build(events, companies, scores, s, [SITE, ARTIFACT])
     funnel, coverage = _funnel(events, ret), _coverage(events, ret)
-    screener = _screener(events[~events["event_id"].isin(g7_events)], features, scores, g8_fail)
+    calendar = prices["SPY"].index
+    screener = _screener(
+        events[~events["event_id"].isin(g7_events)], features, scores, g8_fail, calendar, h
+    )
     context = {
         "meta": {
             "built": datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
@@ -201,6 +212,7 @@ def run(skip_prices: bool, echo, timed) -> None:
             "shards": lookup["shards"],
             "companies": lookup["count"],
             "g7_excluded": len(g7_events),
+            "as_of": str(calendar[-1].date()),
         },
         "funnel": funnel,
         "coverage": coverage,

@@ -183,6 +183,7 @@ def view_model(c: dict) -> dict:
         },
         "recent": {
             "total": len(recent),
+            "open": sum(r["window_open"] for r in recent),
             "a": sum(r["group"] == "A" for r in recent),
             "b1": sum(r["group"] == "B1" for r in recent),
             "scored": len(scored),
@@ -192,7 +193,9 @@ def view_model(c: dict) -> dict:
         "pilot_total": pilot_total,
         "coverage_share": used_total / pilot_total if pilot_total else 0,
         "coverage": [(g, cov[g]) for g in ("A", "B1")],
-        "top_recent": sorted(scored, key=lambda r: r["score"], reverse=True)[:6],
+        "top_recent": sorted(
+            (r for r in scored if r["window_open"]), key=lambda r: r["score"], reverse=True
+        )[:6],
         "horizon_rows": {
             bench: [
                 {

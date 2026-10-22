@@ -27,7 +27,7 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="brand" href="#overview" data-tab="overview" aria-label="EDGAR-SENTINEL home">
+    <a class="brand" href="#screener" data-tab="screener" aria-label="EDGAR-SENTINEL home">
       <svg class="brand-mark" viewBox="0 0 26 26" aria-hidden="true">
         <rect x="1" y="1" width="24" height="24" rx="6" fill="var(--ink)"/>
         <path d="M6 17.5 10.5 12l3.2 3.2L20 8" fill="none" stroke="var(--surface)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -37,7 +37,7 @@
       <span class="badge">MVP</span>
     </a>
     <nav class="tabs" role="tablist" aria-label="Sections">
-      {% for id, name in [("overview","Overview"),("findings","Findings"),("model","Model"),("screener","Latest clusters"),("company","Company lookup"),("method","Method & limits")] %}
+      {% for id, name in [("screener","New insider buying"),("overview","Does it work?"),("findings","Findings"),("model","Model"),("company","Company lookup"),("method","Method & limits")] %}
       <button class="tab" role="tab" id="tab-{{ id }}" data-tab="{{ id }}" aria-controls="{{ id }}" aria-selected="{{ 'true' if loop.first else 'false' }}">{{ name }}</button>
       {% endfor %}
     </nav>
@@ -50,7 +50,7 @@
 <main id="main" class="wrap">
 
 <!-- ============================== OVERVIEW ============================== -->
-<section id="overview" class="panel" role="tabpanel" aria-labelledby="tab-overview">
+<section id="overview" class="panel" role="tabpanel" aria-labelledby="tab-overview" hidden>
   <div class="panel-head">
     <p class="eyebrow">Capstone prototype · SEC Form 4 insider filings · 2006–2026</p>
     <h1>Do clusters of insider purchases predict stock returns?</h1>
@@ -81,7 +81,7 @@
     <div class="kpi">
       <span class="kpi-label">New insider events, Jul–Sep 2026</span>
       <span class="kpi-value">{{ v.recent.total }}</span>
-      <span class="kpi-sub">{{ v.recent.a }} clusters · {{ v.recent.b1 }} solo CEO/CFO · {{ v.recent.scored }} scored</span>
+      <span class="kpi-sub">{{ v.recent.a }} clusters · {{ v.recent.b1 }} solo CEO/CFO · {{ v.recent.open }} still inside their 3-month window</span>
     </div>
   </div>
   <div class="grid wide-left">
@@ -120,7 +120,7 @@
           </tbody>
         </table>
       </div>
-      <p><button class="linkish" data-tab="screener">Open all {{ v.recent.total }} events in the screener →</button></p>
+      <p><button class="linkish" data-tab="screener">See all new insider buying →</button></p>
     </article>
   </div>
   <div class="grid three">
@@ -309,14 +309,17 @@
 </section>
 
 <!-- ============================== SCREENER ============================== -->
-<section id="screener" class="panel" role="tabpanel" aria-labelledby="tab-screener" hidden>
+<section id="screener" class="panel" role="tabpanel" aria-labelledby="tab-screener">
   <div class="panel-head">
-    <p class="eyebrow">Screener · filed {{ c.meta.recent[0] }} to {{ c.meta.recent[1] }}</p>
-    <h1>Latest insider clusters</h1>
-    <p class="lead">Every cluster and solo CEO/CFO purchase in the newest quarter of SEC data, scored by the pilot model. The score is the predicted chance of beating small caps over the next 63 trading days after costs; the percentile compares it with all pilot events.</p>
+    <p class="eyebrow">Screener · Form 4s filed {{ c.meta.recent[0] }} to {{ c.meta.recent[1] }} · prices as of {{ c.meta.as_of }}</p>
+    <h1>New insider buying</h1>
+    <p class="lead">Clusters of insiders, and CEOs or CFOs, buying their own company's stock on the open market. The score is the model's estimated chance that the stock beats small caps (IWM) over the 63 trading days after the filing, once trading costs are paid. "Time left" counts the trading days remaining in that window.</p>
   </div>
   {{ banner("Scores come from a weak, survivors-only pilot model and are not investment advice. No outcome is shown for these events.") }}
+  <p class="evidence">How reliable are the scores? In the 2011 test, events in the top fifth of scores beat small caps by {{ v.m.top5|pct }} after costs against {{ v.m.all|pct }} for all events, but overall ranking skill was close to chance (AUC {{ "%.2f"|format(v.m.auc) }}, where 0.50 is a coin flip). <button class="linkish" data-tab="model">See the model test →</button></p>
   <div class="filters" role="search">
+    <div class="field"><label for="f-window">Window</label>
+      <select id="f-window"><option value="open">Still open</option><option value="all">All events</option></select></div>
     <div class="field"><label for="f-group">Type</label>
       <select id="f-group"><option value="all">All types</option><option value="A">Clusters</option><option value="B1">Solo CEO/CFO</option></select></div>
     <div class="field"><label for="f-score">Minimum score</label>
@@ -325,31 +328,31 @@
       <select id="f-value"><option value="0">Any value</option><option value="250000">$250k or more</option><option value="1000000">$1M or more</option><option value="5000000">$5M or more</option></select></div>
     <div class="field" style="flex:1;min-width:180px"><label for="f-text">Company or ticker</label>
       <input id="f-text" type="search" placeholder="e.g. bank, AAPL" autocomplete="off"></div>
-    <span class="count" id="screener-count" aria-live="polite">{{ c.screener|length }} events</span>
+    <span class="count" id="screener-count" aria-live="polite">{{ v.recent.open }} of {{ c.screener|length }} events</span>
   </div>
   <div class="table-wrap">
     <table id="screener-table">
       <thead><tr>
         <th class="sortable" data-sort="date" aria-sort="descending">Filed</th>
+        <th class="sortable" data-sort="left">Time left</th>
         <th class="sortable" data-sort="name">Company</th>
         <th class="sortable" data-sort="group">Type</th>
         <th class="sortable num" data-sort="insiders">Insiders</th>
         <th class="sortable num" data-sort="value">Value</th>
         <th>Roles</th>
         <th class="sortable" data-sort="score">Score</th>
-        <th class="sortable num" data-sort="pct">Pilot percentile</th>
       </tr></thead>
       <tbody id="screener-body">
-      {% for r in c.screener %}
+      {% for r in c.screener if r.window_open %}
         <tr>
-          <td class="mono">{{ r.date }}</td>
+          <td><span class="mono">{{ r.date }}</span><span class="ago">{{ r.days_since }} days ago</span></td>
+          <td><span class="winbar"><span class="track"><span class="fill" style="width:{{ (r.left / c.meta.horizon * 100)|round(0) }}%"></span></span><span>{{ r.left }} days</span></span></td>
           <td class="wrap-cell"><button class="linkish" data-company="{{ r.cik }}"><span class="ticker">{{ r.ticker or "—" }}</span></button> {{ r.name }}</td>
           <td><span class="chip {{ r.group|lower }}"><i></i>{{ "Cluster" if r.group == "A" else "Solo CEO/CFO" }}</span></td>
           <td class="num">{{ r.insiders }}</td>
           <td class="num">{{ r.value|money }}</td>
           <td class="muted">{{ r.roles }}</td>
-          <td>{% if r.g8_fail %}<span class="muted">price check failed</span>{% elif r.score is not none %}<span class="scorebar"><span class="track"><span class="fill" style="width:{{ (r.score * 100)|round(0) }}%"></span></span><span>{{ "%.0f"|format(r.score * 100) }}%</span></span>{% if r.partial %}<span class="flag">partial data</span>{% endif %}{% else %}<span class="muted">not priced</span>{% endif %}</td>
-          <td class="num">{{ ("%.0f"|format(r.pct * 100) ~ "th") if r.pct is not none else "–" }}</td>
+          <td>{% if r.g8_fail %}<span class="muted">price check failed</span>{% elif r.score is not none %}<span class="scorebar"><span class="track"><span class="fill" style="width:{{ (r.score * 100)|round(0) }}%"></span></span><span>{{ "%.0f"|format(r.score * 100) }}%</span></span>{% if r.pct is not none %}<span class="ago">higher than {{ "%.0f"|format(r.pct * 100) }}% of pilot events</span>{% endif %}{% if r.partial %}<span class="flag">partial data</span>{% endif %}{% else %}<span class="muted">not priced</span>{% endif %}</td>
         </tr>
       {% endfor %}
       </tbody>

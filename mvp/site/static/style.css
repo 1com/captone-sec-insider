@@ -253,6 +253,11 @@ th.sortable[aria-sort="descending"]::after { content: " ↓"; }
 .scorebar { display: inline-grid; grid-template-columns: 64px auto; align-items: center; gap: 8px; }
 .scorebar .track { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
 .scorebar .fill { display: block; height: 100%; border-radius: 3px; background: var(--s1); }
+.ago { display: block; font-size: 0.74rem; color: var(--muted); }
+.winbar { display: inline-grid; grid-template-columns: 48px auto; align-items: center; gap: 8px; font-size: 0.84rem; }
+.winbar .track { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.winbar .fill { display: block; height: 100%; border-radius: 3px; background: var(--ref); }
+.evidence { color: var(--ink-2); font-size: 0.9rem; max-width: 90ch; }
 .flag { font-size: 0.72rem; color: var(--muted); border: 1px dashed var(--line-strong); border-radius: 4px; padding: 0 4px; margin-left: 6px; }
 
 /* Filters */
