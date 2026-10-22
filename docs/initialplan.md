@@ -2,7 +2,8 @@
 
 **Do clusters of insider purchases predict stock returns — and can machine learning tell the good ones from the bad?**
 
-Research and engineering specification · Version 2.1 · 21 October 2026
+Research and engineering specification · Version 2.2 · 22 October 2026
+v2.2: one month of Tiingo Power replaces the free-tier price budget, and the start of the labelled window is decided before the pre-registration (decisions D39–D40)
 Status: draft for review. The pre-registration is locked after review and before any return is computed (§3.3)
 Capstone duration: 4 weeks (22 October – 18 November 2026)
 
@@ -57,7 +58,7 @@ Returns are studied for events from **2016 onward**. That is the earliest start 
 
 **Method, in two stages.**
 
-1. **Event study.** Measure what happened after each cluster. The comparison groups are a CEO or CFO buying alone and — if the price budget allows — another insider buying alone. Returns are measured over horizons from one week to one year and against several benchmarks, net of estimated trading costs.
+1. **Event study.** Measure what happened after each cluster. The comparison groups are a CEO or CFO buying alone and — time permitting — another insider buying alone. Returns are measured over horizons from one week to one year and against several benchmarks, net of estimated trading costs.
 2. **Machine learning.** Three classifiers (elastic-net logistic regression, random forest, LightGBM) are trained with purged walk-forward validation. Each predicts whether a cluster will beat its industry peers over the next 63 trading days by more than its own trading cost. They are compared with simple baselines, including a model that sees only market data, and the chosen model is evaluated exactly once on a locked holdout (2023 onward).
 
 **Deliverables.**
@@ -183,9 +184,9 @@ Scope is prioritised with MoSCoW (Must / Should / Could / Won't). ML is a **Must
 | Priority | In scope |
 |---|---|
 | **Must** | Insider data pipeline for all 83 quarters, with point-in-time entities and roles. Clean-purchase gates with a funnel audit. Point-in-time industry codes from filing headers. Event detection: clusters (A) and solo CEO/CFO buys (B1). Prices with delisted-stock coverage, delisting returns, and best/worst-case bounds (including for unpriced events). Label grid: 5 horizons × 4 abnormal-return measures, gross and net of cost. Point-in-time features. Event study on the development period. ML tournament with baselines (including a market-only model), calibration, SHAP explanations and experiment tracking. One-time holdout evaluation. Product v1: insider lookup for any stock, and a screener of the latest clusters from the newest quarterly data set. Written report |
-| **Should** | Comparison group B2 (solo other insiders), if the delisted-price budget allows (§5.2). Daily ingestion of new Form 4 filings from EDGAR, so the screener stays current. Pre-listed sensitivity variants on the development period (Appendix E) |
+| **Should** | Comparison group B2 (solo other insiders), time permitting (cut order, §9.3). Daily ingestion of new Form 4 filings from EDGAR, so the screener stays current. Pre-listed sensitivity variants on the development period (Appendix E) |
 | **Could** | A book-to-market feature from XBRL equity values. Dimson-adjusted betas for the per-event factor measure. An exploratory regression model on net returns. Public deployment |
-| **Won't (this version)** | Macroeconomic features. Full XBRL fundamentals. A matched "no insider buying" control group. Signals from insider *selling*. Intraday data. Paid data (planned for a later, non-course version) |
+| **Won't (this version)** | Macroeconomic features. Full XBRL fundamentals. A matched "no insider buying" control group. Signals from insider *selling*. Intraday data. Paid data beyond the one-month Tiingo Power plan (D39) |
 
 ---
 
@@ -199,7 +200,7 @@ Scope is prioritised with MoSCoW (Must / Should / Could / Won't). ML is a **Must
 | SEC company facts API (XBRL) | Shares outstanding (`dei:EntityCommonStockSharesOutstanding`), with filing dates | From each company's XBRL start: large companies 2009–2010, smaller companies from mid-2011 (SEC Release No. 33-9002) | Same policy | Public |
 | SEC `company_tickers.json` | Current CIK ↔ ticker map for active companies | Current only | Same policy | Public |
 | Yahoo Finance via `yfinance` | Daily prices and volume for listed stocks, SPY and IWM. Yahoo's open, high, low and close are already **split-adjusted**; "Adj Close" also removes dividends; the split history is available | Listed stocks only — **no history for delisted stocks** | Unofficial API; rate-limited; every response cached | Personal use; no redistribution |
-| Tiingo end-of-day API (free tier) | Daily raw and adjusted prices for **delisted** stocks | Tiingo's public ticker list includes about 8,100 delisted NYSE, Nasdaq and NYSE American stocks | 500 unique symbols per month, 50 requests per hour, 1,000 requests per day | "Internal use only" |
+| Tiingo end-of-day API (Power plan, one month; D39) | Daily raw and adjusted prices for **delisted** stocks | Tiingo's public ticker list includes about 8,100 delisted NYSE, Nasdaq and NYSE American stocks. A delisted company's history is filed under its final ticker, often a bankruptcy `Q` ticker on an OTC venue | 110,346 unique symbols per month, 10,000 requests per hour, 100,000 per day | "Internal use only". Data may be stored only while the paid plan is active, and is deleted when it ends (ToS §1.6(b)) |
 | FINRA Tick Size Pilot lists | Which small-cap stocks were quoted in $0.05 increments, October 2016 – September 2018 | The pilot period only | Free download | Public |
 | Kenneth French Data Library | Daily Fama–French five factors, momentum and short-term reversal; daily equal- and value-weighted returns for 49 and 12 industry portfolios; SIC-to-industry definitions; NYSE market-cap breakpoints | Decades of history, through 31 August 2026 at the time of writing (updated with a lag of a few months) | Free download | Free for research use |
 
@@ -207,7 +208,7 @@ Scope is prioritised with MoSCoW (Must / Should / Could / Won't). ML is a **Must
 - **FRED** macroeconomic series — macro features were dropped (§12, D24).
 - **Stooq** — blocks scripted downloads with a browser check.
 - **CRSP and Compustat** — not available.
-- **Tiingo's paid tier** — this course version uses free data only. A later version can use a paid subscription.
+- **Tiingo's free Starter plan** — its terms forbid storing Tiingo data (ToS §1.6(a), updated 6 October 2026), so it cannot feed a stored raw snapshot. Outside the paid month, only Tiingo's public ticker list is used, in memory.
 
 ### 5.1 Why two price sources: survivorship bias
 
@@ -217,21 +218,12 @@ In the pilot, Yahoo returned no prices at all for Silicon Valley Bank (SIVB), Fi
 
 If only Yahoo were used, every event at a company that later disappeared would drop out of the data, and the results would describe survivors only (Brown, Goetzmann, Ibbotson & Ross, 1992; Shumway, 1997). The direction of that bias is not obvious. Failures would be lost, which flatters insider buying, but so would takeovers, which often end with a premium. Neither can be dropped. Tiingo keeps delisted histories, so its limited free allowance is spent **only** on stocks Yahoo cannot supply.
 
-### 5.2 The binding constraint: the free delisted-price budget
+### 5.2 Delisted-stock prices and the start of the labelled window
 
-Tiingo's free tier allows 500 different symbols per month. One request returns a symbol's full history, so the budget is counted in *symbols*, not requests.
-
-- **If the allowance resets each calendar month**, the project calendar gives about 1,000 symbols: October's 500 and November's 500. October's allowance is lost if not used by 31 October, so the first pull starts on Day 1–2. It draws on the pilot's list of delisted cluster and solo-CEO/CFO companies from 2016, and a full-history pull now will cover nearly all of the production list later.
-- **If the allowance is a rolling 30-day window**, only one allowance falls inside the project.
-- **The reset rule is confirmed with Tiingo on Day 1.**
-
-**Budget rule (pre-registered).**
-- *D(Y)* is the number of Tiingo symbols needed to price the delisted companies with A or B1 events whose signal date falls in year Y or later, *after* the production symbol map.
-- Companies that cannot be matched to any price source are reported, not counted.
-- A reserve of 50 symbols is kept for retries.
-- The labelled window starts on 1 January of the earliest year Y with D(Y) ≤ 950, or ≤ 450 if only one allowance is available.
-
-Insider filings from 2006 onward are used for history-based features wherever the labelled window starts. A paid Tiingo subscription would lift the constraint. It is out of scope for this course version by decision; a later version can use one to extend the window back to 2006.
+**Why a paid month.** Tiingo's free Starter plan forbids writing Tiingo data to any persistent storage (ToS §1.6(a), updated 6 October 2026). This design needs stored prices: a raw snapshot and a warehouse (§8). One month of Tiingo Power is therefore used for delisted stocks (D39).
+- Power allows 110,346 unique symbols a month and 10,000 requests an hour, so the 500-symbol budget of the free plan, and the budget rule of v2.1, no longer apply (D40).
+- Storage is allowed only while the paid plan is active (§1.6(b)). When it ends, all Tiingo data is deleted, including per-stock tables derived from it, and the deletion is logged (constitution Principle VI).
+- The month starts on the day of the delisted-price pull (Step 7), so it covers the hand-in on 18 November. The offline-rebuild check (Step 21) runs before the plan expires (constitution Principle V).
 
 **Pilot result.** The full 2006–2026 scan (Appendix A.3) counted, for each possible start year, the distinct companies with A or B1 events:
 
@@ -243,15 +235,17 @@ Insider filings from 2006 onward are used for history-based features wherever th
 | 2014 | 13,404 | 4,545 | 1,234 | 413 (9%) |
 | 2016 | 11,162 | 4,039 | 955 | 340 (8%) |
 
-**What this shows.**
-1. The free budget points to **2016**. The pilot's D(2016) of about 955 sits right at the limit. The production rules — entity merging and the officer/director condition — will remove some events, but if D(2016) still exceeds 950, the rule moves the start to 2017.
-2. Free coverage is also weaker for older periods. The share of companies not matched to Tiingo's ticker list falls from 18% for a 2006 start to 8% for a 2016 start. Some of these will be recovered by the production symbol map; the rest are excluded, and covered by the bounds in §6.7.
+Feature 001 rebuilt this scan from the SEC data (`sentinel candidates-provisional`, `specs/001-skeleton-sec-ingest/run-notes.md`). Events and companies agree with the pilot to within 0.7%. With matching widened to OTC venues and bankruptcy `Q` tickers, about 2,235 delisted companies across 2006–2026 are found in Tiingo's list, 1,152 of them with events from 2016.
 
-**Default: the labelled window starts on 1 January 2016.**
-- The development period is 2016–2022.
-- The holdout covers signal dates from 1 January 2023 to 1 June 2026, fixed now: 1 June 2026 is the last signal date whose 63-session window ends by 31 August 2026, the last date of the factor data.
-- Every labelled event has at least ten years of insider history behind it.
-- The cost of this choice: the 2008–09 crisis drops out of the return analysis. This is accepted for the course version; a later version with a paid subscription can restore it.
+**What this shows.**
+1. Every start year fits comfortably within the paid allowance.
+2. Coverage is weaker for older periods. In the pilot, the share of companies not matched to Tiingo's ticker list falls from 18% for a 2006 start to 8% for a 2016 start. Some of these will be recovered by the production symbol map (Step 6), which must look up a company's final, often `Q`-suffixed, ticker. The rest are excluded and covered by the bounds in §6.7.
+
+**Start of the labelled window: decided before `prereg-v1`.** The default remains 1 January 2016, but the start was set by the free budget, which no longer binds. It is therefore fixed on research grounds before the pre-registration tag, and recorded in §12.
+- **2016 (default).** The development period is 2016–2022. Every labelled event has at least ten years of insider history behind it. The 2008–09 crisis is outside the return analysis.
+- **An earlier start, such as 2011.** Adds about 5,000 events and more training data. Small companies' XBRL share counts, needed for market capitalisation (D23), begin in mid-2011.
+- **2006.** Adds the 2008–09 crisis, but share counts are missing before 2009–2011 and price coverage is weakest.
+- **In every case** the holdout stays fixed: signal dates from 1 January 2023 to 1 June 2026. 1 June 2026 is the last signal date whose 63-session window ends by 31 August 2026, the last date of the factor data. Insider filings from 2006 onward feed the history-based features.
 
 ---
 
@@ -533,7 +527,7 @@ holdout model  [──────────── all development data ──
 inside every training window:  [ fit set ……… ][ tuning: months −12…−7 ][ calibration: months −6…−1 ]
 ```
 
-- **Folds.** Four yearly test folds, 2019–2022. Each training window holds all events whose label windows end before its test year begins. If the budget rule moves the start year, the folds move with it, always keeping the first three years for training only.
+- **Folds.** Four yearly test folds, 2019–2022. Each training window holds all events whose label windows end before its test year begins. If the start year changes (§5.2), the folds move with it, always keeping the first three years for training only.
 - **Three-way split inside each training window:**
   1. The **fit set** is everything before the last 12 months.
   2. The **tuning slice** (months −12 to −7) chooses hyperparameters and the number of boosting rounds.
@@ -647,7 +641,7 @@ Every Python package below was verified to install and import on Python 3.14.4 o
 | Storage and compute | **DuckDB 1.5** + Parquet (pyarrow 25) | A columnar SQL engine in a single file: fast analytical queries over tens of millions of rows, no server, easy to share. Postgres would add operational work with no research benefit |
 | Data frames | pandas 3.0 | Interoperates with scikit-learn and statsmodels |
 | HTTP | httpx 0.28 | Timeouts and retries; a shared rate limiter enforces the SEC and Tiingo limits |
-| Prices | yfinance 1.7 (listed), Tiingo REST API (delisted) | Free sources (§5) |
+| Prices | yfinance 1.7 (listed), Tiingo REST API (delisted) | Free for listed stocks; one paid month of Tiingo for delisted ones (§5.2, D39) |
 | ML | scikit-learn 1.9, LightGBM 4.7, SHAP 0.54 | Standard, well-documented libraries for the three models, calibration and explanations |
 | Statistics | statsmodels 0.15 | Factor regressions, Newey–West standard errors |
 | Experiment tracking | MLflow 3.17 (local file store) | Records every run without a server |
@@ -698,7 +692,7 @@ capstone/
   - Locked dependencies and a single parameter file.
   - A raw-data manifest with hashes, and fixed random seeds.
   - Every model run is linked to a git commit and a data snapshot.
-  - **Offline rebuild:** because Tiingo, Yahoo and the French library cannot be re-downloaded identically, reproducibility is defined as follows. A clean clone, plus the archived `data/raw` snapshot (checked against the manifest hashes), regenerates the key tables with no network access. The snapshot is kept private for licensing reasons.
+  - **Offline rebuild:** because Tiingo, Yahoo and the French library cannot be re-downloaded identically, reproducibility is defined as follows. A clean clone, plus the archived `data/raw` snapshot (checked against the manifest hashes), regenerates the key tables with no network access. The snapshot is kept private for licensing reasons. Tiingo files are in it only while the paid plan is active, so this check runs before the plan expires; later rebuilds exclude delisted-stock prices and say so (constitution Principle V).
 
 ### 8.6 Product v1
 
@@ -730,7 +724,7 @@ capstone/
 
 **Licensing.**
 - SEC data is public and can be displayed.
-- Tiingo's free tier is for internal use only, and Yahoo's terms restrict redistribution. The product therefore does **not** display raw prices from either; charts come from an embeddable third-party widget licensed for public display.
+- Tiingo's licence (free and paid plans alike) is for internal use only, and Yahoo's terms restrict redistribution. The product therefore does **not** display raw prices from either; charts come from an embeddable third-party widget licensed for public display.
 - Whether model scores derived from these prices may be shown publicly must be checked against the providers' terms before any public launch. The capstone demonstration is private.
 
 ---
@@ -770,7 +764,7 @@ The product's lookup page runs as a parallel track from Week 2, because it needs
 
 | Step | What we do | Output | Done when |
 |---|---|---|---|
-| 0 | Create the repository structure, environment and parameter file. Set the SEC `User-Agent` with a real contact. Obtain a Tiingo key and confirm how its symbol allowance resets. **Start the October Tiingo pull** from the pilot's list of delisted A and B1 companies from 2016, clusters first. Commit this draft | Runnable skeleton; first delisted price histories | `uv run sentinel --help` works; October pull running |
+| 0 | Create the repository structure, environment and parameter file. Set the SEC `User-Agent` with a real contact. Obtain a Tiingo key. Rebuild the pilot's list of delisted A and B1 companies from the SEC data (`sentinel candidates-provisional`). Commit this draft | Runnable skeleton; provisional delisted-candidate list | `uv run sentinel --help` works; candidate list ready |
 
 **Phase 1 — Insider data foundation (Week 1)**
 
@@ -781,13 +775,13 @@ The product's lookup page runs as a parallel track from Week 2, because it needs
 | 3 | Build point-in-time entities and roles (§6.3) | `core.entity_member` | Truncation test passes; hand check of 50 random entities |
 | 4 | Apply gates G1–G6. Keep all transaction types, for the product and the features | `core.transaction`, `core.clean_purchase`, `audit.funnel` | Funnel reconciles; hand check of 50 excluded and 50 kept rows |
 | 5 | Preliminary event detection (A, B1, B2), used to choose which symbols to price | Candidate events | Unit tests pass |
-| 6 | Map issuers to price symbols: SEC's ticker file for active companies, Form 4 symbol history for delisted ones. Start the background fetch of signal-filing headers (SIC at T, acceptance time). **Apply the budget rule (§5.2)** and queue the November Tiingo pull | `core.symbol_map`; labelled-window decision | October allowance used before 31 October; window recorded in §12 |
+| 6 | Map issuers to price symbols: SEC's ticker file for active companies, Form 4 symbol history for delisted ones. Start the background fetch of signal-filing headers (SIC at T, acceptance time). Look up delisted companies' final Tiingo tickers (often a bankruptcy `Q` ticker on an OTC venue). **Fix the start of the labelled window (§5.2)** | `core.symbol_map`; labelled-window decision | Window recorded in §12 |
 
 **Phase 2 — Prices, labels, features (Week 2)**
 
 | Step | What we do | Output | Done when |
 |---|---|---|---|
-| 7 | Fetch prices: Yahoo for listed stocks, SPY and IWM (with unadjusted prices rebuilt from split histories); Tiingo for delisted stocks. Download the factor, industry and breakpoint files. Run G8; run final event detection with G7, the floors and the cooldown | `core.price_daily`, reference tables, `evt.event` | Price tests pass; coverage report (target ≥ 90%); 30-event golden set matches EDGAR |
+| 7 | Fetch prices: Yahoo for listed stocks, SPY and IWM (with unadjusted prices rebuilt from split histories); Tiingo for delisted stocks (the one-month Power plan starts that day, D39). Download the factor, industry and breakpoint files. Run G8; run final event detection with G7, the floors and the cooldown | `core.price_daily`, reference tables, `evt.event` | Price tests pass; coverage report (target ≥ 90%); 30-event golden set matches EDGAR |
 | 8 | Classify delistings (acquired / performance-related / unknown) and assign delisting returns | `core.delisting` | Hand check of 30 companies across all three classes |
 | 9 | Load shares outstanding from XBRL (first-filed values only) | `core.shares_out` | Market caps match known examples |
 | 10 | Estimate spreads and costs | Cost estimates | Plot of estimated cost by price bucket |
@@ -813,18 +807,18 @@ The product's lookup page runs as a parallel track from Week 2, because it needs
 | 18 | **Guarded holdout job:** compute holdout labels and F10 outcomes in the `hold` schema; fit the holdout model by the same recipe; evaluate once (H4, H5; H1–H3 replications; the checkbox-off variant) | Holdout report | Guard log shows a single run |
 | 19 | Refit the production model; score the latest clusters; finish the screener and the model card | Running application | All endpoints tested; demo script |
 | 20 | Robustness: the pre-listed sensitivity variants (Appendix E), on the development period only | Sensitivity tables | Every listed variant run once; any holdout sensitivity is labelled exploratory |
-| 21 | Final report and presentation; offline rebuild check | Report, slides, tagged release | Clean clone + raw snapshot regenerates the key tables offline |
+| 21 | Final report and presentation; offline rebuild check before the Tiingo plan expires; then delete all Tiingo data and log it | Report, slides, tagged release | Clean clone + raw snapshot regenerates the key tables offline; Tiingo deletion logged in §12 |
 
 ### 9.3 Calendar, checkpoints and cut order
 
 | Week | Dates (2026) | Steps | Checkpoint at the end of the week |
 |---|---|---|---|
-| 1 | 22–28 Oct | 0–6 | Event counts known; labelled window confirmed (the pilot indicates 2016); October allowance being spent |
-| 2 | 29 Oct – 4 Nov | 7–12, P | Price coverage reported (target ≥ 90%); pre-registration locked; development labels and features pass point-in-time tests; lookup page working |
+| 1 | 22–28 Oct | 0–6 | Event counts known; delisted-candidate list ready; start of the labelled window decided (§5.2) |
+| 2 | 29 Oct – 4 Nov | 7–12, P | Tiingo month started with the price pull; price coverage reported (target ≥ 90%); pre-registration locked; development labels and features pass point-in-time tests; lookup page working |
 | 3 | 5–11 Nov | 13–17 | Event-study results frozen; model selected |
 | 4 | 12–18 Nov | 18–21 | Holdout evaluated; product demo; report submitted |
 
-**Critical path: Step 0 → Step 6 → Step 7.** Delisted-stock prices gate everything downstream, so the October pull starts on Days 1–2 and the November pull on 1–2 November.
+**Critical path: Step 0 → Step 6 → Step 7.** Delisted-stock prices gate everything downstream, so the delisted-candidate list is built in Week 1 and the Tiingo pull starts at the beginning of Week 2, on the first day of the paid month.
 
 **Pre-registered cut order.** If Week 2 slips by more than two days, the following are dropped in this order:
 1. Daily EDGAR ingestion.
@@ -840,10 +834,10 @@ The ML core is never cut.
 
 | # | Risk | Likelihood / impact | Mitigation |
 |---|---|---|---|
-| R1 | Free delisted-price budget too small | **Confirmed by the pilot** — it fits 2016 onward at best | Budget rule (§5.2); priority A > B1 > B2; bounds for unpriced events. A paid subscription is deferred to a later, non-course version |
-| R2 | Tiingo's allowance turns out to be a rolling 30 days | Medium / High | Rule with 450 symbols; start year moves later; confirmed on Day 1 |
+| R1 | The free Tiingo plan cannot be used: its terms forbid storing data | **Confirmed** (ToS §1.6(a)) | One month of Tiingo Power (D39); bounds for unpriced events (§6.7) |
+| R2 | The paid month ends before the work that needs Tiingo data is finished | Low / High | Subscribe on the day of the pull (about 29 Oct, so it runs to about 28 Nov); finish labels and the offline rebuild first; a second month would need a constitution amendment |
 | R3 | Wrong ticker matches (ticker changes and reuse) | Medium / High | CIK-based symbol history; date-overlap checks; G8; hand audit |
-| R4 | `yfinance` breaks or is rate-limited (unofficial API) | Medium / Medium | Cache every response; retries with back-off. There is no free fallback that doesn't draw on the Tiingo allowance, so a long outage slips the schedule |
+| R4 | `yfinance` breaks or is rate-limited (unofficial API) | Medium / Medium | Cache every response; retries with back-off. The Tiingo month is reserved for delisted stocks (D39), so a long outage slips the schedule |
 | R5 | Footnote filters miss plan or offering trades (mainly before 2023), or over-exclude | Medium / Medium | Hand audit to estimate precision; results re-run with the filters off (on the default event set) |
 | R6 | Effective sample is small; results driven by one or two crises | Medium / High | Time-robust inference; concurrency weights; calendar-time portfolios; sub-period results; power stated in advance (§3.3) |
 | R7 | Overfitting through repeated experimentation | Medium / High | Locked, time-stamped pre-registration; sealed holdout; small grids; one-standard-error rule; trial count; deflated Sharpe ratio |
@@ -856,8 +850,8 @@ The ML core is never cut.
 
 ## 11. Known limitations
 
-- **Free data is not CRSP.** Delisting returns are approximations, and some events cannot be priced. Their share is reported and bounded (§6.7).
-- **The 2008–09 crisis is outside the labelled window** under the free-data budget (§5.2). A later version with paid data can add it.
+- **Our data is not CRSP.** Delisting returns are approximations, and some events cannot be priced. Their share is reported and bounded (§6.7).
+- **The 2008–09 crisis is outside the labelled window** if the default 2016 start is kept (§5.2). An earlier start brings it in, at the cost of weaker price coverage and no XBRL share counts before 2009–2011.
 - **Industry fallback.** If a signal filing's header cannot be fetched, the issuer's current SIC code is used and flagged.
 - **Companies with several share classes** are mapped to their primary listed class.
 - **Plan and offering detection before 2023 depends on voluntary footnotes** and will miss some trades. The holdout is evaluated both with and without the checkbox gate (§7.2).
@@ -876,7 +870,7 @@ Every significant choice, what else was considered, and why. "v1" refers to the 
 | # | Decision | Alternatives considered | Reasoning |
 |---|---|---|---|
 | D1 | Research result first, product second | A product-first screener | A screener is only as good as the evidence behind its scores |
-| D2 | Ingest insider data for 2006 Q1 – 2026 Q3 (83 quarters); study returns for events from 2016 | v1: insider data and returns from 2011 Q1 (63 quarters). Returns from 2006 (~2,000 delisted symbols) | Insider history from 2006 feeds the features. The return window follows the pre-registered budget rule (§5.2), and free coverage of older delistings is also weaker (18% of companies unmatched for a 2006 start vs 8% for 2016). Cost: the 2008–09 crisis drops out. This is accepted for the course version; a later version with a paid subscription can restore it |
+| D2 | Ingest insider data for 2006 Q1 – 2026 Q3 (83 quarters); study returns for events from 2016 (start revisited under D40) | v1: insider data and returns from 2011 Q1 (63 quarters). Returns from 2006 (~2,000 delisted symbols) | Insider history from 2006 feeds the features. The return window follows the pre-registered budget rule (§5.2), and free coverage of older delistings is also weaker (18% of companies unmatched for a 2006 start vs 8% for 2016). Cost: the 2008–09 crisis drops out. This is accepted for the course version; a later version with a paid subscription can restore it |
 | D3 | All sectors, none treated specially | Biotech only; semiconductors only | Pilot: about 1 semiconductor cluster per quarter (about 80 in 20 years) — too few. Single-sector samples are dominated by single episodes (bank clusters jumped from 17 to 77 in the 2023 banking stress). Sector is a feature and a breakdown |
 | D4 | Micro-caps included | Exclude stocks below $5 | Insider signals are strongest in small firms (Lakonishok & Lee, 2001); floors and costs handle tradability |
 | D5 | $2 floor on the unadjusted price | $1; $5; adjusted prices | Tick-size cost floor, listing-compliance zone, the cost of a $5 filter (§6.5). Adjusted prices would select on future reverse splits |
@@ -896,7 +890,7 @@ Every significant choice, what else was considered, and why. "v1" refers to the 
 | D19 | Measures: SPY, IWM, equal-weighted industry (primary), FF5 + UMD | v1: IWM only; sector ETFs; QQQ | §6.6 |
 | D20 | Label: industry-adjusted 63-day BHAR net of the trade's own cost > 0 | v1: +5% vs IWM | §6.6 |
 | D21 | Three delisting classes, plus bounds for delisting returns and for unpriced events | Drop delisted events; treat every price gap as a failure | §6.7. Data gaps are not failures |
-| D22 | Free data: Yahoo for listed stocks, Tiingo for delisted ones | Paid data; Yahoo only | Owner preference; survivorship bias (§5.1) |
+| D22 | Free data: Yahoo for listed stocks, Tiingo for delisted ones (superseded for Tiingo by D39) | Paid data; Yahoo only | Owner preference; survivorship bias (§5.1) |
 | D23 | Only shares outstanding from XBRL | v1: full point-in-time fundamentals | Handling restated values is the biggest engineering risk; market cap is the essential piece |
 | D24 | No macroeconomic features | v1: VIX, yield curve, credit spreads, Fed funds rate | One or two crises in the training data, so the model could memorise them; analysed in the error analysis instead |
 | D25 | ML trained on clusters only | Pool clusters and solo events | The research question concerns clusters; pooling adds overlapping windows from the same issuer. About 5,800 development clusters before floors (Appendix A.3) |
@@ -1203,7 +1197,7 @@ Every number in the design, its basis, and how it is checked. Sensitivity varian
 | Parameter | Value | Basis | Sensitivity |
 |---|---|---|---|
 | Insider data period | 2006 Q1 – 2026 Q3 | All available SEC data sets | — |
-| Labelled window start | 1 Jan 2016 (pilot) | Budget rule, §5.2 | Moves to 2017 if the budget is exceeded |
+| Labelled window start | 1 Jan 2016 (default) | Fixed on research grounds before `prereg-v1` (§5.2, D40) | Earlier start under review before `prereg-v1` |
 | Holdout | Signal dates 1 Jan 2023 – 1 Jun 2026 | Most recent ~3.4 years; factor data end on 31 Aug 2026 | Fixed |
 | G6 minimum value | $10,000 per entity per filing | Removes 25–39% of filings but < 0.1% of dollars (pilot) | $5k; $25k |
 | G6 timeliness | Filed ≤ 30 days after the trade | The two-business-day rule; later filings describe old trades | 10; 90 days |
