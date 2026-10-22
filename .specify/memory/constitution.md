@@ -1,18 +1,3 @@
-<!--
-Sync Impact Report
-- Version change: (unversioned template) → 1.0.0
-- Modified principles: all five template placeholders replaced, and two principles added (seven in total):
-  I. Point-in-Time Integrity; II. Survivorship-Complete Data; III. Pre-Registration and a
-  Sealed Holdout; IV. Honest Statistics and Economics; V. Reproducibility; VI. Free, Lawful
-  and Respectful Data Use; VII. Simplicity and Scope Discipline
-- Added sections: Technical and Data Constraints; Development Workflow and Quality Gates
-- Removed sections: none
-- Templates requiring updates: none. plan-template.md reads the constitution at run time
-  through its "Constitution Check" gate. spec-template.md and tasks-template.md need no
-  changes.
-- Deferred TODOs: none
--->
-
 # EDGAR-SENTINEL Constitution
 
 ## Core Principles
@@ -75,12 +60,19 @@ Rationale: in this field, most apparent effects disappear under costs, factor co
 - **Environment.** Dependencies MUST be locked in `uv.lock`, and random seeds MUST be fixed.
 - **Model runs.** Every model run MUST be logged in MLflow, with its git commit, parameter-file hash and data snapshot.
 - **Offline rebuild.** A clean clone plus the archived raw snapshot MUST regenerate the key tables and figures without network access.
+  - While the paid Tiingo plan is active, the snapshot includes the Tiingo files, and the Step 21 offline-rebuild check MUST be run and logged before the plan expires.
+  - After the plan expires, the snapshot can no longer hold Tiingo files (Principle VI). A rebuild then excludes delisted-stock prices, and its outputs MUST say so prominently. It is not expected to reproduce results that depend on those prices.
 
 Rationale: free data sources change over time and cannot be re-downloaded identically. The archived snapshot is the only way to reproduce results.
 
-### VI. Free, Lawful and Respectful Data Use
+### VI. Lawful, Low-Cost and Respectful Data Use
 
-- **Free sources only.** The course version MUST use free data sources only.
+- **Free sources by default.** The course version MUST use free data sources, with one exception: one month of Tiingo Power for delisted-stock prices (decision D39, 2026-10-22). Any other paid source requires an amendment to this constitution.
+- **Tiingo storage.**
+  - Tiingo data MAY be stored only while a paid Tiingo plan is active (Tiingo ToS §1.6(b)).
+  - When the plan ends, all Tiingo data MUST be deleted from every system the project controls: `data/raw/`, the warehouse, caches and backups. The deletion MUST be logged in the decision log.
+  - Derived tables holding per-security values computed from Tiingo prices (for example, labels of delisted-stock events) count as Tiingo data for deletion. Only aggregate results that can neither substitute for nor reconstruct Tiingo prices (report tables, figures, model metrics) MAY be kept (ToS §1.6(c)).
+  - Without an active paid plan, Tiingo data, including its public ticker list, MUST be processed in memory only and never written to disk (ToS §1.6(a)).
 - **SEC fair access.** SEC requests MUST:
   - stay at or below 10 requests per second;
   - send a `User-Agent` with a real contact address.
@@ -88,7 +80,7 @@ Rationale: free data sources change over time and cannot be re-downloaded identi
 - **No redistribution.** The product MUST NOT redistribute raw Yahoo or Tiingo prices; charts use a widget licensed for public display.
 - **Secrets.** These live only in `.env`, which MUST stay git-ignored.
 
-Rationale: the project is public research. Its credibility depends on obtaining its data legitimately.
+Rationale: the project is public research. Its credibility depends on obtaining its data legitimately. The single paid exception is bounded in time and cost, and exists only because the free tier's terms forbid storing the delisted prices that Principle II requires.
 
 ### VII. Simplicity and Scope Discipline
 
@@ -108,10 +100,10 @@ Rationale: four weeks leaves no room for infrastructure that does not serve the 
   - SEC Insider Transactions Data Sets (2006 Q1 – 2026 Q3);
   - SEC filing headers, submissions and company facts;
   - Yahoo Finance (listed stocks);
-  - Tiingo free tier (delisted stocks);
+  - Tiingo Power, for one month (delisted stocks; decision D39). Outside the paid month, only Tiingo's public ticker list, in memory;
   - FINRA Tick Size Pilot lists;
   - the Kenneth French Data Library.
-- **Study window.** Returns are studied for events from 2016 onward, as set by the free delisted-price budget. Insider history from 2006 onward feeds the features.
+- **Study window.** Returns are studied for events from 2016 onward by default. The free delisted-price budget that set this start no longer binds (decision D40), so the start year MUST be fixed on research grounds before the `prereg-v1` tag and recorded in the decision log. Insider history from 2006 onward feeds the features.
 - **Parameter values.** The authoritative values (thresholds, floors, horizons, grids) are those in the parameter register of `docs/initialplan.md` and in `config/params.yaml`.
 
 ## Development Workflow and Quality Gates
@@ -139,4 +131,4 @@ Rationale: four weeks leaves no room for infrastructure that does not serve the 
   - PATCH: clarifications and wording.
 - **Compliance review.** Every plan and code review MUST verify point-in-time integrity, holdout sealing and net-of-cost reporting. Any added complexity MUST be justified against Principle VII.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-21 | **Last Amended**: 2026-10-21
+**Version**: 2.0.0 | **Ratified**: 2026-10-21 | **Last Amended**: 2026-10-22
