@@ -1,0 +1,29 @@
+# MVP-only settings (feature 003). Research parameters (horizons, floors, windows) are read from
+# config/params.yaml so the prototype uses the same definitions as the full study.
+version: 1
+
+pilot: {start: 2006-01-01, end: 2011-12-31}     # constitution Prototype Exception: outcomes only here
+recent: {start: 2026-07-01, end: 2026-09-30}    # latest quarter of SEC data: scored, never evaluated
+
+path: {pre: 20, post: 252}                      # sessions before / after entry on the return path
+
+bootstrap: {reps: 1000, path_block_months: 3, seed: 2002}
+
+cost: {tick: 0.01, cap: 0.20}                   # high-low spread estimate: tick floor and sanity cap
+
+model:
+  train_last_year: 2010
+  test_year: 2011
+  seed: 2002
+  logit_c: 1.0
+  lgbm: {n_estimators: 300, learning_rate: 0.05, num_leaves: 15, min_child_samples: 30,
+         subsample: 0.8, subsample_freq: 1, colsample_bytree: 0.8}
+  calibration_bins: 5
+  importance_repeats: 20
+
+yahoo: {start: 2004-01-01, batch_size: 50, retries: 3, pause_seconds: 1.0}
+
+company: {recent_tx: 25, shards: 16}
+
+label: "Pilot sample (2006–2011), survivors only — prototype, not research results"
+disclaimer: "Course prototype · not investment advice · independent of the SEC"
