@@ -27,7 +27,7 @@ from sentinel.provisional.gates import a1_counts, apply_gates
 from sentinel.provisional.load import build_scratch
 
 STATUS = "PROVISIONAL"
-START_YEARS = (2006, 2009, 2011, 2014, 2016)
+START_YEARS = (2006, 2009, 2011, 2012, 2014, 2016)
 SECTION_TOLERANCE = 0.15  # SC-006
 FUNNEL_TOLERANCE = 0.01  # SC-005
 CANDIDATE_COLUMNS = [
@@ -280,7 +280,8 @@ def render_summary(
         "delisted (research.md R5).",
         "",
         f"- With an event from 2006: {otc['all']:,}",
-        f"- With an event from 2016: {otc['since_2016']:,}",
+        f"- With an event from the labelled-window start ({otc['start_year']}): "
+        f"{otc['labelled']:,}",
         "",
         "## 5. Data notes",
         "",
@@ -416,8 +417,12 @@ def run(
         return cik in snap and exchanges <= {"OTC", None}
 
     issuers_all = {e.issuer_cik for e in events}
-    issuers_2016 = {e.issuer_cik for e in events if e.signal_date.year >= 2016}
-    otc = {"all": sum(map(otc_only, issuers_all)), "since_2016": sum(map(otc_only, issuers_2016))}
+    issuers_lab = {e.issuer_cik for e in events if e.in_labelled_window}
+    otc = {
+        "all": sum(map(otc_only, issuers_all)),
+        "labelled": sum(map(otc_only, issuers_lab)),
+        "start_year": labelled_start.year,
+    }
     stats = con.execute(
         "select count(*), sum(submissions_read - submissions_kept), sum(purchase_lines) "
         "from p_load_stats"

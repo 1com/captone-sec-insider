@@ -6,7 +6,7 @@
 # ops:         operational settings (rate limits, URLs) — not research parameters.
 # provisional: the pilot's simplified rules (Appendix A) — NOT pre-registered.
 
-version: 3
+version: 4
 
 registered:
   insider_data_period:
@@ -17,12 +17,13 @@ registered:
       value: "2006 Q1 – 2026 Q3"
       sensitivity: "—"
   labelled_window_start:
-    value: 2016-01-01
+    value: 2012-01-01
     unit: date
+    sensitivity: [2016-01-01]
     register:
       parameter: "Labelled window start"
-      value: "1 Jan 2016 (default)"
-      sensitivity: "Earlier start under review before `prereg-v1`"
+      value: "1 Jan 2012"
+      sensitivity: "2016 start (smaller; best price coverage)"
   holdout:
     value: {start: 2023-01-01, end: 2026-06-01}
     unit: signal_date_range

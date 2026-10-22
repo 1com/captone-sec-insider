@@ -70,7 +70,7 @@ provisional:                    # the pilot's simplified rules (Appendix A) — 
    - `g6_timeliness.value == 30`;
    - `cluster_window.value == 14`;
    - `cluster_min_value.value == 100000`;
-   - `labelled_window_start.value == 2016-01-01`;
+   - `labelled_window_start.value == 2012-01-01` (D42; 2016-01-01 when this feature was planned);
    - the `insider_data_period` range yields 83 quarters;
    - `ops.sec_max_requests_per_second <= 10`.
 6. The regular expressions under `provisional` all compile.

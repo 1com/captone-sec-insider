@@ -44,7 +44,7 @@ def test_values_this_feature_uses(params):
     assert reg["g6_timeliness"]["value"] == 30
     assert reg["cluster_window"]["value"] == 14
     assert reg["cluster_min_value"]["value"] == 100000
-    assert date.fromisoformat(str(reg["labelled_window_start"]["value"])) == date(2016, 1, 1)
+    assert date.fromisoformat(str(reg["labelled_window_start"]["value"])) == date(2012, 1, 1)
     period = reg["insider_data_period"]["value"]
     assert len(quarters_in_range(str(period["start"]), str(period["end"]))) == 83
     assert params["ops"]["sec_max_requests_per_second"] <= 10
