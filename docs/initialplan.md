@@ -3,7 +3,7 @@
 **Do clusters of insider purchases predict stock returns — and can machine learning tell the good ones from the bad?**
 
 Research and engineering specification · Version 2.2 · 22 October 2026
-v2.2: one month of Tiingo Power replaces the free-tier price budget, and the labelled window now starts on 1 January 2012 (decisions D39–D42)
+v2.2: one month of Tiingo Power replaces the free-tier price budget, the labelled window now starts on 1 January 2012, and five simple company-financial features are added (decisions D39–D43)
 Status: draft for review. The pre-registration is locked after review and before any return is computed (§3.3)
 Capstone duration: 4 weeks (22 October – 18 November 2026)
 
@@ -185,8 +185,8 @@ Scope is prioritised with MoSCoW (Must / Should / Could / Won't). ML is a **Must
 |---|---|
 | **Must** | Insider data pipeline for all 83 quarters, with point-in-time entities and roles. Clean-purchase gates with a funnel audit. Point-in-time industry codes from filing headers. Event detection: clusters (A) and solo CEO/CFO buys (B1). Prices with delisted-stock coverage, delisting returns, and best/worst-case bounds (including for unpriced events). Label grid: 5 horizons × 4 abnormal-return measures, gross and net of cost. Point-in-time features. Event study on the development period. ML tournament with baselines (including a market-only model), calibration, SHAP explanations and experiment tracking. One-time holdout evaluation. Product v1: insider lookup for any stock, and a screener of the latest clusters from the newest quarterly data set. Written report |
 | **Should** | Comparison group B2 (solo other insiders), time permitting (cut order, §9.3). Daily ingestion of new Form 4 filings from EDGAR, so the screener stays current. Pre-listed sensitivity variants on the development period (Appendix E) |
-| **Could** | A book-to-market feature from XBRL equity values. Dimson-adjusted betas for the per-event factor measure. An exploratory regression model on net returns. Public deployment |
-| **Won't (this version)** | Macroeconomic features. Full XBRL fundamentals. A matched "no insider buying" control group. Signals from insider *selling*. Intraday data. Paid data beyond the one-month Tiingo Power plan (D39) |
+| **Could** | Dimson-adjusted betas for the per-event factor measure. An exploratory regression model on net returns. Public deployment |
+| **Won't (this version)** | Macroeconomic features. XBRL fundamentals beyond the five items behind F26–F29 (e.g. revenue, quarterly earnings sums). A matched "no insider buying" control group. Signals from insider *selling*. Intraday data. Paid data beyond the one-month Tiingo Power plan (D39) |
 
 ---
 
@@ -197,7 +197,7 @@ Scope is prioritised with MoSCoW (Must / Should / Could / Won't). ML is a **Must
 | SEC Insider Transactions Data Sets | All Forms 3/4/5 as tables: `SUBMISSION`, `REPORTINGOWNER`, `NONDERIV_TRANS`, `NONDERIV_HOLDING`, `DERIV_TRANS`, `DERIV_HOLDING`, `FOOTNOTES` | 2006 Q1 – 2026 Q3 (83 quarterly zip files), updated quarterly. The two newest files sit in a different SEC folder from the rest | Free bulk download. SEC fair-access policy: at most 10 requests per second, with a declared `User-Agent` that includes a contact | Public US-government data |
 | SEC filing index headers (`…-index-headers.html`) | For each event's signal filing: the issuer's SIC code *as of that filing*, and the EDGAR acceptance time | Every EDGAR filing | One request per event (roughly 11,000–16,000); a background job | Public |
 | SEC submissions API (`data.sec.gov/submissions`) | Filing history: 10-Q and 10-K dates, delisting and deregistration forms (25, 15), merger filings | All EDGAR filers | Same policy | Public |
-| SEC company facts API (XBRL) | Shares outstanding (`dei:EntityCommonStockSharesOutstanding`), with filing dates | From each company's XBRL start: large companies 2009–2010, smaller companies from mid-2011 (SEC Release No. 33-9002) | Same policy | Public |
+| SEC company facts API (XBRL) | Shares outstanding (`dei:EntityCommonStockSharesOutstanding`), plus shareholders' equity, total assets, total liabilities, cash and net income (F26–F29), each with its filing date. One file per company holds all of them | From each company's XBRL start: large companies 2009–2010, smaller companies from mid-2011 (SEC Release No. 33-9002) | Same policy | Public |
 | SEC `company_tickers.json` | Current CIK ↔ ticker map for active companies | Current only | Same policy | Public |
 | Yahoo Finance via `yfinance` | Daily prices and volume for listed stocks, SPY and IWM. Yahoo's open, high, low and close are already **split-adjusted**; "Adj Close" also removes dividends; the split history is available | Listed stocks only — **no history for delisted stocks** | Unofficial API; rate-limited; every response cached | Personal use; no redistribution |
 | Tiingo end-of-day API (Power plan, one month; D39) | Daily raw and adjusted prices for **delisted** stocks | Tiingo's public ticker list includes about 8,100 delisted NYSE, Nasdaq and NYSE American stocks. A delisted company's history is filed under its final ticker, often a bankruptcy `Q` ticker on an OTC venue | 110,346 unique symbols per month, 10,000 requests per hour, 100,000 per day | "Internal use only". Data may be stored only while the paid plan is active, and is deleted when it ends (ToS §1.6(b)) |
@@ -472,7 +472,7 @@ The holdout is not examined until Step 18.
 | F4 | Number of CEO/CFO entities buying | Form 4 | Information hierarchy (Seyhun, 1986) |
 | F5 | Number of director entities | Form 4 | Same |
 | F6 | Number of 10% owners | Form 4 | The least-informed group (Seyhun, 1986) |
-| F7 | Mean log increase in buyers' holdings | Form 4 | Conviction relative to the existing stake |
+| F7 | Mean log increase in buyers' holdings: log(shares held after ÷ shares held before), each buyer's direct and indirect holdings in the filing summed | Form 4 | Conviction relative to the existing stake. Summing matters: insiders often hold through trusts or funds on separate lines |
 | F8 | Buyers opening a new position | Form 4 | A first commitment |
 | F9 | Share of buyers classified *opportunistic* | Form 4 history | Following Cohen et al. (2012), classification happens at the start of each calendar year, using all open-market purchases and sales (codes P and S) in the previous three years. A *routine* insider traded in the same calendar month in each of those years; everyone else with three years of history is *opportunistic*. Missing for insiders with less than three years of history |
 | F10 | Buyers' past hit rate at this issuer | Form 4 history + prices | Mean over buyers of (h + k·p̄) ÷ (n + k), with k = 5. Here n counts the buyer's earlier clean purchases at this issuer whose 63-session windows (from each filing date) ended before T; h counts those with net industry-adjusted BHAR > 0; p̄ is the base rate of the primary label over the 36 months before T |
@@ -490,6 +490,13 @@ The holdout is not examined until Step 18.
 | F22 | Daily volatility over 63 sessions | Prices | Risk |
 | F23 | Estimated bid–ask spread | Prices | Trading cost (Abdi & Ranaldo, 2017) |
 | F24 | Sector (12 Fama–French sectors), from the SIC code at T | Filing header | Industry differences |
+| F25 | Cluster value ÷ market capitalisation (F2 ÷ F16) | Form 4 + XBRL + prices | A $1M purchase means far more at a $50M company than at a $5B one. Missing where F16 is missing |
+| F26 | Book-to-market: latest shareholders' equity ÷ F16 | XBRL | Insider purchases are reported to predict best in small value stocks (Lakonishok & Lee, 2001). Negative equity is kept, then winsorised |
+| F27 | Loss-making: latest reported net income (quarter or year) < 0 | XBRL | Distressed companies behave differently |
+| F28 | Leverage: total liabilities ÷ total assets | XBRL | Financial risk |
+| F29 | Cash ÷ total assets | XBRL | Ability to survive a downturn |
+
+**Company financials (F16, F26–F29) — kept simple.** Each value is taken from the SEC company facts file for the latest period whose *first* filing date is on or before T, and only the value as first filed is used: later restatements are ignored, so nothing the market did not know is used (D23, D43). Tags, with one fallback each: shareholders' equity `StockholdersEquity` (else including non-controlling interests); total assets `Assets`; total liabilities `Liabilities` (else assets − equity); cash `CashAndCashEquivalentsAtCarryingValue` (else including restricted cash); net income `NetIncomeLoss` (else `ProfitLoss`). Missing values get missing-value indicators like any other feature.
 
 **No time or macro features.** Calendar variables (year, date) and macroeconomic variables are not used. The 2012–2022 training data contain only a few crises, so a model could memorise *when* rather than learn *what* (§12, D24). Market conditions are examined in the error analysis instead.
 
@@ -554,7 +561,7 @@ inside every training window:  [ fit set ……… ][ tuning: months −12…−
 2. **Three-feature logistic regression** — number of entities, any CEO/CFO buyer, log total value.
 3. **Rule** — select clusters with ≥ 3 entities or a CEO/CFO buyer.
 4. **All clusters** — buy every cluster (portfolio comparison only).
-5. **Market-only model** — the selected model family trained only on market data (F16, F17, F19–F24). The gap between it and the full model measures the value of the insider information itself.
+5. **Market-only model** — the selected model family trained only on market and company data (F16, F17, F19–F24, F26–F29), with no insider information. The gap between it and the full model measures the value of the insider information itself.
 6. **Cost-only ranking** — rank events by −cᵢ (ranking metrics only).
 
 All baselines use the same folds, weights and purging.
@@ -598,7 +605,7 @@ WAREHOUSE   one DuckDB file, rebuilt layer by layer
   stg       typed copies of raw tables (schema changes handled here)
   core      issuers · point-in-time entities · all transactions · clean purchases
             prices (unadjusted + adjusted + split factors) · symbol map
-            SIC at filing · delistings · shares outstanding · factor tables
+            SIC at filing · delistings · XBRL facts (shares, 5 items) · factor tables
   evt       events (A, B1, B2) + member filings
   feat      one feature row per event, as of T
   lab       development labels (windows ending by 31 Dec 2022)
@@ -625,9 +632,9 @@ Each layer is rebuilt deterministically from the one above by an idempotent comm
 | `core.price_daily` | Symbol × session | Unadjusted and adjusted OHLC, volume, split factor, source |
 | `core.symbol_map` | Issuer × symbol × date range | Price source, match quality |
 | `core.delisting` | Delisted issuer | Last session, class, venue, delisting return |
-| `core.shares_out` | Issuer × filing | Shares, as-of date, filed date |
+| `core.xbrl_fact` | Issuer × concept × period end (first-filed value only) | Concept (shares outstanding, equity, assets, liabilities, cash, net income), value, period end, filed date |
 | `evt.event` | Event | Group, issuer, T, entry session, window statistics, floor results |
-| `feat.event_features` | Event | F1–F24, feature version |
+| `feat.event_features` | Event | F1–F29, feature version |
 | `lab.event_label` / `hold.event_label` | Event × horizon × measure | Gross abnormal return, cost, net abnormal return, delisting class |
 | `ml.prediction` | Event × run | Split (out-of-fold / holdout / live), probability |
 | `audit.funnel` | Quarter × gate | Rows in, rows out |
@@ -660,7 +667,7 @@ capstone/
 │   ├── core/                 # staging, entities, gates, symbols, prices, delisting, shares
 │   ├── events/               # event detection (A, B1, B2), floors, cooldown
 │   ├── labels/               # returns, benchmarks, costs (dev and guarded holdout)
-│   ├── features/             # F1–F24
+│   ├── features/             # F1–F29
 │   ├── study/                # event study, calendar-time portfolios
 │   ├── ml/                   # datasets, CV, models, tournament, evaluation, SHAP
 │   ├── api/                  # FastAPI app, templates, static files
@@ -675,7 +682,7 @@ capstone/
 - **Point-in-time tests:**
   - *Truncation test:* deleting every record after T leaves the events, entities, roles, SIC codes, floor decisions and features at T unchanged.
   - The entry session is after T.
-  - Shares outstanding were filed on or before T.
+  - Every XBRL value used at T (shares outstanding, equity, assets, liabilities, cash, net income) was first filed on or before T, and no restated value is used.
   - F10 uses only windows that ended before T.
   - No training label window crosses its fold boundary or 31 December 2022.
 - **Price tests:**
@@ -784,11 +791,11 @@ The product's lookup page runs as a parallel track from Week 2, because it needs
 |---|---|---|---|
 | 7 | Fetch prices: Yahoo for listed stocks, SPY and IWM (with unadjusted prices rebuilt from split histories); Tiingo for delisted stocks (the one-month Power plan starts that day, D39). Download the factor, industry and breakpoint files. Run G8; run final event detection with G7, the floors and the cooldown | `core.price_daily`, reference tables, `evt.event` | Price tests pass; coverage report (target ≥ 90%); 30-event golden set matches EDGAR |
 | 8 | Classify delistings (acquired / performance-related / unknown) and assign delisting returns | `core.delisting` | Hand check of 30 companies across all three classes |
-| 9 | Load shares outstanding from XBRL (first-filed values only) | `core.shares_out` | Market caps match known examples |
+| 9 | Load shares outstanding and the five F26–F29 items from XBRL company facts (first-filed values only) | `core.xbrl_fact` | Market caps and book values match known examples; coverage report per item |
 | 10 | Estimate spreads and costs | Cost estimates | Plot of estimated cost by price bucket |
 | 10a | **Lock the pre-registration** after reviewer feedback: tag `prereg-v1`, push it, email the commit hash to the supervisor | Locked parameters | Tag on the remote before Step 11 starts |
 | 11 | Compute development labels: 5 horizons × 4 measures, gross and net, with delisting handling — windows ending by 31 December 2022 only | `lab.event_label` | Point-in-time tests pass; 10 events recomputed by hand |
-| 12 | Compute features F1–F24 as of T (F10 from development windows only) | `feat.event_features` | Point-in-time tests pass; missing-value report |
+| 12 | Compute features F1–F29 as of T (F10 from development windows only) | `feat.event_features` | Point-in-time tests pass; missing-value report |
 | P | *Parallel track:* stock lookup page and its API endpoints on the core tables | Working lookup page | Endpoint tests pass |
 
 **Phase 3 — Analysis (Week 3)**
@@ -857,7 +864,7 @@ The ML core is never cut.
 - **Companies with several share classes** are mapped to their primary listed class.
 - **Plan and offering detection before 2023 depends on voluntary footnotes** and will miss some trades. The holdout is evaluated both with and without the checkbox gate (§7.2).
 - **Trading costs are estimated, not observed.** The capacity of any strategy built on micro-caps is small.
-- **Market capitalisation can be missing** where a company's filings lack the cover-page shares tag. Dollar volume stands in.
+- **Company financials can be missing or tagged unusually** where a company's filings lack the cover-page shares tag or the standard balance-sheet tags. Dollar volume stands in for size; the other items get missing-value indicators (F16, F25–F29).
 - **Prior knowledge.** The pilot saw holdout-period counts (no returns), and the author knows the broad market history of 2023–26.
 - **External validity.** The results cover US stocks from 2012 to 2026, under the two-day reporting rule. They may not carry over to other markets or periods.
 - **No causal claims.** SHAP explains the model's behaviour, not why prices move.
@@ -892,7 +899,7 @@ Every significant choice, what else was considered, and why. "v1" refers to the 
 | D20 | Label: industry-adjusted 63-day BHAR net of the trade's own cost > 0 | v1: +5% vs IWM | §6.6 |
 | D21 | Three delisting classes, plus bounds for delisting returns and for unpriced events | Drop delisted events; treat every price gap as a failure | §6.7. Data gaps are not failures |
 | D22 | Free data: Yahoo for listed stocks, Tiingo for delisted ones (superseded for Tiingo by D39) | Paid data; Yahoo only | Owner preference; survivorship bias (§5.1) |
-| D23 | Only shares outstanding from XBRL | v1: full point-in-time fundamentals | Handling restated values is the biggest engineering risk; market cap is the essential piece |
+| D23 | Only shares outstanding from XBRL (extended by D43) | v1: full point-in-time fundamentals | Handling restated values is the biggest engineering risk; market cap is the essential piece |
 | D24 | No macroeconomic features | v1: VIX, yield curve, credit spreads, Fed funds rate | One or two crises in the training data, so the model could memorise them; analysed in the error analysis instead |
 | D25 | ML trained on clusters only | Pool clusters and solo events | The research question concerns clusters; pooling adds overlapping windows from the same issuer. About 5,800 development clusters before floors (Appendix A.3) |
 | D26 | Three models plus an ensemble | One model; deep learning | Covers the linear, bagged and boosted families. Neural networks add little on a few thousand rows of tabular data |
@@ -912,6 +919,7 @@ Every significant choice, what else was considered, and why. "v1" refers to the 
 | D40 | The §5.2 budget rule no longer binds; the provisional candidate list covers 2006 onward; the labelled-window start is revisited on research grounds before `prereg-v1` | Keep 2016 because of the free budget | With Power's 110,346 symbols a month, all ~2,200 matched delisted companies can be priced. A 2016 start was forced only by the free budget |
 | D41 | New dependencies typer (CLI), python-dotenv (`.env`) and respx (test-only HTTP mocks); DuckDB pinned below 2 | argparse; a hand-written `.env` parser; live HTTP in tests; DuckDB 2.0 | Help grouped by phase; standard secret loading; offline tests (FR-007). DuckDB 2.0.0 was released on 2026-10-21, too new to adopt mid-project |
 | D42 | The labelled window starts on 1 January 2012 (decided 2026-10-22) | 2016 (the free-budget default); 2011; 2009; 2006 | Owner's rule: start where every data source is complete without workarounds — a course project, not an institutional tool. XBRL share counts (D23) cover all filers only from mid-2011 (Release 33-9002); the other sources cover the whole period. Development events 11,470 against 7,675 for 2016 (+49%); delisted match rate 79% against 83% |
+| D43 | Add F25–F29: purchase value ÷ market cap, book-to-market, loss flag, leverage, cash ÷ assets (decided 2026-10-22) | Insider and market features only (D23); full XBRL fundamentals | Owner's request to consider company financials and purchase size relative to the company. The items come from the same company facts file already fetched for share counts, with the same first-filed rule, so the look-ahead risk that motivated D23 is contained. Revenue and quarterly earnings sums are left out because their tags vary too much. The market-only baseline gains F26–F29 so it still isolates the insider information |
 
 ---
 
@@ -1178,7 +1186,7 @@ The header of a real Form 4 (Prothena, filed 31 March 2023) shows both facts the
 | Clusters | 21-day cooldown; any owners | 63-session cooldown; must include an officer or director |
 | Comparison groups | None | Solo CEO/CFO (B1, confirmatory); solo other insider (B2, exploratory) |
 | Sales | Discarded | Kept (product lookup, selling features) |
-| Fundamentals | Full point-in-time XBRL | Shares outstanding only |
+| Fundamentals | Full point-in-time XBRL | Shares outstanding plus five simple items, first-filed values only (D43) |
 | Macro data | VIX, yield curve, credit spreads, Fed funds rate as features | None (regime analysis only) |
 | Prices | Tiingo with a yfinance fallback | Yahoo for listed stocks, Tiingo for delisted ones; unadjusted prices for price-level rules; three delisting classes and bounds |
 | Entry | Unspecified | Open of the session after the filing date |
