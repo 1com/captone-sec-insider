@@ -29,6 +29,7 @@
 ## 3:30 – Model (45 s)
 
 - "Logistic regression and LightGBM, trained on 2006–2010 and tested once on 2011, against a market-data-only model and a no-skill baseline. Verdict: not yet. The full study has about five times as much data."
+- **If asked how the score is made:** open **Score & features**. It has the definition, all 19 inputs with what each model learned from them, and the features saved for the full study.
 
 ## 4:15 – Company lookup (45 s)
 

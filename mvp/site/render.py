@@ -5,11 +5,13 @@
 """
 
 import json
+import math
 import shutil
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from mvp.pipeline.features import ALL_FEATURES, FEATURE_DOCS, MARKET_FEATURES, NOT_USED
 from mvp.util import json_safe
 
 HERE = Path(__file__).resolve().parent
@@ -240,6 +242,78 @@ def _featured(c: dict, out_dir: Path) -> str | None:
     return best
 
 
+def _typical(fmt: str, st: dict) -> str:
+    m, mean = st.get("median"), st.get("mean")
+    if m is None:
+        return "–"
+    match fmt:
+        case "count":
+            return f"{m:.0f}"
+        case "log_usd":
+            return money(math.exp(m))
+        case "log1p_usd":
+            return money(math.exp(m) - 1)
+        case "share":
+            return pct(m, 0, False)
+        case "log_ratio":
+            return f"holdings × {math.exp(m):.2f}"
+        case "log_ratio_trade":
+            return f"{pct(math.exp(m), 1, False)} of a day's trading"
+        case "days":
+            return f"{m:.1f} days"
+        case "flag":
+            return f"yes for {mean * 100:.0f}% of events"
+        case "cost":
+            return pct(m, 2, False)
+        case "pct_daily":
+            return f"{pct(m, 1, False)} a day"
+        case _:
+            return pct(m, 1)
+
+
+def scoring_view(c: dict) -> dict:
+    model, stats = c["model"], c["feature_stats"]
+    learned = model["learned"]
+    sel = model["selected"]
+    logit_max = max(abs(w) for w in learned["logit"].values()) or 1
+    base_vals = learned["baseline"].values()
+    base_max = max((abs(w) for w in base_vals), default=1) or 1
+    rows = []
+    for key, label in ALL_FEATURES.items():
+        plan, source, fmt, desc, how = FEATURE_DOCS[key]
+        lw, gw = learned["logit"][key], learned["lgbm"][key]
+        bw = learned["baseline"].get(key)
+        rows.append({
+            "plan": plan, "label": label, "desc": desc, "how": how, "source": source,
+            "group": "Stock" if key in MARKET_FEATURES else
+                     ("Insider + stock" if source == "Form 4 + prices" else "Insider"),
+            "coverage": stats[key]["coverage"], "typical": _typical(fmt, stats[key]),
+            "market": key in MARKET_FEATURES,
+            "logit": lw, "logit_w": abs(lw) / logit_max * 100,
+            "lgbm": gw, "lgbm_w": gw / max(learned["lgbm"].values()) * 100 if gw else 0,
+            "base": bw, "base_w": abs(bw) / base_max * 100 if bw is not None else 0,
+            "final": learned["final"][key],
+        })
+    used_for = {sel: f"Live scores (refitted on all {model['n_all']:,} pilot events)",
+                "baseline": "Comparison: do insider details add anything?",
+                "constant": "Comparison: the no-skill line"}
+    other = "lgbm" if sel == "logit" else "logit"
+    outputs = []
+    for key, name, inputs in ((sel, MODEL_NAMES[sel], "All 19 features"),
+                              (other, MODEL_NAMES[other], "All 19 features"),
+                              ("baseline", "Market-only baseline", "6 stock features"),
+                              ("constant", "Base rate (no skill)", "None")):
+        r = model["results"][key]
+        outputs.append({"name": name, "inputs": inputs, "auc": r["auc"], "log_loss": r["log_loss"],
+                        "brier": r["brier"], "hit": r.get("top_fifth_hit"),
+                        "top5": r.get("top_fifth_net"), "all": r.get("all_net"),
+                        "used": used_for.get(key, "Comparison: candidate not selected"),
+                        "selected": key == sel})
+    return {"rows": rows, "not_used": NOT_USED, "outputs": outputs,
+            "quantiles": model["score_quantiles"], "baseline_kind": learned["baseline_kind"],
+            "selected_name": MODEL_NAMES[sel]}
+
+
 def render(context: dict, out_dir: Path, mode: str) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     env = Environment(
@@ -249,6 +323,7 @@ def render(context: dict, out_dir: Path, mode: str) -> Path:
     c = dict(context)
     c["screener"] = [{**r, "roles": roles_text(r)} for r in context["screener"]]
     v = view_model(c)
+    v["s"] = scoring_view(c)
     featured = _featured(c, out_dir)
     data = {k: c[k] for k in ("meta", "study", "screener", "search")}
     data["model"] = {k: c["model"][k] for k in ("selected", "results", "drivers")}

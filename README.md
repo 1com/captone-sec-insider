@@ -43,7 +43,7 @@ uv run python -m mvp serve                 # http://127.0.0.1:8765
 uv run python -m mvp check                 # constitution guards
 ```
 
-Six tabs: overview, findings (event study), model, latest clusters (screener), company lookup, and method & limits. A 5-minute class walkthrough is in [mvp/DEMO.md](mvp/DEMO.md); results and decisions are in [specs/003-mvp-dashboard/run-notes.md](specs/003-mvp-dashboard/run-notes.md).
+Seven tabs: new insider buying (the screener, shown first), does it work? (overview), findings (event study), model, score & features (the score's definition, every input and what each model learned), company lookup, and method & limits. The public copy is at https://1com.github.io/captone-sec-insider/. A 5-minute class walkthrough is in [mvp/DEMO.md](mvp/DEMO.md); results and decisions are in [specs/003-mvp-dashboard/run-notes.md](specs/003-mvp-dashboard/run-notes.md).
 
 ## Data layout
 

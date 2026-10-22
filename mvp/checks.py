@@ -41,7 +41,7 @@ def run_checks() -> list[str]:
     page = SITE / "index.html"
     if page.exists():
         html = page.read_text(encoding="utf-8")
-        for section in ("overview", "findings", "model", "screener"):
+        for section in ("overview", "findings", "model", "screener", "scoring"):
             start = html.find(f'id="{section}"')
             end = html.find("</section>", start)
             if start < 0 or s.label not in html[start:end]:

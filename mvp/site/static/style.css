@@ -258,6 +258,19 @@ th.sortable[aria-sort="descending"]::after { content: " ↓"; }
 .winbar .track { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
 .winbar .fill { display: block; height: 100%; border-radius: 3px; background: var(--ref); }
 .evidence { color: var(--ink-2); font-size: 0.9rem; max-width: 90ch; }
+.defbox { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.formula { font-size: 1rem; line-height: 1.7; color: var(--ink); }
+.formula .mono { font-size: 0.98rem; color: var(--accent); }
+.wbar { display: inline-grid; grid-template-columns: 44px auto; align-items: center; gap: 8px; }
+.wbar .track { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.wbar .fill { display: block; height: 100%; border-radius: 3px; }
+.wbar .fill.up { background: var(--s1); }
+.wbar .fill.down { background: var(--s2); }
+table.features td { vertical-align: top; }
+table.tight th { white-space: normal; vertical-align: bottom; }
+table.tight th, table.tight td { padding: 8px 9px; }
+td.feat-name { white-space: normal; min-width: 150px; }
+td.feat-desc { min-width: 220px; max-width: 320px; }
 .flag { font-size: 0.72rem; color: var(--muted); border: 1px dashed var(--line-strong); border-radius: 4px; padding: 0 4px; margin-left: 6px; }
 
 /* Filters */

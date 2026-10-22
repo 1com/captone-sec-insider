@@ -56,6 +56,28 @@ def _calibration(y, p, bins: int) -> list[dict]:
     ]
 
 
+def _weights(model, kind: str, cols: list[str]) -> dict[str, float]:
+    """Logistic: coefficient per standardised input (sign = direction). LightGBM: share of
+    total split gain (always >= 0)."""
+    if kind == "logit":
+        coef = model.named_steps["logisticregression"].coef_[0][: len(cols)]
+        return {c: float(w) for c, w in zip(cols, coef, strict=True)}
+    gain = model.booster_.feature_importance(importance_type="gain").astype(float)
+    total = gain.sum() or 1.0
+    return {c: float(g / total) for c, g in zip(cols, gain, strict=True)}
+
+
+def _learned(fitted, base, final, selected, feats, market) -> dict:
+    return {
+        "logit": _weights(fitted["logit"], "logit", feats),
+        "lgbm": _weights(fitted["lgbm"], "lgbm", feats),
+        "baseline": _weights(base, selected, market),
+        "final": _weights(final, selected, feats),
+        "baseline_kind": selected,
+        "final_kind": selected,
+    }
+
+
 def run(data: pd.DataFrame, recent: pd.DataFrame, settings) -> dict:
     """`data`: pilot events with features, `net_63_iwm` and `window_end`; returns results."""
     mp = settings.mvp["model"]
@@ -123,6 +145,7 @@ def run(data: pd.DataFrame, recent: pd.DataFrame, settings) -> dict:
 
     final = _make(selected, mp).fit(data[feats], data["y"])
     pilot_scores = final.predict_proba(data[feats])[:, 1]
+    learned = _learned(fitted, base, final, selected, feats, market)
     scores = recent[["event_id"]].copy()
     if len(recent):
         scores["score"] = final.predict_proba(recent[feats])[:, 1]
@@ -138,5 +161,9 @@ def run(data: pd.DataFrame, recent: pd.DataFrame, settings) -> dict:
         "train_years": [int(year.min()), int(mp["train_last_year"])],
         "test_year": int(mp["test_year"]),
         "base_rate_all": float(data["y"].mean()),
+        "learned": learned,
+        "score_quantiles": {
+            q: float(np.quantile(pilot_scores, q / 100)) for q in (5, 25, 50, 75, 95)
+        },
         "scores": scores,
     }

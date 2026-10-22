@@ -8,7 +8,7 @@
   const $ = (s, el) => (el || document).querySelector(s);
   const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const TABS = ["screener", "overview", "findings", "model", "company", "method"];
+  const TABS = ["screener", "overview", "findings", "model", "scoring", "company", "method"];
   const GROUPS = { A: "Clusters", B1: "Solo CEO/CFO" };
 
   /* ---------- formatting ---------- */

@@ -187,6 +187,13 @@ def run(skip_prices: bool, echo, timed) -> None:
         recent_ids = set(events.loc[events["sample"] == "recent", "event_id"])
         recent = features[features["event_id"].isin(recent_ids - g8_fail - g7_events)]
         model = pilot_model.run(data, recent, s)
+        model_data = data.dropna(subset=[f"net_{h}_iwm"])
+        feature_stats = {
+            f: {"coverage": float(model_data[f].notna().mean()),
+                "median": None if model_data[f].isna().all() else float(model_data[f].median()),
+                "mean": None if model_data[f].isna().all() else float(model_data[f].mean())}
+            for f in feats.ALL_FEATURES
+        }
         scores = model.pop("scores")
         scores.to_parquet(WORK / "scores.parquet")
         echo(
@@ -214,6 +221,7 @@ def run(skip_prices: bool, echo, timed) -> None:
             "g7_excluded": len(g7_events),
             "as_of": str(calendar[-1].date()),
         },
+        "feature_stats": feature_stats,
         "funnel": funnel,
         "coverage": coverage,
         "study": study,

@@ -37,7 +37,7 @@
       <span class="badge">MVP</span>
     </a>
     <nav class="tabs" role="tablist" aria-label="Sections">
-      {% for id, name in [("screener","New insider buying"),("overview","Does it work?"),("findings","Findings"),("model","Model"),("company","Company lookup"),("method","Method & limits")] %}
+      {% for id, name in [("screener","New insider buying"),("overview","Does it work?"),("findings","Findings"),("model","Model"),("scoring","Score & features"),("company","Company lookup"),("method","Method & limits")] %}
       <button class="tab" role="tab" id="tab-{{ id }}" data-tab="{{ id }}" aria-controls="{{ id }}" aria-selected="{{ 'true' if loop.first else 'false' }}">{{ name }}</button>
       {% endfor %}
     </nav>
@@ -160,7 +160,7 @@
     <div class="card-head">
       <div>
         <h2>Average abnormal return around the purchase</h2>
-        <p class="card-sub">Trading days relative to entry. Left of the dashed line, the line shows how far the price was above the entry price: insiders tend to buy after a fall. Shaded bands are 95% intervals that resample whole months, so events in the same month move together.</p>
+        <p class="card-sub">Trading days relative to entry. Left of the dashed line, the line shows how far the price was above the entry price: insiders tend to buy after a fall. The shaded area around each line is its 95% range (blue for clusters, orange for solo CEO/CFO): the true average very likely lies inside it. Where a range stays above 0%, the gain is unlikely to be luck. Ranges widen further out because longer-run returns vary more, and the solo range is wider because it has fewer events. Ranges come from resampling whole calendar months, so events in the same month move together. Click a name in the legend to hide that line and its range.</p>
       </div>
       <div class="seg" role="group" aria-label="Benchmark">
         <button type="button" data-bench="iwm" aria-pressed="true">vs small caps (IWM)</button>
@@ -313,7 +313,7 @@
   <div class="panel-head">
     <p class="eyebrow">Screener · Form 4s filed {{ c.meta.recent[0] }} to {{ c.meta.recent[1] }} · prices as of {{ c.meta.as_of }}</p>
     <h1>New insider buying</h1>
-    <p class="lead">Clusters of insiders, and CEOs or CFOs, buying their own company's stock on the open market. The score is the model's estimated chance that the stock beats small caps (IWM) over the 63 trading days after the filing, once trading costs are paid. "Time left" counts the trading days remaining in that window.</p>
+    <p class="lead">Clusters of insiders, and CEOs or CFOs, buying their own company's stock on the open market. The score is the model's estimated chance that the stock beats small caps (IWM) over the 63 trading days after the filing, once trading costs are paid. "Time left" counts the trading days remaining in that window. <button class="linkish" data-tab="scoring">How the score is made →</button></p>
   </div>
   {{ banner("Scores come from a weak, survivors-only pilot model and are not investment advice. No outcome is shown for these events.") }}
   <p class="evidence">How reliable are the scores? In the 2011 test, events in the top fifth of scores beat small caps by {{ v.m.top5|pct }} after costs against {{ v.m.all|pct }} for all events, but overall ranking skill was close to chance (AUC {{ "%.2f"|format(v.m.auc) }}, where 0.50 is a coin flip). <button class="linkish" data-tab="model">See the model test →</button></p>
@@ -359,6 +359,103 @@
     </table>
   </div>
   <p class="source">{{ c.meta.g7_excluded }} events at funds, business development companies and blank-check companies are left out (gate G7: EDGAR gives them a fund or blank-check industry code, or none). Events without a score are at companies no longer in the SEC's list of traded companies, so no recent prices exist for them, or failed the price check (a reported purchase price outside that day's trading range, usually a filing typo). "Partial data" means four or more model inputs were missing.</p>
+</section>
+
+<!-- ============================== SCORE & FEATURES ============================== -->
+<section id="scoring" class="panel" role="tabpanel" aria-labelledby="tab-scoring" hidden>
+  <div class="panel-head">
+    <p class="eyebrow">Score &amp; features · what goes into each score</p>
+    <h1>How the score is made</h1>
+    <p class="lead">The definition of the score, every input the models consider, and what each model produced when tested.</p>
+  </div>
+  {{ banner("The models were trained on a small, survivors-only sample. Their weights describe 2006–2011, not a proven rule.") }}
+
+  <article class="card">
+    <h2>What the score means</h2>
+    <div class="defbox">
+      <p class="formula">Score = the model's estimated probability that<br><span class="mono">stock return − IWM return − trading cost &gt; 0</span><br>over the 63 trading days after the Form 4 filing</p>
+    </div>
+    <dl class="defs">
+      <dt>Buy and hold</dt><dd>Bought at the opening price on the first trading day after the filing date, the first price any investor could act on, and held for 63 trading days (about three months).</dd>
+      <dt>Benchmark</dt><dd>IWM, the iShares Russell 2000 ETF, which tracks small US companies. Most stocks insiders cluster-buy are small, so this is the fair comparison.</dd>
+      <dt>Trading cost</dt><dd>A round-trip bid–ask spread estimated from the stock's daily high, low and closing prices in the 20 days before the filing (median {{ v.cost_median|pct(2, False) }}).</dd>
+      <dt>Reading it</dt><dd>50% is a coin flip. In the pilot, {{ "%.0f"|format(v.m.base_rate * 100) }}% of events beat IWM after costs, so a score near that is "average". Pilot scores ranged from {{ "%.0f"|format(v.s.quantiles[5] * 100) }}% to {{ "%.0f"|format(v.s.quantiles[95] * 100) }}% for the middle 90% of events (median {{ "%.0f"|format(v.s.quantiles[50] * 100) }}%).</dd>
+      <dt>Percentile</dt><dd>"Higher than 53% of pilot events" means the score beats the scores of 53% of the {{ v.m.n_all|num }} pilot events.</dd>
+      <dt>Who makes it</dt><dd>The selected {{ v.s.selected_name|lower }}, refitted on all {{ v.m.n_all|num }} pilot events (2006–2011), using the 19 features below, each measured with data available on the filing date only.</dd>
+      <dt>Partial data</dt><dd>Four or more of the 19 inputs were missing, for example a stock listed less than a year ago has no momentum. Missing inputs are filled with the pilot median and flagged.</dd>
+      <dt>No score</dt><dd>The company no longer trades (no prices); the reported purchase price was outside that day's trading range (price check); or the company is a fund or blank-check company (excluded).</dd>
+      <dt>How good it is</dt><dd>Only slightly better than chance so far: AUC {{ "%.2f"|format(v.m.auc) }} on the 2011 test. See the comparison below and the Model tab.</dd>
+    </dl>
+  </article>
+
+  <article class="card">
+    <div class="card-head"><div>
+      <h2>What each model produced</h2>
+      <p class="card-sub">Each model was trained on {{ v.m.n_train|num }} events from {{ v.m.train_years[0] }}–{{ v.m.train_years[1] }} and scored the {{ v.m.n_test|num }} events of {{ v.m.test_year }} once. Higher AUC is better ranking; lower log loss and Brier mean better probabilities. "Top fifth" is the 20% of 2011 events each model scored highest.</p>
+    </div></div>
+    <div class="table-wrap">
+      <table class="tight">
+        <caption>{{ c.meta.label }}</caption>
+        <thead><tr><th>Model</th><th>Inputs</th><th class="num">AUC</th><th class="num">Log loss</th><th class="num">Brier</th><th class="num">Top-fifth hit rate</th><th class="num">Top-fifth net return</th><th class="num">All 2011 events</th><th>Role</th></tr></thead>
+        <tbody>
+        {% for r in v.s.outputs %}
+          <tr>
+            <td>{{ r.name }}{% if r.selected %} <span class="flag">selected</span>{% endif %}</td>
+            <td class="muted">{{ r.inputs }}</td>
+            <td class="num">{{ "%.3f"|format(r.auc) }}</td>
+            <td class="num">{{ "%.3f"|format(r.log_loss) }}</td>
+            <td class="num">{{ "%.3f"|format(r.brier) }}</td>
+            <td class="num">{{ ("%.0f"|format(r.hit * 100) ~ "%") if r.hit is not none else "–" }}</td>
+            <td class="num">{{ signed(r.top5) if r.top5 is not none else "–" }}</td>
+            <td class="num">{{ signed(r.all) if r.all is not none else "–" }}</td>
+            <td class="wrap-cell muted">{{ r.used }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </article>
+
+  <article class="card">
+    <div class="card-head"><div>
+      <h2>The 19 features and what each model learned from them</h2>
+      <p class="card-sub">Every input is measured with data public on the filing date. <strong>Logistic weight</strong>: effect of a one-standard-deviation increase; blue raises the score, orange lowers it. <strong>LightGBM share</strong>: the share of the trees' total gain that came from the feature. <strong>Market-only</strong>: the baseline's {{ "weight" if v.s.baseline_kind == "logit" else "share" }}, for the six stock features it sees. Availability and typical values are for the {{ v.m.n_all|num }} pilot events.</p>
+    </div></div>
+    <div class="table-wrap">
+      <table class="features tight">
+        <thead><tr><th>#</th><th>Feature</th><th>What it captures · how it is computed</th><th class="num">Available</th><th class="num">Typical (median)</th><th>Logistic weight</th><th>LightGBM share</th><th>Market-only</th></tr></thead>
+        <tbody>
+        {% for r in v.s.rows %}
+          <tr>
+            <td class="mono muted">{{ r.plan }}</td>
+            <td class="feat-name"><strong>{{ r.label }}</strong><span class="ago">{{ r.group }} · {{ r.source }}</span></td>
+            <td class="wrap-cell feat-desc">{{ r.desc }}<span class="ago">{{ r.how }}</span></td>
+            <td class="num">{{ "%.0f"|format(r.coverage * 100) }}%</td>
+            <td class="num">{{ r.typical }}</td>
+            <td><span class="wbar"><span class="track"><span class="fill {{ 'up' if r.logit > 0 else 'down' }}" style="width:{{ r.logit_w|round(0) }}%"></span></span><span class="mono">{{ "%+.2f"|format(r.logit) }}</span></span></td>
+            <td><span class="wbar"><span class="track"><span class="fill up" style="width:{{ r.lgbm_w|round(0) }}%"></span></span><span class="mono">{{ "%.0f"|format(r.lgbm * 100) }}%</span></span></td>
+            <td>{% if r.base is not none %}<span class="wbar"><span class="track"><span class="fill {{ 'up' if r.base > 0 else 'down' }}" style="width:{{ r.base_w|round(0) }}%"></span></span><span class="mono">{{ ("%+.2f"|format(r.base)) if v.s.baseline_kind == "logit" else ("%.0f"|format(r.base * 100) ~ "%") }}</span></span>{% else %}<span class="muted">not used</span>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="source">Weights are from the models trained on {{ v.m.train_years[0] }}–{{ v.m.train_years[1] }}. With an AUC near 0.5, most of these weights are small and could change with more data.</p>
+  </article>
+
+  <article class="card">
+    <h2>Considered but not used in the MVP</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Feature</th><th>Why it is left out</th></tr></thead>
+        <tbody>
+        {% for plan, name, why in v.s.not_used %}
+          <tr><td class="mono muted">{{ plan }}</td><td class="wrap-cell">{{ name }}</td><td class="wrap-cell muted">{{ why }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </article>
 </section>
 
 <!-- ============================== COMPANY ============================== -->
