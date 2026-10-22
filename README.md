@@ -33,12 +33,25 @@ uv run sentinel check
 
 `uv run sentinel --help` lists every pipeline step. Steps not built yet exit with code 4.
 
+## MVP prototype (feature 003)
+
+A self-contained prototype in `mvp/` that shows what the product will look like. It is governed by the constitution's Prototype Exception: returns are computed only for 2006–2011 pilot events, at companies still listed today, and every result is labelled as such.
+
+```bash
+uv run python -m mvp build --skip-prices   # about 30 s with cached data (drop the flag to refresh prices)
+uv run python -m mvp serve                 # http://127.0.0.1:8765
+uv run python -m mvp check                 # constitution guards
+```
+
+Six tabs: overview, findings (event study), model, latest clusters (screener), company lookup, and method & limits. A 5-minute class walkthrough is in [mvp/DEMO.md](mvp/DEMO.md); results and decisions are in [specs/003-mvp-dashboard/run-notes.md](specs/003-mvp-dashboard/run-notes.md).
+
 ## Data layout
 
 Everything under `data/` is git-ignored and can be regenerated:
 
 - `data/raw/`: downloads exactly as received, read-only, recorded in `manifest.jsonl`.
 - `data/provisional/`: the provisional candidate list and its summary against the pilot.
+- `data/mvp/`: the MVP's own downloads (Yahoo prices, SEC company records), work tables and the built dashboard.
 - Later features add `data/warehouse.duckdb`, rebuilt from `data/raw/` by commands.
 
 ## Development
