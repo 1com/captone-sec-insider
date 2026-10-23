@@ -122,7 +122,7 @@ The researcher gets the daily factor returns, industry portfolio returns, SIC-to
 
 ### Edge Cases
 
-- A ticker reused by a different company: prices are taken only within the date range the symbol map assigns to each company, and G8 catches residual mismatches.
+- A ticker reused by a different company: a provider series whose dates do not overlap the company's own filings under that ticker, or whose company name does not match, is rejected; G8 catches residual mismatches.
 - Yahoo returns a history that starts after the company's first event or stops before its last filing: the company falls back to Tiingo during the paid month.
 - A delisted company not found in Tiingo's list: its events are unpriced, counted and covered by the bounds.
 - Duplicate or conflicting rows for one symbol and session (a provider correction): one row is kept by a fixed rule, and the conflict is reported.
@@ -139,13 +139,13 @@ The researcher gets the daily factor returns, industry portfolio returns, SIC-to
 
 **Prices**
 
-- **FR-001**: The system MUST fetch daily prices for every company with a preliminary event (groups A, B1 and B2), over each ticker's date range in the symbol map, from 1 January 2005 or the start of the provider's history, to the latest available session.
+- **FR-001**: The system MUST fetch daily prices for every company with a preliminary event (groups A, B1 and B2) dated on or after the start of final detection (see Assumptions), from 1 January 2010 or the start of the provider's history to the latest available session. Each series MUST be checked to belong to the company: its dates overlap the company's own filings under that ticker, and the provider's company name matches the SEC name. Series that fail are rejected and reported.
 - **FR-002**: For companies mapped to Yahoo, and for SPY and IWM, the system MUST store daily open, high, low, close, adjusted close and volume, together with the split history, and MUST rebuild as-traded (unadjusted) prices by undoing later splits.
 - **FR-003**: For companies mapped to Tiingo, and for companies listed today whose Yahoo history is missing or starts after their first event, the system MUST fetch Tiingo's raw and adjusted daily prices during the paid month only, resolving each company's final Tiingo ticker (including `Q` suffixes) from SEC-derived tickers.
 - **FR-004**: Every raw response MUST be stored as received in the raw-data area, with one manifest line recording the source, address, time and checksum. Downloads MUST be resumable and MUST respect each provider's limits (SEC at most 10 requests per second; Tiingo's plan limits; polite, cached access to Yahoo).
 - **FR-005**: Every stored file and table derived from Tiingo data MUST be listed in a deletion register. A deletion command MUST remove all of them and log the deletion in the plan's decision log (constitution Principle VI).
 - **FR-006**: The analysis database MUST hold one price row per company, symbol and session, with the source, as-traded and adjusted prices, volume and split factor. Conflicting duplicates MUST be resolved by a fixed rule and reported.
-- **FR-007**: A coverage report MUST give, for A and B1 events before floors, the share with prices on sessions T−19 to T+1, by year and by delisting status, separately for the labelled window (from 2012) and earlier years. A shortfall MUST NOT be fixed by changing the study window.
+- **FR-007**: A coverage report MUST give, for A and B1 events before floors, the share with prices on sessions T−19 to T+1, by year and by delisting status, for the labelled window (from 2012). A shortfall MUST NOT be fixed by changing the study window.
 
 **Final events**
 
@@ -153,7 +153,7 @@ The researcher gets the daily factor returns, industry portfolio returns, SIC-to
 - **FR-009**: Final detection MUST apply the plan's A, B1 and B2 rules (§6.4) to the purchases that pass G8, with entities and roles as of T, as in feature 002.
 - **FR-010**: G7 MUST use the SIC code in the signal filing's header: exclude SIC 6770, 6722 and 6726, and companies whose header has no SIC code (D45). If the D45 check finds 3 or more operating companies among its 30, companies without a header SIC MUST instead take their current SIC code (§11 fallback). The choice MUST be a parameter. Signal filings without a stored header MUST be fetched before detection.
 - **FR-011**: The tradability floors MUST be evaluated at the last trading session on or before T, using prices up to that session only: as-traded close at least $2, 20-session average daily dollar volume at least $100,000, and volume on at least 18 of the last 20 sessions, all from the parameter file.
-- **FR-012**: The cooldown MUST suppress another event in the same group at the same company for 63 trading sessions, and MUST be started only by events that pass G7 and the floors.
+- **FR-012**: The cooldown MUST suppress another event in the same group at the same company for 63 trading sessions, and MUST be started only by events that pass G7 and the floors, or that pass G7 but cannot be priced (their floors are unknown, and the bounds must count them like priced events).
 - **FR-013**: Each final event MUST record its group, company, signal date T, last session on or before T, entry session (the first session after T), signal filing and acceptance time, member purchases, G7 result, floor values and results, and whether it is priced.
 - **FR-014**: Events at companies without prices MUST be recorded as unpriced and counted by year and group, so that the worst- and best-case bounds can be computed later.
 - **FR-015**: Rebuilding final events from data dated on or before T MUST give identical events, G8 results and floor decisions at or before T (truncation test, constitution Principle I).
@@ -221,8 +221,8 @@ The researcher gets the daily factor returns, industry portfolio returns, SIC-to
 ## Assumptions
 
 - The researcher subscribes to Tiingo Power with auto-renewal off on Thursday 29 October 2026; the free sources (Yahoo, SEC, the French library, FINRA) can be fetched earlier.
-- Price histories start on 1 January 2005, so that every event from 2006 has a year of earlier prices for look-back features and floors.
-- Final events cover all years from 2006, because cooldowns and history-based features need earlier events; coverage targets apply to the labelled window from 2012.
+- Final detection starts on 1 July 2011: a six-month warm-up before the labelled window, so that cooldowns are already settled on 1 January 2012. Warm-up events are stored, flagged and never labelled. No feature uses earlier final events (features use purchases and prices), and signal-filing headers exist only from the warm-up on.
+- Price histories start on 1 January 2010, which gives the warm-up's floors and the 252-session look-back of 2012 events enough earlier prices.
 - The D45 check result is known before final detection; until then G7 applies D45 as adopted, and the fallback is one parameter.
 - Delisting returns for venues other than NYSE, NYSE American and Nasdaq (for example OTC), or an unknown venue, take the Nasdaq figure (−55%), the more conservative of the two registered values. The plan does not cover these venues, so this rule is added to the parameter file and the decision log before the lock (FR-030).
 - Company facts and filing histories may come from the SEC's bulk archives or per-company requests; the choice is made in the plan.
