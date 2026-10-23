@@ -28,44 +28,44 @@ The stories depend on one another's *data* (each reads the previous layer), but 
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm branch `002-insider-warehouse` is checked out and the feature 001 baseline passes: `uv run pytest` (85 passed) and `uv run ruff check .`.
-- [ ] T002 [P] Create packages `src/sentinel/core/__init__.py` ("Production insider layers: staging, entities, gates, symbols.") and `src/sentinel/events/__init__.py` ("Event detection."), and the folder `tests/integration/`. In `pyproject.toml`, add the pytest marker `"slow: needs the real data/warehouse.duckdb; skipped when absent"`.
+- [X] T001 Confirm branch `002-insider-warehouse` is checked out and the feature 001 baseline passes: `uv run pytest` (85 passed) and `uv run ruff check .`.
+- [X] T002 [P] Create packages `src/sentinel/core/__init__.py` ("Production insider layers: staging, entities, gates, symbols.") and `src/sentinel/events/__init__.py` ("Event detection."), and the folder `tests/integration/`. In `pyproject.toml`, add the pytest marker `"slow: needs the real data/warehouse.duckdb; skipped when absent"`.
 
 ---
 
 ## Phase 2: Foundational (blocks every story)
 
-- [ ] T003 Update `config/params.yaml`, as specified in contracts/params-rules.md:
+- [X] T003 Update `config/params.yaml`, as specified in contracts/params-rules.md:
   - **`rules` section**, added between `ops` and `provisional`, with `gate_common_title_regex`, `gate_excluded_title_regex`, `gate_plan_footnote_regex`, `gate_offering_footnote_regex` and `role_ceo_cfo_title_regex`. Copy the values verbatim from the matching `provisional.*` keys.
   - **`prelim_cooldown_calendar_days: 91`** in `rules`.
   - **In `ops`**: `sec_header_target_requests_per_second: 8` and `sec_headers_url_pattern: "https://www.sec.gov/Archives/edgar/data/{cik}/{acc_nodash}/{acc}-index-headers.html"`.
   - **`version: 5`**.
-- [ ] T004 Update `src/sentinel/config.py`:
+- [X] T004 Update `src/sentinel/config.py`:
   - `SECTIONS = ("registered", "ops", "rules", "provisional")`.
   - `load_params` compiles every `*_regex` in `rules` as well as in `provisional`, and checks `ops.sec_header_target_requests_per_second <= ops.sec_max_requests_per_second`.
   - `check_register` also rejects a `register` block in `rules`.
   - `Paths` gains `warehouse = data/warehouse.duckdb`, `sec_headers = data/raw/sec/headers` and `audits = specs/002-insider-warehouse/audits`.
-- [ ] T005 [P] Extend `tests/unit/test_config.py` and `tests/unit/test_params_register.py` to cover contracts/params-rules.md rules 1–5:
+- [X] T005 [P] Extend `tests/unit/test_config.py` and `tests/unit/test_params_register.py` to cover contracts/params-rules.md rules 1–5:
   - the four sections, with no key appearing in two of them;
   - no `register` block in `rules`;
   - every `rules` regex compiles in Python *and* in DuckDB (`select regexp_matches('x', ?, 'i')`);
   - the header rate is at most the ceiling, which is at most 10;
   - `version == 5`.
-- [ ] T006 Implement `src/sentinel/warehouse.py`:
+- [X] T006 Implement `src/sentinel/warehouse.py`:
   - **`connect(paths, read_only=False)`**: creates the parent folder, and schemas `stg`, `core`, `evt` and `audit` if absent.
   - **`replace_table(con, name, select_sql, params=None)`**: `CREATE OR REPLACE TABLE … AS …` inside a transaction.
   - **`require_tables(con, names, run_first)`**: raises `MissingInput("run `sentinel <step>` first: missing <table>")`.
   - **`log_build(con, step, fingerprint, rows)`**: inserts into `core.build_log` (`step`, `started_at`, `finished_at`, `input_fingerprint`, `rows_written`).
   - **`table_exists`**.
-- [ ] T007 [P] Add a `Manifest` class to `src/sentinel/ingest/manifest.py`:
+- [X] T007 [P] Add a `Manifest` class to `src/sentinel/ingest/manifest.py`:
   - **Loading**: reads the existing entries once and builds indexes of paths and (`source`, `key`, `role=original`).
   - **`add(entry)`**: checks the same rules as `append`, then writes one line, flushes and fsyncs.
   - **Lookups**: `has_path(path)`, and `find_original(source, key)` in O(1).
   - **Compatibility**: the existing `append()` delegates to a temporary `Manifest`. Existing callers and tests stay unchanged.
 
   Add tests to `tests/unit/test_manifest.py`: 2,000 `add` calls complete in under 5 s with no duplicates accepted, and a reload sees every entry.
-- [ ] T008 [P] Create `src/sentinel/core/symbols.py`. Move `normalise`, `parse_supported`, `fetch_list`, `match` and `TiingoIndex` there from `src/sentinel/provisional/tiingo_list.py`, with their docstrings unchanged. Make `tiingo_list.py` re-export them (`from sentinel.core.symbols import ...`). Production code must not import `sentinel.provisional`; the reverse direction is allowed. Run `uv run pytest`, which must still pass unchanged, including `tests/unit/test_tiingo_match.py` and the guard test.
-- [ ] T009 Extend `tests/conftest.py` with:
+- [X] T008 [P] Create `src/sentinel/core/symbols.py`. Move `normalise`, `parse_supported`, `fetch_list`, `match` and `TiingoIndex` there from `src/sentinel/provisional/tiingo_list.py`, with their docstrings unchanged. Make `tiingo_list.py` re-export them (`from sentinel.core.symbols import ...`). Production code must not import `sentinel.provisional`; the reverse direction is allowed. Run `uv run pytest`, which must still pass unchanged, including `tests/unit/test_tiingo_match.py` and the guard test.
+- [X] T009 Extend `tests/conftest.py` with:
   - **`archives(tmp_data, quarters: dict[str, dict[str, list[dict]]], checkbox_from="2023q1")`**: writes one synthetic zip per quarter with `build_quarter_zip` and records each as a manifest `original` (source `sec_insider_bulk`).
   - **Fixture `pipeline`**: given `archives`, runs the build steps in order (`stage`, `entities`, `gates`, `prelim`, `symbols`) on `tmp_data.warehouse`, stopping at a requested step, and returns the DuckDB connection.
   - **Row helpers**: `sub(...)`, `owner(...)`, `line(...)`, `holding(...)`, `note(...)`, matching those in `tests/unit/test_provisional_gates.py`.
@@ -83,7 +83,7 @@ The stories depend on one another's *data* (each reads the previous layer), but 
 
 ### Tests (write first)
 
-- [ ] T010 [P] [US1] Write `tests/unit/test_stage.py`, using `archives` with two quarters (`2019q1`, `2023q1`):
+- [X] T010 [P] [US1] Write `tests/unit/test_stage.py`, using `archives` with two quarters (`2019q1`, `2023q1`):
   - **Counts**: all 8 `stg` tables exist, and the per-(table, quarter) counts equal the rows written, as recorded in `stg.load_report`.
   - **Typing**: `filing_date` is DATE, `trans_shares` is DOUBLE, `equity_swap_involved` is BOOLEAN, and CIK `'0000036270'` becomes `'36270'`.
   - **Conversion issues**: a `TRANS_DATE` of `'31-FOO-2019'` and a `TRANS_SHARES` of `'F1'` become null, with rows in `stg.conversion_issue` holding the raw text.
@@ -94,7 +94,7 @@ The stories depend on one another's *data* (each reads the previous layer), but 
 
 ### Implementation
 
-- [ ] T011 [US1] Implement `src/sentinel/core/stage.py`:
+- [X] T011 [US1] Implement `src/sentinel/core/stage.py`:
   - **`TABLE_SPECS`**: for each of the 8 tables, the date columns (`*_DATE`, `PERIOD_OF_REPORT`, `DATE_OF_ORIG_SUB`), numeric columns (shares, price, value, conversion or exercise price, underlying shares), boolean columns (research R2) and CIK columns.
   - **`stage_all(con, archives)`**:
     1. Create each `stg.<table>` with typed columns plus `quarter` and `src_row`.
@@ -103,8 +103,8 @@ The stories depend on one another's *data* (each reads the previous layer), but 
     4. Insert conversion failures (raw non-empty, typed null) into `stg.conversion_issue`.
     5. Write `stg.load_report` (`table_name`, `quarter`, `rows_expected` = file newline count − 1, `rows_loaded`, `columns`).
   - **`drift_report(con)`**: returns the quarters present for each column.
-- [ ] T012 [US1] Replace the `stage` stub in `src/sentinel/cli.py`. It loads archives from the manifest originals (`sentinel.provisional.load.stored_archives` is forbidden here, so add `stored_archives` to `sentinel.core.stage` or `ingest.manifest`). It prints the total rows, the conversion-issue counts per column (top 10), any `load_report` mismatches and the elapsed time; logs the build; and exits 1 on any mismatch.
-- [ ] T013 [US1] Run `time uv run sentinel stage` on the real data. Confirm 37,937,561 rows and 0 mismatches (SC-001), and record the counts per table, the conversion issues and the timing in `specs/002-insider-warehouse/run-notes.md`.
+- [X] T012 [US1] Replace the `stage` stub in `src/sentinel/cli.py`. It loads archives from the manifest originals (`sentinel.provisional.load.stored_archives` is forbidden here, so add `stored_archives` to `sentinel.core.stage` or `ingest.manifest`). It prints the total rows, the conversion-issue counts per column (top 10), any `load_report` mismatches and the elapsed time; logs the build; and exits 1 on any mismatch.
+- [X] T013 [US1] Run `time uv run sentinel stage` on the real data. Confirm 37,937,561 rows and 0 mismatches (SC-001), and record the counts per table, the conversion issues and the timing in `specs/002-insider-warehouse/run-notes.md`.
 
 **Checkpoint**: the staging layer is complete and verified.
 
@@ -118,7 +118,7 @@ The stories depend on one another's *data* (each reads the previous layer), but 
 
 ### Tests (write first)
 
-- [ ] T014 [P] [US2] Write `tests/unit/test_entities.py`:
+- [X] T014 [P] [US2] Write `tests/unit/test_entities.py`:
   - **Joint filing**: X and Y on one filing on 2019-03-01 give one `entity_id` from that date.
   - **Later merge**: X and Y file separately in 2018 and co-file on 2019-05-01, so they are two entities at 2019-04-30 and one at 2019-05-01.
   - **Same day**: two co-filings on one day (X+Y, Y+Z) are applied together, so X, Y and Z are one entity on that day.
@@ -130,12 +130,12 @@ The stories depend on one another's *data* (each reads the previous layer), but 
     - titles `"President & CEO"`, `"Chief Financial Officer"` and `"Principal Executive Officer"` give `ceo_cfo`;
     - an officer titled `"See Remarks"` gives `officer`;
     - an entity of director + 10% owner has seniority 2.
-- [ ] T015 [P] [US2] Write `tests/unit/test_core_gates.py`:
+- [X] T015 [P] [US2] Write `tests/unit/test_core_gates.py`:
   - **Exclusions**: one excluded case per gate (G1–G6b), as in feature 001's gate tests, plus a missing price excluded by G6a.
   - **Cited footnotes only**: a plan footnote cited only by another line keeps this line.
   - **Checkbox**: a ticked box excludes every line of the filing.
   - **Timeliness**: 30 days kept, 31 days and negative lags excluded.
-  - **Value**: $9,999 dropped, $10,000 kept, per filing.
+  - **Value**: just below `registered.g6_min_value` ($25,000 since D46) dropped, exactly at it kept, per filing.
   - **Entity and role**: a clean purchase's `entity_id` and `entity_role` are taken as of its filing date.
   - **Holdings**:
     - direct (after 1,000, bought 400) plus indirect (after 2,000, bought 0 on another line) gives before 2,600 and after 3,000;
@@ -146,7 +146,7 @@ The stories depend on one another's *data* (each reads the previous layer), but 
     - `opens_position` is true when "before" is 0.
   - **Deduplication**: by (`accession`, `line_sk`) across quarters.
   - **W5 and W6** hold.
-- [ ] T016 [P] [US2] Write `tests/unit/test_truncation.py`, with a synthetic two-year history of merges, a promotion and purchases at one issuer. For three cutoffs T, building with `cutoff=T` must give the same rows as the full build filtered to dates ≤ T, for `core.entity_member`, `core.owner_role` and `core.clean_purchase` (W9; events are added in T026).
+- [X] T016 [P] [US2] Write `tests/unit/test_truncation.py`, with a synthetic two-year history of merges, a promotion and purchases at one issuer. For three cutoffs T, building with `cutoff=T` must give the same rows as the full build filtered to dates ≤ T, for `core.entity_member`, `core.owner_role` and `core.clean_purchase` (W9; events are added in T026).
 - [ ] T017 [P] [US2] Write `tests/unit/test_audit.py`:
   - **Layout**: the three sheets have exactly the columns in contracts/audit-sheets.md.
   - **Seed**: 2002 gives an identical sample on rerun.
@@ -156,12 +156,12 @@ The stories depend on one another's *data* (each reads the previous layer), but 
 
 ### Implementation
 
-- [ ] T018 [US2] Implement `src/sentinel/core/entities.py`. Every function takes `cutoff: date | None` and `issuers: list[str] | None`.
+- [X] T018 [US2] Implement `src/sentinel/core/entities.py`. Every function takes `cutoff: date | None` and `issuers: list[str] | None`.
   - **`build_filing(con)`**: creates `core.filing`, deduplicated as the first quarter per accession.
   - **`build_entity_members(con)`**: a Python union-find per issuer over owner CIKs, grouped by filing date (all of a day's filings unioned before emitting). Emits (`issuer_cik`, `owner_cik`, `entity_id` = `"{issuer}:{min owner}"`, `valid_from`) whenever an owner's component changes, and bulk-inserts via Arrow.
   - **`build_owner_roles(con, params)`**: SQL window functions over `stg.reportingowner` joined to `core.filing`. Gives the role and seniority per filing (research R4), with intervals collapsed when consecutive roles match.
-- [ ] T019 [US2] Replace the `entities` stub in `src/sentinel/cli.py`. It requires `stg.submission` and `stg.reportingowner`, prints counts (filings, owners, entities, multi-member entities, role intervals) and logs the build.
-- [ ] T020 [US2] Implement `src/sentinel/core/gates.py`, with `cutoff` and `issuers` arguments:
+- [X] T019 [US2] Replace the `entities` stub in `src/sentinel/cli.py`. It requires `stg.submission` and `stg.reportingowner`, prints counts (filings, owners, entities, multi-member entities, role intervals) and logs the build.
+- [X] T020 [US2] Implement `src/sentinel/core/gates.py`, with `cutoff` and `issuers` arguments:
   - **`build_transactions(con, params)`** → `core.transaction`: the columns in data-model.md, `fn_ids` from every `*_fn` column, `value_usd`, and flags `g1_form4`, `g2_purchase`, `g3_common`, `g4a_no_checkbox`, `g4b_no_plan_fn`, `g5_no_offering_fn` and `g6a_timely_valued`, from `rules.*` and `registered.g6_timeliness`, plus `passes_lines`.
   - **`build_clean_purchases(con, params)`** → `core.clean_purchase`:
     - one row per filing whose passing lines total ≥ `registered.g6_min_value`;
@@ -170,7 +170,7 @@ The stories depend on one another's *data* (each reads the previous layer), but 
     - holdings before and after as in research R5, using `stg.nonderiv_holding` common-stock rows of the same accession;
     - `opens_position`.
   - **`build_funnel(con)`** → `audit.funnel`: line gates plus G6b at filing level.
-- [ ] T021 [US2] Replace the `gates` stub in `src/sentinel/cli.py`. It prints rows per step, clean purchases and null-holdings counts; checks W5 and W6; exits 1 if the funnel does not reconcile; and logs the build.
+- [X] T021 [US2] Replace the `gates` stub in `src/sentinel/cli.py`. It prints rows per step, clean purchases and null-holdings counts; checks W5 and W6; exits 1 if the funnel does not reconcile; and logs the build.
 - [ ] T022 [US2] Implement `src/sentinel/core/audit.py`, as specified in contracts/audit-sheets.md:
   - **`make_sheets(con, out_dir, seed=2002, force=False)`**: three CSVs, EDGAR links, cited footnote text truncated to 500 characters, and excluded rows stratified by deciding gate.
   - **`summarize(out_dir)`**: returns the counts and rates per sheet.

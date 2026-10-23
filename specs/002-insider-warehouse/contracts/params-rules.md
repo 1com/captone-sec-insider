@@ -26,7 +26,7 @@ ops:
 2. **Register blocks**: `rules` entries carry no `register` block (`check_register` covers `rules` as it does `ops` and `provisional`).
 3. **Regexes**: every `*_regex` in `rules` compiles case-insensitively, in Python and in DuckDB (RE2).
 4. **Rate**: `ops.sec_header_target_requests_per_second ≤ ops.sec_max_requests_per_second ≤ 10`.
-5. **Version**: `version` is bumped to 5.
+5. **Version**: `version` is bumped to 5 (then to 6 by D46, which raised `registered.g6_min_value` to $25,000).
 
 ## Change policy
 

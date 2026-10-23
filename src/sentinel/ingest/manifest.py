@@ -57,19 +57,46 @@ def find_original(manifest_path: Path, source: str, key: str) -> ManifestEntry |
     )
 
 
+class Manifest:
+    """The manifest with its index loaded once, for writers that add thousands of entries.
+
+    `append()` re-reads the whole file on every call; this class reads it once and keeps the
+    path and (source, key) indexes up to date as it writes (research.md R9).
+    """
+
+    def __init__(self, manifest_path: Path):
+        self.path = manifest_path
+        self._paths: set[str] = set()
+        self._originals: dict[tuple[str, str], ManifestEntry] = {}
+        for entry in read_all(manifest_path):
+            self._index(entry)
+
+    def _index(self, entry: ManifestEntry) -> None:
+        self._paths.add(entry.path)
+        if entry.role == "original":
+            self._originals[(entry.source, entry.key)] = entry
+
+    def has_path(self, path: str) -> bool:
+        return path in self._paths
+
+    def find_original(self, source: str, key: str) -> ManifestEntry | None:
+        return self._originals.get((source, key))
+
+    def add(self, entry: ManifestEntry) -> None:
+        if entry.path in self._paths:
+            raise ManifestError(f"manifest already lists {entry.path}")
+        if entry.role == "original" and (entry.source, entry.key) in self._originals:
+            raise ManifestError(f"manifest already has an original for {entry.source}/{entry.key}")
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with open(self.path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(asdict(entry), ensure_ascii=False) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+        self._index(entry)
+
+
 def append(manifest_path: Path, entry: ManifestEntry) -> None:
-    existing = read_all(manifest_path)
-    if any(e.path == entry.path for e in existing):
-        raise ManifestError(f"manifest already lists {entry.path}")
-    if entry.role == "original" and any(
-        e.source == entry.source and e.key == entry.key and e.role == "original" for e in existing
-    ):
-        raise ManifestError(f"manifest already has an original for {entry.source}/{entry.key}")
-    manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(manifest_path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(asdict(entry), ensure_ascii=False) + "\n")
-        f.flush()
-        os.fsync(f.fileno())
+    Manifest(manifest_path).add(entry)
 
 
 def sha256_file(path: Path) -> str:

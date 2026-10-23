@@ -170,13 +170,17 @@ def test_price_standin_floor(run):
     assert passes(con, "a") and not passes(con, "b")
 
 
-def test_filing_minimum_value(run):
+def test_filing_minimum_value(run, params):
+    floor = params["registered"]["g6_min_value"]["value"]
     con = run(
         [sub("a"), sub("b")],
         [owner("a"), owner("b")],
-        [line("a", "1", shares="1000", price="10"), line("b", "1", shares="999.9", price="10")],
+        [
+            line("a", "1", shares=str(floor / 10), price="10"),
+            line("b", "1", shares=str(floor / 10 - 0.01), price="10"),
+        ],
     )
-    assert clean(con) == {"a": 10000.0}
+    assert clean(con) == {"a": float(floor)}
 
 
 def test_funnel_reconciles(run):

@@ -51,9 +51,9 @@ def test_help_lists_every_step_and_phase():
 
 
 def test_stub_exits_4():
-    result = runner.invoke(cli.app, ["stage"])
+    result = runner.invoke(cli.app, ["fetch-prices"])
     assert result.exit_code == cli.NOT_IMPLEMENTED
-    assert "not yet implemented — plan Step 2" in result.output
+    assert "not yet implemented — plan Step 7" in result.output
 
 
 def test_unknown_option_is_a_usage_error():

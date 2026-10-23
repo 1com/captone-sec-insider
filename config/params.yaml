@@ -4,9 +4,12 @@
 # registered:  one entry per row of docs/initialplan.md Appendix E. The `register` block holds the
 #              row's cells VERBATIM; tests/unit/test_params_register.py fails if they drift.
 # ops:         operational settings (rate limits, URLs) — not research parameters.
+# rules:       research rules that are not numeric Appendix E rows (keyword lists, the preliminary
+#              cooldown) but that the prereg-v1 tag locks. Contract:
+#              specs/002-insider-warehouse/contracts/params-rules.md
 # provisional: the pilot's simplified rules (Appendix A) — NOT pre-registered.
 
-version: 4
+version: 6
 
 registered:
   insider_data_period:
@@ -32,13 +35,13 @@ registered:
       value: "Signal dates 1 Jan 2023 – 1 Jun 2026"
       sensitivity: "Fixed"
   g6_min_value:
-    value: 10000
+    value: 25000
     unit: usd_per_entity_per_filing
-    sensitivity: [5000, 25000]
+    sensitivity: [10000, 50000]
     register:
       parameter: "G6 minimum value"
-      value: "$10,000 per entity per filing"
-      sensitivity: "$5k; $25k"
+      value: "$25,000 per entity per filing"
+      sensitivity: "$10k; $50k"
   g6_timeliness:
     value: 30
     unit: calendar_days_after_trade
@@ -281,6 +284,19 @@ ops:
   sec_company_tickers_url: "https://www.sec.gov/files/company_tickers_exchange.json"
   tiingo_supported_tickers_url: "https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip"
   required_archive_tables: [SUBMISSION, REPORTINGOWNER, NONDERIV_TRANS, FOOTNOTES]
+  sec_header_target_requests_per_second: 8
+  sec_headers_url_pattern: "https://www.sec.gov/Archives/edgar/data/{cik}/{acc_nodash}/{acc}-index-headers.html"
+
+rules:
+  # Production gates (plan §6.2), applied case-insensitively. Initial values = provisional.*
+  gate_common_title_regex: 'common|ordinary|\bclass [a-z]\b|\bshares?\b'
+  gate_excluded_title_regex: 'preferred|warrant|\bunits?\b|\bnotes?\b|option|\brights?\b|debenture'
+  gate_plan_footnote_regex: '10b5-?1|10b-?5-?1|dividend reinvest|\bDRIP\b|employee stock purchase|\bESPP\b|automatic(ally)?\s+(purchase|reinvest)|reinvest(ed|ment) of dividends'
+  gate_offering_footnote_regex: 'public offering|underwrit|private placement|registered direct|subscription agreement|securities purchase agreement|\bPIPE\b|rights offering|directly from the (company|issuer)|from the issuer'
+  # Roles (plan §6.3)
+  role_ceo_cfo_title_regex: '\bCEO\b|\bCFO\b|chief executive|chief financial|principal executive|principal financial'
+  # Preliminary events only (plan §6.4; about 63 sessions). Final events use registered.cooldown.
+  prelim_cooldown_calendar_days: 91
 
 provisional:
   price_standin_floor: 2.0

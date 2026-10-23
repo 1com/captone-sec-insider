@@ -5,6 +5,8 @@ Contract: specs/001-skeleton-sec-ingest/contracts/cli.md
 """
 
 import logging
+import time
+from datetime import datetime
 
 import typer
 
@@ -104,6 +106,113 @@ def _sec_net(params: dict, secrets: Secrets):
     client = make_client(secrets.sec_user_agent, ops["http_timeout_seconds"])
     limiter = RateLimiter(ops["sec_target_requests_per_second"], ops["sec_max_requests_per_second"])
     return client, limiter, RetryPolicy.from_ops(ops)
+
+
+# --- Warehouse steps (feature 002) --------------------------------------------------------------
+
+
+def _step_stage(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel.core import stage
+
+    archives = stage.stored_archives(paths)
+    if not archives:
+        _fail("no stored archives: run `sentinel fetch-sec` first", FAILED)
+    done = []
+
+    def progress(quarter):
+        done.append(quarter)
+        if len(done) % 10 == 0 or len(done) == len(archives):
+            typer.echo(f"  staged {len(done)}/{len(archives)} quarters (last {quarter})")
+
+    report = stage.stage_all(con, archives, on_progress=progress)
+    typer.echo(
+        f"stage: {report.total_rows:,} rows, {len(stage.TABLE_SPECS)} tables × "
+        f"{len(archives)} quarters"
+    )
+    for (table, column), n in list(report.issues_by_column.items())[:10]:
+        typer.echo(f"  conversion issues {table}.{column}: {n:,}")
+    for table, quarter, expected, loaded in report.mismatches:
+        typer.echo(f"  MISMATCH {table} {quarter}: file {expected:,}, loaded {loaded:,}")
+    return report.total_rows, not report.mismatches
+
+
+def _step_entities(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel import warehouse
+    from sentinel.core import entities
+
+    warehouse.require_tables(con, ["stg.submission", "stg.reportingowner"], "stage")
+    r = entities.build(con, params)
+    typer.echo(
+        f"entities: {r.filings:,} filings, {r.owners:,} owners, {r.entities:,} entities "
+        f"({r.multi_member:,} with several owners), {r.role_intervals:,} role intervals"
+    )
+    problems = 0
+    for name, found in (
+        ("W7 membership not monotonic", entities.check_monotonic(con)),
+        ("W8 filing owners in several entities", entities.check_filings_map_to_one_entity(con)),
+    ):
+        if found:
+            problems += 1
+            typer.echo(f"  {name}: {len(found):,} (first {found[0]})")
+    return r.rows_written, not problems
+
+
+def _step_gates(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel import warehouse
+    from sentinel.core import gates
+
+    warehouse.require_tables(
+        con, ["stg.nonderiv_trans", "stg.footnotes", "stg.nonderiv_holding"], "stage"
+    )
+    warehouse.require_tables(
+        con, ["core.filing", "core.entity_member", "core.owner_role"], "entities"
+    )
+    r = gates.build(con, params)
+    for gate, unit, rows_in, rows_out in gates.funnel_totals(con):
+        typer.echo(f"  {gate:<18} {rows_in:>12,} → {rows_out:>12,} {unit}")
+    typer.echo(
+        f"gates: {r.lines:,} lines, {r.clean_purchases:,} clean purchases; holdings not "
+        f"computable: before {r.null_before:,}, after {r.null_after:,}"
+    )
+    problems = 0
+    for name, found in (
+        ("W5 funnel does not reconcile", gates.check_funnel(con)),
+        ("W6 clean purchases below the G6 minimum", gates.check_min_value(con, params)),
+    ):
+        if found:
+            problems += 1
+            typer.echo(f"  {name}: {len(found):,} (first {found[0]})")
+    return r.rows_written, not problems
+
+
+STEPS: dict = {"stage": _step_stage, "entities": _step_entities, "gates": _step_gates}
+
+
+def _run_steps(names: list[str]) -> int:
+    """Run warehouse steps in order on one connection, logging each; stop at the first failure."""
+    import duckdb
+
+    from sentinel import warehouse
+
+    paths, params = _context()
+    fingerprint = warehouse.input_fingerprint(paths)
+    try:
+        con = warehouse.connect(paths)
+    except duckdb.IOException as e:
+        _fail(f"cannot open {paths.warehouse.name}: {e}", FAILED)
+    with con:
+        for name in names:
+            started, t0 = datetime.now(), time.monotonic()
+            try:
+                rows, ok = STEPS[name](paths, params, con)
+            except warehouse.MissingInput as e:
+                typer.echo(str(e), err=True)
+                return FAILED
+            warehouse.log_build(con, name, started, fingerprint, rows)
+            typer.echo(f"{name}: {rows:,} rows written in {time.monotonic() - t0:.0f} s")
+            if not ok:
+                return FAILED
+    return OK
 
 
 # --- Phase 0 -----------------------------------------------------------------------------------
@@ -241,9 +350,24 @@ def verify_sec():
     raise typer.Exit(OK if clean else FAILED)
 
 
-_stub("stage", "2", P1, "Load the data sets into typed staging tables")
-_stub("entities", "3", P1, "Build point-in-time insider entities and roles")
-_stub("gates", "4", P1, "Apply purchase gates G1–G6 and record the funnel")
+@app.command("stage", rich_help_panel=P1)
+def stage_cmd():
+    """[Step 2] Load the data sets into typed staging tables."""
+    raise typer.Exit(_run_steps(["stage"]))
+
+
+@app.command("entities", rich_help_panel=P1)
+def entities_cmd():
+    """[Step 3] Build point-in-time insider entities and roles."""
+    raise typer.Exit(_run_steps(["entities"]))
+
+
+@app.command("gates", rich_help_panel=P1)
+def gates_cmd():
+    """[Step 4] Apply purchase gates G1–G6 and record the funnel."""
+    raise typer.Exit(_run_steps(["gates"]))
+
+
 _stub("detect-prelim", "5", P1, "Preliminary event detection (A, B1, B2)")
 
 
