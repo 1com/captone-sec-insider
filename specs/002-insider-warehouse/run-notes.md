@@ -76,3 +76,12 @@ Until 2022 the SEC files glue `Other` to the previous flag without a comma: `Ten
 - **Entity role at the filing date**: director 69,758; ten_pct 34,720; ceo_cfo 31,344; officer 21,038; other 4,199; none missing.
 - **New positions** (`opens_position`): 13,196 (8%).
 - **Per year**: 5,645–9,164 a year, except 2007 (11,971) and 2008 (14,606). 2026 covers Q1–Q3 only (4,763).
+
+## T024 (part 3): Audit sheets (2026-10-23)
+
+`sentinel audit sheets` (seed 2002, 4 s) wrote `audits/entities.csv`, `audits/gates_excluded.csv` and `audits/gates_kept.csv`, 50 rows each. The excluded sheet has 10 rows per deciding gate: G3, G4 (8 × G4b, 2 × G4a), G5, G6a and G6b. **Verdicts are pending with the researcher**; `sentinel audit summary` scores them (SC-004: at least 90% agreement per sheet).
+
+Seen while checking the sheets, before any verdicts:
+- **Likely G3 error**: Analog Devices' "Comm Stock - $.16-2/3 value" is common stock, but `gate_common_title_regex` needs the word "common". Expect abbreviations of this kind among the G3 exclusions.
+- **Judgment case**: master limited partnerships' "Common units representing limited partner interests" fail G3 on `\bunits?\b`, which is meant for SPAC units.
+- **Quoting, cosmetic only**: about 1.0 M of 9.5 M footnotes, and 6,165 security titles, keep the SEC files' CSV-style quoting (`"…(""Common Units"")…"`), because the TSV reader runs with quoting off so that row counts match the files exactly. The gate regexes match substrings, so no decision changes.

@@ -147,7 +147,7 @@ The stories depend on one another's *data* (each reads the previous layer), but 
   - **Deduplication**: by (`accession`, `line_sk`) across quarters.
   - **W5 and W6** hold.
 - [X] T016 [P] [US2] Write `tests/unit/test_truncation.py`, with a synthetic two-year history of merges, a promotion and purchases at one issuer. For three cutoffs T, building with `cutoff=T` must give the same rows as the full build filtered to dates ≤ T, for `core.entity_member`, `core.owner_role` and `core.clean_purchase` (W9; events are added in T026).
-- [ ] T017 [P] [US2] Write `tests/unit/test_audit.py`:
+- [X] T017 [P] [US2] Write `tests/unit/test_audit.py`:
   - **Layout**: the three sheets have exactly the columns in contracts/audit-sheets.md.
   - **Seed**: 2002 gives an identical sample on rerun.
   - **Stratification**: excluded rows are stratified by deciding gate when enough rows exist.
@@ -171,11 +171,11 @@ The stories depend on one another's *data* (each reads the previous layer), but 
     - `opens_position`.
   - **`build_funnel(con)`** → `audit.funnel`: line gates plus G6b at filing level.
 - [X] T021 [US2] Replace the `gates` stub in `src/sentinel/cli.py`. It prints rows per step, clean purchases and null-holdings counts; checks W5 and W6; exits 1 if the funnel does not reconcile; and logs the build.
-- [ ] T022 [US2] Implement `src/sentinel/core/audit.py`, as specified in contracts/audit-sheets.md:
+- [X] T022 [US2] Implement `src/sentinel/core/audit.py`, as specified in contracts/audit-sheets.md:
   - **`make_sheets(con, out_dir, seed=2002, force=False)`**: three CSVs, EDGAR links, cited footnote text truncated to 500 characters, and excluded rows stratified by deciding gate.
   - **`summarize(out_dir)`**: returns the counts and rates per sheet.
-- [ ] T023 [US2] Add `audit sheets [--force]` and `audit summary` (a typer sub-app) to `src/sentinel/cli.py`. `summary` exits 1 if any verdict is blank.
-- [ ] T024 [US2] Run `uv run sentinel entities && uv run sentinel gates` on the real data. Record in `run-notes.md` the clean purchases, the funnel totals by gate, the null-holdings count and the timings (SC-002). Then run `uv run sentinel audit sheets`, and **hand off to the researcher** to fill in `verdict` and `notes` in the three sheets (about 1–2 hours). Implementation continues with US3 meanwhile.
+- [X] T023 [US2] Add `audit sheets [--force]` and `audit summary` (a typer sub-app) to `src/sentinel/cli.py`. `summary` exits 1 if any verdict is blank.
+- [X] T024 [US2] Run `uv run sentinel entities && uv run sentinel gates` on the real data. Record in `run-notes.md` the clean purchases, the funnel totals by gate, the null-holdings count and the timings (SC-002). Then run `uv run sentinel audit sheets`, and **hand off to the researcher** to fill in `verdict` and `notes` in the three sheets (about 1–2 hours). Implementation continues with US3 meanwhile.
 
 **Checkpoint**: clean purchases exist, the funnel reconciles, and the audit sheets are with the researcher.
 

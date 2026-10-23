@@ -368,6 +368,66 @@ def gates_cmd():
     raise typer.Exit(_run_steps(["gates"]))
 
 
+audit_app = typer.Typer(no_args_is_help=True)
+app.add_typer(
+    audit_app, name="audit", rich_help_panel=P1, help="[QA] Hand-audit sheets for steps 3–4."
+)
+
+
+@audit_app.command("sheets")
+def audit_sheets(
+    force: bool = typer.Option(False, "--force", help="Replace existing sheets and verdicts."),
+):
+    """Write 50-row samples of entities, excluded and kept purchases to check by hand."""
+    import duckdb
+
+    from sentinel import warehouse
+    from sentinel.core import audit
+
+    paths = _paths()
+    try:
+        con = warehouse.connect(paths, read_only=True)
+    except duckdb.IOException as e:
+        _fail(f"cannot open {paths.warehouse.name}: {e}", FAILED)
+    with con:
+        try:
+            warehouse.require_tables(con, ["core.entity_member", "core.owner_role"], "entities")
+            warehouse.require_tables(con, ["core.transaction", "core.clean_purchase"], "gates")
+            counts = audit.make_sheets(con, paths.audits, force=force)
+        except (warehouse.MissingInput, audit.SheetsExist) as e:
+            _fail(str(e), FAILED)
+    for sheet, n in counts.items():
+        typer.echo(f"  {sheet}.csv: {n} rows")
+    typer.echo(f"written to {paths.audits}/: fill in `verdict` (correct/wrong/unclear) and `notes`")
+
+
+@audit_app.command("summary")
+def audit_summary():
+    """Count the verdicts per sheet; exit 1 while any verdict is blank or invalid."""
+    from sentinel.core import audit
+
+    paths = _paths()
+    try:
+        summary = audit.summarize(paths.audits)
+    except FileNotFoundError as e:
+        _fail(f"{e.filename} not found: run `sentinel audit sheets` first", FAILED)
+    typer.echo(
+        f"{'sheet':<16} {'rows':>4} {'correct':>7} {'wrong':>5} {'unclear':>7} {'blank':>5} "
+        f"{'invalid':>7} {'agreement':>9}"
+    )
+    incomplete = False
+    for sheet, s in summary.items():
+        rate = "—" if s.agreement is None else f"{100 * s.agreement:.1f}%"
+        typer.echo(
+            f"{sheet:<16} {s.rows:>4} {s.correct:>7} {s.wrong:>5} {s.unclear:>7} {s.blank:>5} "
+            f"{s.invalid:>7} {rate:>9}"
+        )
+        incomplete |= bool(s.blank or s.invalid)
+    if incomplete:
+        typer.echo("some verdicts are blank or not one of: correct, wrong, unclear", err=True)
+    raise typer.Exit(FAILED if incomplete else OK)
+
+
 _stub("detect-prelim", "5", P1, "Preliminary event detection (A, B1, B2)")
 
 

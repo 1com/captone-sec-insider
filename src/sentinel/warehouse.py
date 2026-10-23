@@ -27,7 +27,9 @@ class MissingInput(Exception):
 
 def connect(paths: Paths, read_only: bool = False) -> duckdb.DuckDBPyConnection:
     if read_only:
-        return duckdb.connect(str(paths.warehouse), read_only=True)
+        return duckdb.connect(
+            str(paths.warehouse), read_only=True, config={"memory_limit": MEMORY_LIMIT}
+        )
     paths.warehouse.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(str(paths.warehouse), config={"memory_limit": MEMORY_LIMIT})
     # Row order is never relied on (keys, sorted comparisons), so let DuckDB stream large inserts.
