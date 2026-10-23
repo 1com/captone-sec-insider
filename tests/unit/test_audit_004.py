@@ -97,3 +97,60 @@ def test_warm_up_events_are_not_sampled(market_events, params, tmp_path):
     con = market_events(*cluster("w", date(2011, 9, 15)), prices={"100": rows}, sessions=cal)
     final.detect(con, params)
     assert audit.make_golden_sheet(con, tmp_path) == 0
+
+
+# --- Delisting sheet (T041) ---------------------------------------------------------------------
+
+
+@pytest.fixture
+def delisted(tmp_data):
+    from conftest import universe_tables
+
+    from sentinel import warehouse
+    from sentinel.core import delistings
+
+    con = warehouse.connect(tmp_data)
+    universe_tables(con)
+    con.execute(f"create table core.delisting ({delistings.COLUMNS})")
+    classes = ["acquired"] * 12 + ["performance"] * 4 + ["unknown"] * 15 + ["remap"] * 2
+    for i, cls in enumerate(classes):
+        cik = str(500 + i)
+        con.execute(
+            "insert into core.delisting values (?, '2019-06-03', 'tiingo', 'T', ?, null, "
+            "'DEFM14A', '2019-01-02', '0000950103-19-000001', 'nasdaq', 0.0, -1.0, 0.0)",
+            [cik, cls],
+        )
+        con.execute("insert into core.filing values (?, ?, '2018-01-02', 'T', ?)",
+                    [f"f{i}", cik, f"Company {i}"])  # fmt: skip
+    yield con
+    con.close()
+
+
+def test_delisting_sheet_layout_strata_and_no_prices(delisted, tmp_path):
+    n = audit.make_delisting_sheet(delisted, tmp_path)
+    rows = read(tmp_path / "delisting_audit.csv")
+    assert n == 30 and list(rows[0]) == audit.DELISTING_COLUMNS
+    classes = [r["class"] for r in rows]
+    assert classes.count("performance") == 4  # all of them
+    assert classes.count("acquired") >= 10 and classes.count("unknown") >= 10
+    assert {r["seed"] for r in rows} == {"20261024"}
+    assert rows[0]["filings_link"].startswith("https://www.sec.gov/cgi-bin/browse-edgar")
+    assert rows[0]["evidence_link"].endswith("/000095010319000001/")
+    assert not any("close" in c or "price" in c for c in rows[0])
+    with pytest.raises(audit.SheetsExist):
+        audit.make_delisting_sheet(delisted, tmp_path)
+
+
+def test_delisting_summary_by_class(delisted, tmp_path):
+    audit.make_delisting_sheet(delisted, tmp_path)
+    path_ = tmp_path / "delisting_audit.csv"
+    rows = read(path_)
+    for i, r in enumerate(rows):
+        r["verdict"] = "agree" if i % 10 else "disagree"
+    with path_.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=audit.DELISTING_COLUMNS)
+        writer.writeheader()
+        writer.writerows(rows)
+    s = audit.summarize_delistings(tmp_path)
+    assert s["all"]["agree"] == 27 and s["all"]["disagree"] == 3 and s["all"]["blank"] == 0
+    assert sum(v["agree"] + v["disagree"] for k, v in s.items() if k != "all") == 30

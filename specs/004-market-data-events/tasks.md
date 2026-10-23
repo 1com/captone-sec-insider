@@ -282,13 +282,13 @@ The stories read each other's *tables* in the real run, but each is **tested ind
 
 ### Tests (write first)
 
-- [ ] T039 [P] [US3] Submissions part of `tests/unit/test_sec_company.py`, using `submissions_zip`:
+- [X] T039 [P] [US3] Submissions part of `tests/unit/test_sec_company.py`, using `submissions_zip`:
   - `recent` arrays and every `files` page are merged;
   - forms 3, 4, 5 and 144 and their amendments are dropped;
   - subject-company forms (25-NSE, SC 14D9, SC TO-T, 425) are kept;
   - `core.issuer` holds the current SIC, exchanges and tickers;
   - only universe issuers are read.
-- [ ] T040 [P] [US3] `tests/unit/test_delistings.py` (spec US3 acceptance 1–4):
+- [X] T040 [P] [US3] `tests/unit/test_delistings.py` (spec US3 acceptance 1–4):
   - **Classes**:
     - a merger proxy 5 months before the last trade → `acquired`, 0%;
     - a Nasdaq company with Form 25 and no merger filing → `performance`, −55%; an NYSE one → −30%;
@@ -304,7 +304,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
     - a series ending 3 sessions before the data's end is not classified, because the gap rule is 5;
     - unpriced issuers are never classified.
   - **W23** holds.
-- [ ] T041 [P] [US3] Delisting-sheet part of `tests/unit/test_audit_004.py`:
+- [X] T041 [P] [US3] Delisting-sheet part of `tests/unit/test_audit_004.py`:
   - the contract's columns (no prices);
   - seed 20261024;
   - 10 per class, with a shortfall filled from the other classes;
@@ -313,16 +313,16 @@ The stories read each other's *tables* in the real run, but each is **tested ind
 
 ### Implementation
 
-- [ ] T042 [US3] Implement `src/sentinel/ingest/sec_company.py`:
+- [X] T042 [US3] Implement `src/sentinel/ingest/sec_company.py`:
   - **`fetch(paths, params, client, limiter, policy, refresh=False)`** streams `ops.sec_companyfacts_url` and `ops.sec_submissions_url` to `data/raw/sec/company/{companyfacts,submissions}.zip`, using `sentinel.ingest.http.stream_to_file` and the SEC User-Agent. It writes manifest lines with `source = sec_company`, and skips files already in the manifest unless `refresh`.
   - **Readers**: `iter_submissions(zip_path, ciks)` (the recent arrays plus pages, as one record per CIK) and `read_companyfacts(zip_path, cik)`. Members are opened one at a time.
-- [ ] T043 [US3] Implement `src/sentinel/core/company.py`: `build_profiles(con, paths, params, issuers=None)`, which writes `core.issuer` and `core.company_filing` for the universe (issuers with a preliminary event from `rules.final_detection_start`), in chunked inserts of 500 issuers.
-- [ ] T044 [US3] Implement `src/sentinel/core/delistings.py`: `build(con, params) -> DelistingReport`.
+- [X] T043 [US3] Implement `src/sentinel/core/company.py`: `build_profiles(con, paths, params, issuers=None)`, which writes `core.issuer` and `core.company_filing` for the universe (issuers with a preliminary event from `rules.final_detection_start`), in chunked inserts of 500 issuers.
+- [X] T044 [US3] Implement `src/sentinel/core/delistings.py`: `build(con, params) -> DelistingReport`.
   - Classes per research R11, in the order remap → acquired → performance → unknown.
   - Venue from `core.tiingo_listing`, or for Yahoo issuers from the latest SEC ticker snapshot.
   - Returns from `registered.delisting_returns`.
   - Re-map: during the paid month, the issuer's other SEC tickers are tried against `core.tiingo_listing`; the result goes in `remap_status`.
-- [ ] T045 [US3] Implement `make_delisting_sheet` and `summarize_delistings` in `src/sentinel/core/audit.py`.
+- [X] T045 [US3] Implement `make_delisting_sheet` and `summarize_delistings` in `src/sentinel/core/audit.py`.
 
   In `src/sentinel/cli.py`, add:
   - `fetch-company` (exit 5 on 403);
@@ -332,7 +332,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
   - `_step_company` and `_step_delistings` in `STEPS`.
   
   `coverage.md` gains the delisting section: classes × venue counts.
-- [ ] T046 [US3] In `src/sentinel/warehouse.py`, add W23 and the `core.delisting` and `core.company_filing` keys.
+- [X] T046 [US3] In `src/sentinel/warehouse.py`, add W23 and the `core.delisting` and `core.company_filing` keys.
 - [ ] T047 [US3] **Real run**:
   - `uv run sentinel fetch-company` (about 3 GB);
   - `cap uv run sentinel company-facts`;

@@ -23,7 +23,7 @@ COMMANDS = [
     "fetch-reference",
     "detect",
     "delistings",
-    "shares-out",
+    "company-facts",
     "costs",
     "prereg-status",
     "labels",

@@ -157,6 +157,9 @@ PRIMARY_KEYS = {
     "core.priced_purchase": "accession",
     "evt.event_candidate": "candidate_id",
     "evt.event": "event_id",
+    "core.issuer": "issuer_cik",
+    "core.company_filing": "issuer_cik, accession",
+    "core.delisting": "issuer_cik",
 }
 
 
@@ -166,7 +169,7 @@ def check_invariants(
     """W1–W8, W10–W24 (feature 002 and 004 contracts/warehouse-schema.md) for the steps that have
     been built. W9 and W25 are truncation tests; W11 needs the SEC ticker snapshot the map was built
     from, and W12 the raw-data paths."""
-    from sentinel.core import entities, gates, prices, symbols, tiingo_register
+    from sentinel.core import delistings, entities, gates, prices, symbols, tiingo_register
     from sentinel.events import final
 
     problems = []
@@ -229,4 +232,6 @@ def check_invariants(
         add("W19 events inside a cooldown", final.check_cooldown(con, params))
         add("W20 kept events failing G7 or the floors", final.check_kept_events(con, params))
         add("W21 events and funnel disagree", final.check_funnel(con))
+    if table_exists(con, "core.delisting"):
+        add("W23 delisting classes or returns", delistings.check_delistings(con, params))
     return problems

@@ -326,6 +326,34 @@ def _step_detect(paths: Paths, params: dict, con) -> tuple[int, bool]:
     return r.candidates, not problems
 
 
+def _step_company(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel import warehouse
+    from sentinel.core import company
+
+    warehouse.require_tables(con, ["evt.prelim_event"], "detect-prelim")
+    n_issuers, n_filings = company.build_profiles(con, paths, params)
+    typer.echo(f"company-facts: {n_issuers:,} issuer profiles, {n_filings:,} filings")
+    rows = n_issuers + n_filings
+    if hasattr(company, "build_facts"):
+        report = company.build_facts(con, paths, params)
+        typer.echo(f"  XBRL facts: {report}")
+        rows += report.rows
+    return rows, True
+
+
+def _step_delistings(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel.core import delistings
+
+    r = delistings.build(con, params)
+    classes = ", ".join(f"{k} {v:,}" for k, v in sorted(r.classes.items())) or "none"
+    venues = ", ".join(f"{k} {v:,}" for k, v in sorted(r.venues.items())) or "none"
+    typer.echo(f"delistings: {r.ended_early:,} series end early; {classes}; venues: {venues}")
+    problems = delistings.check_delistings(con, params)
+    for problem in problems[:10]:
+        typer.echo(f"  W23: {problem}")
+    return r.ended_early, not problems
+
+
 STEPS: dict = {
     "stage": _step_stage,
     "entities": _step_entities,
@@ -335,6 +363,8 @@ STEPS: dict = {
     "headers": _step_headers,
     "prices": _step_prices,
     "detect": _step_detect,
+    "company": _step_company,
+    "delistings": _step_delistings,
     "invariants": _step_invariants,
 }
 
@@ -698,6 +728,49 @@ def audit_golden_summary():
         f"unclear {s.unclear}, not filled in {s.blank}; agreement {agreement} (target 30/30)"
     )
     raise typer.Exit(FAILED if s.blank else OK)
+
+
+@audit_app.command("delistings")
+def audit_delistings(
+    force: bool = typer.Option(False, "--force", help="Replace an existing sheet and verdicts."),
+):
+    """Feature 004: write 30 delisting classifications to check by hand (SC-004)."""
+    import duckdb
+
+    from sentinel import warehouse
+    from sentinel.core import audit
+
+    paths, _ = _context()
+    try:
+        with warehouse.connect(paths, read_only=True) as con:
+            warehouse.require_tables(con, ["core.delisting"], "delistings")
+            n = audit.make_delisting_sheet(con, paths.audits_004, force=force)
+    except (duckdb.IOException, warehouse.MissingInput) as e:
+        _fail(str(e), FAILED)
+    except audit.SheetsExist as e:
+        _fail(f"kept the existing sheet: {e}", FAILED)
+    typer.echo(f"wrote {n} issuers to {paths.audits_004 / audit.DELISTING_SHEET}.csv")
+
+
+@audit_app.command("delistings-summary")
+def audit_delistings_summary():
+    """Feature 004: agreement with the delisting classes (exit 1 while verdicts are blank)."""
+    from sentinel.core import audit
+
+    paths, _ = _context()
+    try:
+        s = audit.summarize_delistings(paths.audits_004)
+    except FileNotFoundError:
+        _fail("no delisting sheet yet: run `sentinel audit delistings`", FAILED)
+    for cls, c in s.items():
+        judged = c["agree"] + c["disagree"]
+        share = f"{c['agree'] / judged:.0%}" if judged else "–"
+        typer.echo(
+            f"{cls:<12} agree {c['agree']}, disagree {c['disagree']}, unclear {c['unclear']}, "
+            f"blank {c['blank']}, invalid {c['invalid']}: agreement {share}"
+        )
+    typer.echo("target: ≥ 90% overall (SC-004)")
+    raise typer.Exit(FAILED if s.get("all", {}).get("blank") else OK)
 
 
 @app.command("detect-prelim", rich_help_panel=P1)
@@ -1119,8 +1192,40 @@ def coverage_cmd():
     typer.echo(f"wrote {out.relative_to(paths.root)}")
 
 
-_stub("delistings", "8", P2, "Classify delistings and assign delisting returns")
-_stub("shares-out", "9", P2, "Load shares outstanding from XBRL")
+@app.command("fetch-company", rich_help_panel=P2)
+def fetch_company_cmd():
+    """[Steps 8–9] Download the SEC's bulk companyfacts.zip and submissions.zip (about 3 GB)."""
+    from sentinel.ingest import sec_company
+    from sentinel.ingest.http import RetryExhausted, SecForbidden
+    from sentinel.ingest.manifest import FetchLock, FetchLocked
+
+    paths, params = _context()
+    secrets = _secrets(paths)
+    client, limiter, policy = _sec_net(params, secrets)
+    try:
+        with FetchLock(paths.lock), client:
+            done = sec_company.fetch(paths, params, client, limiter, policy, echo=typer.echo)
+    except FetchLocked as e:
+        _fail(str(e), FAILED)
+    except SecForbidden as e:
+        _fail(f"{e}. The SEC rejected the client; check SEC_USER_AGENT in .env.", SEC_FORBIDDEN)
+    except RetryExhausted as e:
+        _fail(str(e), FAILED)
+    typer.echo(", ".join(f"{k}: {v}" for k, v in done.items()))
+
+
+@app.command("company-facts", rich_help_panel=P2)
+def company_facts_cmd():
+    """[Steps 8–9] Load issuer profiles, filing histories and first-filed XBRL facts."""
+    raise typer.Exit(_run_steps(["company"]))
+
+
+@app.command("delistings", rich_help_panel=P2)
+def delistings_cmd():
+    """[Step 8] Classify early-ending price series and assign delisting returns."""
+    raise typer.Exit(_run_steps(["delistings"]))
+
+
 _stub("costs", "10", P2, "Estimate spreads and trading costs")
 _stub("prereg-status", "10a", P2, "Check the prereg-v1 pre-registration tag")
 _stub("labels", "11", P2, "Compute development labels (windows ending by 2022-12-31)")

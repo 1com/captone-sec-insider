@@ -524,3 +524,86 @@ def summarize_golden(out_dir: Path) -> GoldenSummary:
         else:
             counts["all_yes"] += 1
     return GoldenSummary(events=len(first), **counts)
+
+
+# --- Feature 004: delisting classifications (FR-020, SC-004) -----------------------------------
+
+DELISTING_SHEET = "delisting_audit"
+DELISTING_SEED = 20261024
+DELISTING_PER_CLASS = 10
+DELISTING_CLASSES = ("acquired", "performance", "unknown")
+DELISTING_VERDICTS = ("agree", "disagree", "unclear")
+FILINGS_LINK = (
+    "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={cik}"
+    "&type=&dateb=&owner=include&count=100"
+)
+DELISTING_COLUMNS = [*_HEAD, "issuer_cik", "issuer_name", "last_session", "class", "venue",
+                     "delisting_return", "evidence_form", "evidence_date", "evidence_link",
+                     "filings_link", "verdict", "true_class", "notes"]  # fmt: skip
+
+
+def make_delisting_sheet(
+    con: duckdb.DuckDBPyConnection, out_dir: Path, seed: int = DELISTING_SEED, force: bool = False
+) -> int:
+    """`delisting_audit.csv`: 10 issuers per class (remap counts towards the fill-in pool); a
+    shortfall is filled from the other classes. No prices: `last_session` is a date."""
+    path = out_dir / f"{DELISTING_SHEET}.csv"
+    if path.exists() and not force:
+        raise SheetsExist(f"{path.name} in {out_dir} (use --force to replace)")
+    rng = random.Random(seed)
+    by_class: dict[str, list[str]] = {}
+    for cik, cls in con.execute(
+        "select issuer_cik, class from core.delisting order by 2, 1"
+    ).fetchall():
+        by_class.setdefault(cls, []).append(cik)
+    picked = []
+    for cls in DELISTING_CLASSES:
+        picked += _sample(rng, by_class.get(cls, []), DELISTING_PER_CLASS)
+    rest = sorted(c for cs in by_class.values() for c in cs if c not in picked)
+    picked += _sample(rng, rest, max(0, DELISTING_PER_CLASS * 3 - len(picked)))
+    con.register("_pick", pa.table({"issuer_cik": pa.array(picked, pa.string())}))
+    try:
+        rows = con.execute(
+            """
+            with names as (
+                select issuer_cik,
+                       list(issuer_name order by filing_date desc, accession desc)[1] as name
+                from core.filing where issuer_cik in (select issuer_cik from _pick) group by 1
+            )
+            select d.issuer_cik, n.name, d.last_session, d.class, d.venue, d.delisting_return,
+                   d.evidence_form, d.evidence_date, d.evidence_accession
+            from core.delisting d join _pick using (issuer_cik)
+            left join names n on n.issuer_cik = d.issuer_cik
+            order by d.class, d.issuer_cik
+            """
+        ).fetchall()
+    finally:
+        con.unregister("_pick")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(DELISTING_COLUMNS)
+        for n, (cik, name, last, cls, venue, ret, form, filed, acc) in enumerate(rows, start=1):
+            writer.writerow([
+                seed, n, cik, _cell(name), _cell(last), cls, venue, f"{ret:.2f}", _cell(form),
+                _cell(filed), _link(cik, acc), FILINGS_LINK.format(cik=cik), "", "", "",
+            ])  # fmt: skip
+    return len(rows)
+
+
+def summarize_delistings(out_dir: Path) -> dict[str, dict[str, int]]:
+    """Verdict counts per class, plus an `all` row."""
+    with (out_dir / f"{DELISTING_SHEET}.csv").open(newline="", encoding="utf-8-sig") as f:
+        rows = list(csv.DictReader(f))
+    out: dict[str, dict[str, int]] = {}
+    for row in rows:
+        verdict = (row["verdict"] or "").strip().lower()
+        verdict = (
+            verdict if verdict in DELISTING_VERDICTS else ("blank" if not verdict else "invalid")
+        )
+        for key in (row["class"], "all"):
+            counts = out.setdefault(
+                key, dict.fromkeys((*DELISTING_VERDICTS, "blank", "invalid"), 0)
+            )
+            counts[verdict] += 1
+    return out
