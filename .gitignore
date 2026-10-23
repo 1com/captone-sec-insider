@@ -11,3 +11,7 @@ wheels/
 
 # Secrets
 .env
+
+# Data (raw downloads, warehouse, provisional outputs)
+data/
+*.part
