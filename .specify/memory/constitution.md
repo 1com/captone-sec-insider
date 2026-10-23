@@ -29,7 +29,7 @@ Rationale: dropping companies that disappeared changes the answer, and the direc
 - **Pre-registration tag.** Before any post-event return is computed, the spec and parameter file MUST be (the only exception is the MVP pilot sample, see Prototype Exception):
   1. tagged `prereg-v1`;
   2. pushed to the remote;
-  3. recorded by emailing the commit hash to the supervisor.
+  3. recorded by a GitHub Release of the tag, whose creation time GitHub records on its own servers.
 - **Changes after the tag.** Any change after the tag MUST be logged in the spec's decision log, with its reason, and disclosed in the report.
 - **Holdout.**
   - The holdout covers signal dates from 2023-01-01 to 2026-06-01.
@@ -147,4 +147,4 @@ Rationale: a working prototype is needed early for the course, but seeing study-
   - PATCH: clarifications and wording.
 - **Compliance review.** Every plan and code review MUST verify point-in-time integrity, holdout sealing and net-of-cost reporting. Any added complexity MUST be justified against Principle VII.
 
-**Version**: 3.0.0 | **Ratified**: 2026-10-21 | **Last Amended**: 2026-10-22
+**Version**: 3.1.0 | **Ratified**: 2026-10-21 | **Last Amended**: 2026-10-23
