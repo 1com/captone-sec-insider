@@ -227,7 +227,7 @@ The stories depend on one another's *data* (each reads the previous layer), but 
 
 ### Tests (write first)
 
-- [ ] T032 [P] [US4] Write `tests/unit/test_symbols.py`, with a synthetic SEC snapshot plus filings:
+- [X] T032 [P] [US4] Write `tests/unit/test_symbols.py`, with a synthetic SEC snapshot plus filings:
   - **Listed**: Nasdaq-listed → `yahoo`, `sec_current`, `valid_to` null.
   - **OTC**: OTC-only → `sec_current_otc`.
   - **Delisted**: tickers `ABC` (2014–2016) and `ABCD` (2017–2019) → two `tiingo` / `form4_history` rows with those date ranges.
@@ -235,7 +235,7 @@ The stories depend on one another's *data* (each reads the previous layer), but 
   - **Unmatched**: no ticker → `symbol_unmatched` `no_ticker`; a name containing "Fund", "Trust" or "Income" with no exchange listing → `fund_like`.
   - **W10, W11**.
   - **Tiingo report**: with `fetch_list` monkeypatched, it returns counts and writes nothing under `tmp_path`.
-- [ ] T033 [P] [US4] Write `tests/unit/test_sec_headers.py`, with fixture `tests/fixtures/edgar_header_form4.txt` (the Air Products header from research R9, public SEC data):
+- [X] T033 [P] [US4] Write `tests/unit/test_sec_headers.py`, with fixture `tests/fixtures/edgar_header_form4.txt` (the Air Products header from research R9, public SEC data):
   - **Parsing**: `parse_header` gives SIC `2810`, its label, and `accepted_at_et` 2019-07-26 11:48:41. A header with no SIC in its `<ISSUER>` block gives SIC null.
   - **Selection**: only events with T ≥ 2012-01-01.
   - **Fetching** (respx):
@@ -247,18 +247,20 @@ The stories depend on one another's *data* (each reads the previous layer), but 
 
 ### Implementation
 
-- [ ] T034 [US4] Implement in `src/sentinel/core/symbols.py`:
+- [X] T034 [US4] Implement in `src/sentinel/core/symbols.py`:
   - **`build_symbol_map(con, snapshot_path, params, cutoff=None)`** → `core.symbol_map` and `core.symbol_unmatched`, as in research R7. Listed companies come from `sentinel.ingest.sec_reference.load_snapshot` (exchange OTC or None → `sec_current_otc`). Delisted ranges are the first and last filing date per normalised `symbol_raw` in `core.filing`. The scope is every issuer with a preliminary event, plus best-effort for all issuers in `core.filing`.
   - **`tiingo_coverage(con, params)`**: matches delisted event companies in memory and returns the counts of matched, `Q`-suffix and unmatched.
-- [ ] T035 [US4] Implement `src/sentinel/ingest/sec_headers.py`:
+- [X] T035 [US4] Implement `src/sentinel/ingest/sec_headers.py`:
   - **`signal_accessions(con, params)`**: events with `in_labelled_window`, or T ≥ the labelled start, that have no stored header.
   - **`fetch_headers(paths, params, client, limiter, policy, limit=None, retry_failures=False, on_progress=None)`**: `stream_to_file` to `.part`, rename, `chmod 0444`, `Manifest.add` with source `sec_filing_header` and key = accession.
   - **`parse_header(text)`**: SIC from the `<ISSUER>` block (`STANDARD INDUSTRIAL CLASSIFICATION:.*\[(\d{4})\]`), `ACCEPTANCE-DATETIME` (`%Y%m%d%H%M%S`, US Eastern), form type and filed-as-of date.
   - **`load_headers(con, paths)`**: re-parses every stored header into `core.filing_header`, with failures in `core.header_failure`.
-- [ ] T036 [US4] Replace the `symbols` stub (with `--tiingo-report`) and add `fetch-headers` (`--limit`, `--retry-failures`) and `build` to `src/sentinel/cli.py`.
+- [X] T036 [US4] Replace the `symbols` stub (with `--tiingo-report`) and add `fetch-headers` (`--limit`, `--retry-failures`) and `build` to `src/sentinel/cli.py`.
   - **`fetch-headers`**: uses a `RateLimiter(8, 10)`, holds `FetchLock`, prints progress every 500, and exits 5 on a 403.
   - **`build`**: runs stage → entities → gates → detect-prelim → symbols, then `load_headers` if any headers are stored, stopping at the first failure.
 - [ ] T037 [US4] Run `uv run sentinel symbols --tiingo-report` on the real data and record coverage (SC-006: ≥ 95% mapped). Then `uv run sentinel fetch-headers --limit 20` as a smoke test, then the full fetch **in the background** (about 40 min). Then run `load_headers` and record the coverage (SC-007: ≥ 99%) and the failures.
+
+- [X] T045 [US4] D45 report and audit sheet (amendment, docs/planning task 1.7): `sentinel audit no-sic` counts events whose signal-filing header has no SIC, per year and group, and writes `audits/d45_no_sic.csv`, 30 random such companies to classify as `investment_vehicle`, `operating_company` or `unclear`. Three or more operating companies trigger the current-SIC fallback (D45).
 
 **Checkpoint**: the price pull (feature 003) has its company and ticker list, and G7 has industry codes.
 

@@ -208,11 +208,66 @@ def _step_prelim(paths: Paths, params: dict, con) -> tuple[int, bool]:
     return events + members, True
 
 
+def _step_symbols(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel import warehouse
+    from sentinel.core import symbols
+    from sentinel.ingest.sec_reference import latest_snapshot
+
+    warehouse.require_tables(con, ["core.filing"], "entities")
+    warehouse.require_tables(con, ["evt.prelim_event"], "detect-prelim")
+    snapshot = latest_snapshot(paths)
+    if snapshot is None:
+        raise warehouse.MissingInput("run `sentinel fetch-sec-tickers` first: no ticker snapshot")
+    n_map, n_unmatched = symbols.build_symbol_map(con, snapshot, params)
+    cov = symbols.coverage(con)
+    share = cov["mapped"] / cov["event_companies"] if cov["event_companies"] else 1.0
+    unmatched = ", ".join(f"{k} {v:,}" for k, v in cov["unmatched"].items()) or "none"
+    typer.echo(
+        f"symbols: {n_map:,} ticker rows, {n_unmatched:,} unmatched issuers ({snapshot.name})\n"
+        f"  event companies {cov['event_companies']:,}: mapped {cov['mapped']:,} ({share:.1%}; "
+        f"Yahoo {cov['yahoo']:,}, Tiingo {cov['tiingo']:,}); unmatched: {unmatched}"
+    )
+    problems = 0
+    for name, found in (
+        ("W10 event companies neither mapped nor listed", symbols.check_events_covered(con)),
+        ("W11 tickers not from SEC data", symbols.check_sec_only(con, snapshot)),
+    ):
+        if found:
+            problems += 1
+            typer.echo(f"  {name}: {len(found):,} (first {found[0]})")
+    return n_map + n_unmatched, not problems
+
+
+def _step_headers(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel.ingest import sec_headers
+
+    n = sec_headers.load_headers(con, paths)
+    failed = con.execute("select count(*) from core.header_failure").fetchone()[0]
+    wanted, parsed, no_sic = con.execute(
+        """
+        select count(distinct e.signal_accession), count(distinct h.accession),
+               count(distinct h.accession) filter (where h.sic is null)
+        from evt.prelim_event e left join core.filing_header h on h.accession = e.signal_accession
+        where e.signal_date >= cast(? as DATE)
+        """,
+        [str(registered_value(params, "labelled_window_start"))],
+    ).fetchone()
+    share = parsed / wanted if wanted else 1.0
+    typer.echo(
+        f"headers: {n:,} parsed; {failed:,} failures listed\n"
+        f"  signal filings from the labelled start: {parsed:,} of {wanted:,} have a header "
+        f"({share:.1%}); {no_sic:,} without a SIC code (D45)"
+    )
+    return n, True
+
+
 STEPS: dict = {
     "stage": _step_stage,
     "entities": _step_entities,
     "gates": _step_gates,
     "prelim": _step_prelim,
+    "symbols": _step_symbols,
+    "headers": _step_headers,
 }
 
 
@@ -486,6 +541,50 @@ def audit_summary():
     raise typer.Exit(FAILED if incomplete else OK)
 
 
+@audit_app.command("no-sic")
+def audit_no_sic(
+    force: bool = typer.Option(False, "--force", help="Replace an existing sheet and verdicts."),
+):
+    """D45: count events whose filing header has no SIC; write 30 companies to classify."""
+    import duckdb
+
+    from sentinel import warehouse
+    from sentinel.core import audit
+
+    paths, params = _context()
+    start = str(registered_value(params, "labelled_window_start"))
+    try:
+        con = warehouse.connect(paths, read_only=True)
+    except duckdb.IOException as e:
+        _fail(f"cannot open {paths.warehouse.name}: {e}", FAILED)
+    with con:
+        try:
+            warehouse.require_tables(con, ["core.filing_header"], "fetch-headers")
+        except warehouse.MissingInput as e:
+            _fail(str(e), FAILED)
+        typer.echo(f"{'year':<6}{'group':<7}{'events':>8}{'no SIC':>8}")
+        for year, group, events, no_sic in audit.no_sic_counts(con, start):
+            typer.echo(f"{year:<6}{group:<7}{events:>8,}{no_sic:>8,}")
+        try:
+            n = audit.make_no_sic_sheet(con, paths.audits, start, force=force)
+            typer.echo(f"wrote {n} companies to {paths.audits / audit.NO_SIC_SHEET}.csv")
+        except audit.SheetsExist:
+            typer.echo(f"kept the existing {audit.NO_SIC_SHEET}.csv")
+    counts = audit.summarize_no_sic(paths.audits)
+    typer.echo(
+        "verdicts: "
+        + ", ".join(f"{k} {v}" for k, v in counts.items())
+        + f" (allowed: {', '.join(audit.NO_SIC_VERDICTS)})"
+    )
+    if counts["blank"] or counts["invalid"]:
+        raise typer.Exit(OK)
+    if counts["operating_company"] >= audit.NO_SIC_FALLBACK_AT:
+        typer.echo("D45: fallback — issuers without a header SIC keep their current SIC (§11)")
+    else:
+        typer.echo("D45 stands: issuers without a header SIC are excluded by G7")
+    raise typer.Exit(OK)
+
+
 @app.command("detect-prelim", rich_help_panel=P1)
 def detect_prelim_cmd():
     """[Step 5] Preliminary event detection (A, B1, B2), to choose which symbols to price."""
@@ -571,7 +670,104 @@ def candidates_provisional(
     typer.echo(f"\nwritten to {paths.provisional}/ (see summary_PROVISIONAL.md)")
 
 
-_stub("symbols", "6", P1, "Map issuers to price symbols")
+@app.command("symbols", rich_help_panel=P1)
+def symbols_cmd(
+    tiingo_report: bool = typer.Option(
+        False, "--tiingo-report", help="Also count matches in Tiingo's public list (in memory)."
+    ),
+):
+    """[Step 6] Map every issuer to price symbols, from SEC data only."""
+    code = _run_steps(["symbols"])
+    if code != OK or not tiingo_report:
+        raise typer.Exit(code)
+    import httpx
+
+    from sentinel import warehouse
+    from sentinel.core import symbols
+
+    paths, params = _context()
+    with warehouse.connect(paths, read_only=True) as con:
+        try:
+            counts = symbols.tiingo_coverage(con, params)
+        except httpx.HTTPError as e:
+            _fail(f"cannot read Tiingo's public list: {e}", FAILED)
+    typer.echo(
+        "Tiingo public list, delisted event companies (held in memory, nothing stored): "
+        + ", ".join(f"{k} {v:,}" for k, v in counts.items())
+    )
+    raise typer.Exit(OK)
+
+
+@app.command("fetch-headers", rich_help_panel=P1)
+def fetch_headers_cmd(
+    limit: int = typer.Option(None, "--limit", help="Fetch at most N missing headers."),
+    retry_failures: bool = typer.Option(
+        False, "--retry-failures", help="Also retry filings that failed before."
+    ),
+):
+    """[Step 6] Fetch the signal filings' EDGAR headers: SIC code at T and acceptance time."""
+    import duckdb
+
+    from sentinel import warehouse
+    from sentinel.ingest import sec_headers
+    from sentinel.ingest.http import RetryPolicy, SecForbidden, make_client
+    from sentinel.ingest.manifest import FetchLock, FetchLocked
+
+    paths, params = _context()
+    secrets = _secrets(paths)
+    try:
+        with warehouse.connect(paths, read_only=True) as con:
+            warehouse.require_tables(con, ["evt.prelim_event"], "detect-prelim")
+            targets = sec_headers.signal_accessions(con, params, paths, retry_failures)
+    except (duckdb.IOException, warehouse.MissingInput) as e:
+        _fail(str(e), FAILED)
+    total = len(targets) if limit is None else min(limit, len(targets))
+    typer.echo(f"fetch-headers: {len(targets):,} missing; fetching {total:,}")
+
+    def progress(done):
+        if done % 500 == 0 or done == total:
+            typer.echo(f"  {done:,}/{total:,}")
+
+    try:
+        with FetchLock(paths.lock):
+            ops = params["ops"]
+            with make_client(secrets.sec_user_agent, ops["http_timeout_seconds"]) as client:
+                report = sec_headers.fetch_headers(
+                    paths,
+                    params,
+                    client,
+                    sec_headers.header_limiter(params),
+                    RetryPolicy.from_ops(ops),
+                    targets,
+                    limit=limit,
+                    on_progress=progress,
+                )
+    except FetchLocked as e:
+        _fail(str(e), FAILED)
+    except SecForbidden as e:
+        _fail(f"{e}. The SEC rejected the client; check SEC_USER_AGENT in .env.", SEC_FORBIDDEN)
+    typer.echo(f"stored {report.stored:,}; failed {len(report.failed):,}")
+    for accession, reason in report.failed[:10]:
+        typer.echo(f"  {accession}: {reason}")
+    try:
+        with warehouse.connect(paths) as con:
+            sec_headers.record_failures(con, report.failed)
+    except duckdb.IOException as e:
+        _fail(f"headers are stored, but failures could not be recorded: {e}", FAILED)
+    raise typer.Exit(_run_steps(["headers"]))
+
+
+@app.command("build", rich_help_panel=P1)
+def build_cmd():
+    """[Steps 2–6] Rebuild the warehouse from data/raw: stage → … → symbols, then headers."""
+    from sentinel.ingest import sec_headers
+    from sentinel.ingest.manifest import read_all
+
+    paths = _paths()
+    steps = ["stage", "entities", "gates", "prelim", "symbols"]
+    if any(e.source == sec_headers.SOURCE for e in read_all(paths.manifest)):
+        steps.append("headers")
+    raise typer.Exit(_run_steps(steps))
 
 
 @app.command("fetch-sec-tickers", rich_help_panel=P1)
