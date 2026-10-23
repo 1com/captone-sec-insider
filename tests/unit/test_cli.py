@@ -7,6 +7,8 @@ from sentinel.config import Paths
 
 COMMANDS = [
     "check",
+    "fetch-headers",
+    "build",
     "explore",
     "fetch-sec",
     "verify-sec",

@@ -309,3 +309,88 @@ def summarize(out_dir: Path) -> dict[str, SheetSummary]:
             invalid=len(verdicts) - sum(counts.values()),
         )
     return out
+
+
+# --- D45: issuers whose signal-filing header has no SIC code ----------------------------------
+
+NO_SIC_SHEET = "d45_no_sic"
+NO_SIC_SIZE = 30  # D45: 30 companies are checked by hand
+NO_SIC_FALLBACK_AT = 3  # D45: this many operating companies or more → current-SIC fallback (§11)
+NO_SIC_VERDICTS = ("investment_vehicle", "operating_company", "unclear")
+NO_SIC_COLUMNS = [*_HEAD, "issuer_cik", "issuer_name", "events", "first_signal", "last_signal",
+                  "groups", *_TAIL]  # fmt: skip
+COMPANY_LINK = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={cik}&owner=include"
+
+
+def _no_sic_events(start: str) -> str:
+    return f"""
+        select e.*, h.sic from evt.prelim_event e
+        join core.filing_header h on h.accession = e.signal_accession
+        where e.signal_date >= DATE '{start}'
+    """
+
+
+def no_sic_counts(con: duckdb.DuckDBPyConnection, start: str) -> list[tuple[int, str, int, int]]:
+    """(year, group, events with a header, of which without SIC) from the labelled start."""
+    return con.execute(
+        f"""
+        select year(signal_date), "group", count(*), count(*) filter (where sic is null)
+        from ({_no_sic_events(start)}) group by all order by all
+        """
+    ).fetchall()
+
+
+def make_no_sic_sheet(
+    con: duckdb.DuckDBPyConnection, out_dir: Path, start: str, seed: int = SEED, force=False
+) -> int:
+    """`d45_no_sic.csv`: 30 random companies with a no-SIC signal filing, to classify by hand."""
+    path = out_dir / f"{NO_SIC_SHEET}.csv"
+    if path.exists() and not force:
+        raise SheetsExist(f"{path.name} in {out_dir} (use --force to replace)")
+    keys = [
+        r[0]
+        for r in con.execute(
+            f"select distinct issuer_cik from ({_no_sic_events(start)}) "
+            "where sic is null order by 1"
+        ).fetchall()
+    ]
+    picked = _sample(random.Random(seed), keys, NO_SIC_SIZE)
+    con.register("_pick", pa.table({"issuer_cik": pa.array(picked, pa.string())}))
+    try:
+        rows = con.execute(
+            f"""
+            with ev as (select * from ({_no_sic_events(start)}) where sic is null),
+            names as (
+                select issuer_cik,
+                       list(issuer_name order by filing_date desc, accession desc)[1] as name
+                from core.filing where issuer_cik in (select issuer_cik from _pick) group by 1
+            )
+            select e.issuer_cik, n.name, count(*), min(e.signal_date), max(e.signal_date),
+                   string_agg(distinct e."group", ', ' order by e."group")
+            from ev e join _pick using (issuer_cik) left join names n using (issuer_cik)
+            group by e.issuer_cik, n.name order by e.issuer_cik
+            """
+        ).fetchall()
+    finally:
+        con.unregister("_pick")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(NO_SIC_COLUMNS)
+        for n, (cik, *rest) in enumerate(rows, start=1):
+            link = COMPANY_LINK.format(cik=cik)
+            writer.writerow([seed, n, cik, *(_cell(v) for v in rest), link, "", ""])
+    return len(rows)
+
+
+def summarize_no_sic(out_dir: Path) -> dict[str, int] | None:
+    """Verdict counts of the D45 sheet, or None if it does not exist yet."""
+    path = out_dir / f"{NO_SIC_SHEET}.csv"
+    if not path.exists():
+        return None
+    with path.open(newline="", encoding="utf-8-sig") as f:
+        verdicts = [(row["verdict"] or "").strip().lower() for row in csv.DictReader(f)]
+    counts = {v: verdicts.count(v) for v in (*NO_SIC_VERDICTS, "")}
+    counts["invalid"] = len(verdicts) - sum(counts.values())
+    counts["blank"] = counts.pop("")
+    return counts
