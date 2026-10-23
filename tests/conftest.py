@@ -382,3 +382,184 @@ def pipeline(tmp_data, params):
     yield run
     for con in cons:
         con.close()
+
+
+# --- Feature 004: synthetic market and company data ---------------------------------------------
+# Synthetic only: no real Tiingo data is ever committed (constitution VI).
+
+YAHOO_FIELDS = ["Open", "High", "Low", "Close", "Adj Close", "Volume", "Dividends", "Stock Splits"]
+TIINGO_COLUMNS = [
+    "date", "close", "high", "low", "open", "volume",
+    "adjClose", "adjHigh", "adjLow", "adjOpen", "adjVolume", "divCash", "splitFactor",
+]  # fmt: skip
+
+
+def weekdays(start, n: int, holidays=()) -> list:
+    """`n` weekdays from `start` (a date), skipping `holidays`."""
+    from datetime import timedelta
+
+    days, d = [], start
+    while len(days) < n:
+        if d.weekday() < 5 and d not in holidays:
+            days.append(d)
+        d += timedelta(days=1)
+    return days
+
+
+def _bar(r: dict) -> dict:
+    close = r["close"]
+    return {
+        "open": r.get("open", close),
+        "high": r.get("high", close),
+        "low": r.get("low", close),
+        "close": close,
+        "volume": r.get("volume", 100_000),
+        "adj_close": r.get("adj_close", close),
+        "dividend": r.get("dividend", 0.0),
+        "split": r.get("split", 1.0),
+    }
+
+
+def yahoo_frame(data: dict[str, list[dict]]):
+    """Shaped like `yf.download(tickers, auto_adjust=False, actions=True, group_by="ticker")`:
+    columns (ticker, field). Rows: `session`, `close` and optional `open`, `high`, `low`,
+    `adj_close`, `volume`, `dividend`, `split` (Yahoo's ratio: 2.0 for 2-for-1, 0.1 for 1-for-10;
+    written as 0 on days without a split, as Yahoo does)."""
+    import pandas as pd
+
+    frames = {}
+    for ticker, rows in data.items():
+        bars = [_bar(r) for r in rows]
+        frames[ticker] = pd.DataFrame(
+            {
+                "Open": [b["open"] for b in bars],
+                "High": [b["high"] for b in bars],
+                "Low": [b["low"] for b in bars],
+                "Close": [b["close"] for b in bars],
+                "Adj Close": [b["adj_close"] for b in bars],
+                "Volume": [b["volume"] for b in bars],
+                "Dividends": [b["dividend"] for b in bars],
+                "Stock Splits": [0.0 if b["split"] == 1.0 else b["split"] for b in bars],
+            },
+            index=pd.DatetimeIndex([pd.Timestamp(r["session"]) for r in rows], name="Date"),
+        )
+    return pd.concat(frames, axis=1)
+
+
+def tiingo_csv(rows: list[dict]) -> str:
+    """Synthetic text in Tiingo's daily CSV layout (raw prices unprefixed). Rows as in
+    `yahoo_frame`, with `split` as Tiingo's `splitFactor` (1.0 on days without a split)."""
+    lines = [",".join(TIINGO_COLUMNS)]
+    for r in rows:
+        b = _bar(r)
+        adj = b["adj_close"] / b["close"]
+        lines.append(
+            ",".join(
+                str(v)
+                for v in (
+                    r["session"].isoformat(), b["close"], b["high"], b["low"], b["open"],
+                    b["volume"], b["adj_close"], b["high"] * adj, b["low"] * adj, b["open"] * adj,
+                    b["volume"], b["dividend"], b["split"],
+                )
+            )
+        )  # fmt: skip
+    return "\n".join(lines) + "\n"
+
+
+def market_sessions(con, start=None, n: int = 300, holidays=()) -> list:
+    """`core.session` of `n` weekdays from `start` (default 2019-01-02), numbered from 1."""
+    from datetime import date
+
+    from sentinel.core import prices
+
+    prices.create_price_tables(con)
+    days = weekdays(start or date(2019, 1, 2), n, holidays)
+    con.execute("delete from core.session")
+    numbered = [(d, i + 1) for i, d in enumerate(days)]
+    con.executemany("insert into core.session values (?, ?)", numbered)
+    return days
+
+
+def market_prices(con, issuer: str, rows: list[dict], source="yahoo", ticker=None) -> None:
+    """One chosen primary series for `issuer` in `core.price_series`, and its rows in
+    `core.price_daily` (as-traded values; `cum_split_after` defaults to 1)."""
+    from sentinel.core import prices
+
+    prices.create_price_tables(con)
+    ticker = ticker or f"T{issuer}"
+    con.executemany(
+        "insert into core.price_daily values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+            (
+                issuer, r["session"], source, ticker, b["open"], b["high"], b["low"], b["close"],
+                b["volume"], b["adj_close"], r.get("cum_split_after", 1.0), b["split"],
+                b["dividend"], b["close"] * b["volume"],
+            )
+            for r in rows
+            for b in [_bar(r)]
+        ],
+    )  # fmt: skip
+    sessions = [r["session"] for r in rows]
+    con.execute(
+        "insert into core.price_series values (?, ?, ?, 'primary', ?, ?, ?, 'ok', true, ?)",
+        [issuer, source, ticker, min(sessions), max(sessions), len(rows), f"{source}_primary"],
+    )
+
+
+def _cik10(cik) -> str:
+    return f"CIK{int(cik):010d}"
+
+
+def submissions_zip(companies: dict, recent_size: int = 1000) -> bytes:
+    """SEC `submissions.zip` layout. `companies[cik]` = {name, sic, sic_label, exchanges, tickers,
+    filings: [(accession, form, filing_date, report_date, items)]}, newest first. Filings beyond
+    `recent_size` go to an extra page `CIK…-submissions-001.json`, as the SEC splits long
+    histories."""
+    import json
+
+    keys = ["accessionNumber", "form", "filingDate", "reportDate", "items"]
+
+    def arrays(filings):
+        return {
+            k: [str(f[i]) if f[i] is not None else "" for f in filings] for i, k in enumerate(keys)
+        }
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for cik, c in companies.items():
+            filings = c.get("filings", [])
+            recent, older = filings[:recent_size], filings[recent_size:]
+            files = []
+            if older:
+                page = f"{_cik10(cik)}-submissions-001.json"
+                zf.writestr(page, json.dumps(arrays(older)))
+                files.append({"name": page, "filingCount": len(older)})
+            doc = {
+                "cik": str(cik),
+                "name": c.get("name", f"Company {cik}"),
+                "sic": str(c.get("sic", "")),
+                "sicDescription": c.get("sic_label", ""),
+                "exchanges": c.get("exchanges", []),
+                "tickers": c.get("tickers", []),
+                "filings": {"recent": arrays(recent), "files": files},
+            }
+            zf.writestr(f"{_cik10(cik)}.json", json.dumps(doc))
+    return buf.getvalue()
+
+
+def companyfacts_zip(companies: dict) -> bytes:
+    """SEC `companyfacts.zip` layout. `companies[cik]` = {"dei:EntityCommonStockSharesOutstanding":
+    {"shares": [fact, …]}, "us-gaap:Assets": {"USD": [fact, …]}, …}; a fact is a dict with
+    `end`, `val`, `accn`, `filed`, `form`, `fp` and, for durations, `start`."""
+    import json
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for cik, tags in companies.items():
+            facts: dict = {}
+            for qualified, units in tags.items():
+                taxonomy, tag = qualified.split(":")
+                facts.setdefault(taxonomy, {})[tag] = {"label": tag, "units": units}
+            doc = {"cik": int(cik), "entityName": f"Company {cik}", "facts": facts}
+            zf.writestr(f"{_cik10(cik)}.json", json.dumps(doc))
+    return buf.getvalue()

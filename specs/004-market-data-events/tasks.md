@@ -41,46 +41,46 @@ The stories read each other's *tables* in the real run, but each is **tested ind
   - run `uv run sentinel verify-sec`;
   - run `uv run sentinel audit no-sic`, which writes the D45 sheet for the researcher;
   - record the header results in `specs/002-insider-warehouse/run-notes.md`.
-- [ ] T002 [P] In `pyproject.toml`, move `"yfinance>=1.7,<1.8"` from the `mvp` dependency group to `[project] dependencies`, then run `uv lock` and `uv run python -c "import yfinance, pandas"`.
+- [X] T002 [P] In `pyproject.toml`, move `"yfinance>=1.7,<1.8"` from the `mvp` dependency group to `[project] dependencies`, then run `uv lock` and `uv run python -c "import yfinance, pandas"`.
 
 ---
 
 ## Phase 2: Foundational (blocks every story)
 
-- [ ] T003 Update `config/params.yaml` to `version: 8` exactly as in [contracts/params-rules.md](contracts/params-rules.md):
+- [X] T003 Update `config/params.yaml` to `version: 8` exactly as in [contracts/params-rules.md](contracts/params-rules.md):
   - `registered.delisting_returns.value.other_venue_treated_as: performance_nasdaq`, with the register `value` text "0% acquired; −30% NYSE/NYSE American; −55% Nasdaq and other venues; unknown = performance-related";
   - every new `rules` key: `final_detection_start: 2011-07-01`, `price_history_start: 2010-01-01`, `g7_excluded_sic`, `g7_no_sic: exclude`, the two delisting form lists, `delisting_notice_after_months: 12`, `delisting_end_gap_sessions: 5`, `remap_after_days: 90`, `tick_size_usd: 0.01`, `tick_size_pilot_usd: 0.05`, `min_volatility_returns: 40`;
   - every new `ops` key, with `tiingo_paid_until: null` and `market_cap_examples: []`.
-- [ ] T004 [P] Update `docs/initialplan.md`:
+- [X] T004 [P] Update `docs/initialplan.md`:
   - **Appendix E**: change the "Delisting returns" row's value to the same text as T003.
   - **§12 decision log**:
     - **D50**: delistings from OTC or unknown venues take the Nasdaq return (−55%). The plan's §6.7 covers only NYSE, NYSE American and Nasdaq; −55% is the more conservative registered value.
     - **D51**: final detection runs from 2011-07-01, a six-month warm-up whose events are never labelled, with prices from 2010-01-01. Unpriced events start cooldowns. G8 is applied per purchase line, and the G6 minimum is re-applied afterwards. Rationale: research R1, R6 and R7.
-- [ ] T005 Update `src/sentinel/config.py`:
+- [X] T005 Update `src/sentinel/config.py`:
   - **`Paths`** gains `yahoo = data/raw/yahoo`, `tiingo = data/raw/tiingo`, `french = data/raw/french`, `finra = data/raw/finra`, `sec_company = data/raw/sec/company`, `audits_004 = specs/004-market-data-events/audits` and `reports_004 = specs/004-market-data-events`.
   - **`load_params`** enforces the params-rules contract's rules 2–5:
     - `rules.g7_no_sic ∈ {exclude, current_sic}`, and `g7_excluded_sic` is a list of integers;
     - `final_detection_start < registered.labelled_window_start`, and `price_history_start ≤ final_detection_start − 1 year`;
     - `tiingo_paid_until` is null or later than `tiingo_paid_from`;
     - the two delisting form lists are disjoint.
-- [ ] T006 [P] Extend `tests/unit/test_config.py` and `tests/unit/test_params_register.py`:
+- [X] T006 [P] Extend `tests/unit/test_config.py` and `tests/unit/test_params_register.py`:
   - `version == 8`;
   - every rule in T005, each with a failing example;
   - `check_register` passes with the updated Appendix E row;
   - the new `Paths` fields.
-- [ ] T007 [P] Create `src/sentinel/core/tiingo_register.py` with:
+- [X] T007 [P] Create `src/sentinel/core/tiingo_register.py` with:
   - `TIINGO_DERIVED`: (table, predicate) pairs exactly as in [contracts/tiingo-register.md](contracts/tiingo-register.md);
   - `class OutsidePaidWindow(Exception)`;
   - `paid_window_open(params, today) -> bool`, true when `today ≥ ops.tiingo_paid_from` and `ops.tiingo_paid_until` is set and `today < tiingo_paid_until`;
   - `require_paid_window(params, today=None)`.
   
   In `src/sentinel/cli.py`, add the exit code `OUTSIDE_PAID_WINDOW = 6` and map `OutsidePaidWindow` to it.
-- [ ] T008 [P] Add synthetic builders to `tests/conftest.py`. Fixture data is **synthetic only**: no real Tiingo data is ever committed.
+- [X] T008 [P] Add synthetic builders to `tests/conftest.py`. Fixture data is **synthetic only**: no real Tiingo data is ever committed.
   - `yahoo_frame(rows, splits=…)` returns a DataFrame shaped like `yf.download(auto_adjust=False, actions=True)`, with columns `Open, High, Low, Close, Adj Close, Volume, Dividends, Stock Splits`.
   - `tiingo_csv(rows)` returns text with the header `date,close,high,low,open,volume,adjClose,adjHigh,adjLow,adjOpen,adjVolume,divCash,splitFactor`.
   - `market(con, issuer, rows, source="yahoo")` writes `core.session`, `core.price_series` (one chosen primary) and `core.price_daily` in the [data-model.md](data-model.md) layout, with as-traded columns and `price_source`.
   - `submissions_zip(...)` and `companyfacts_zip(...)` build small zips with the SEC JSON layout: `filings.recent` arrays plus `files` pages, and `facts.{dei,us-gaap}.{tag}.units.{unit}[{start?, end, val, accn, fy, fp, form, filed}]`.
-- [ ] T009 In `src/sentinel/warehouse.py`, extend `input_fingerprint` to include the manifest originals of the sources `yahoo`, `tiingo`, `french`, `finra` and `sec_company`, as sorted (source, key, sha256) triples. A rebuild after any new download then shows a new fingerprint in `core.build_log`.
+- [X] T009 In `src/sentinel/warehouse.py`, extend `input_fingerprint` to include the manifest originals of the sources `yahoo`, `tiingo`, `french`, `finra` and `sec_company`, as sorted (source, key, sha256) triples. A rebuild after any new download then shows a new fingerprint in `core.build_log`.
 
 **Checkpoint**: parameters, paths, the Tiingo guard and the test builders are ready.
 

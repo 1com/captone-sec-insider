@@ -44,6 +44,13 @@ class Paths:
     warehouse: Path
     sec_headers: Path
     audits: Path
+    yahoo: Path
+    tiingo: Path
+    french: Path
+    finra: Path
+    sec_company: Path
+    audits_004: Path
+    reports_004: Path
     params_file: Path
     env_file: Path
     plan_file: Path
@@ -62,6 +69,13 @@ class Paths:
             warehouse=root / "data" / "warehouse.duckdb",
             sec_headers=raw / "sec" / "headers",
             audits=root / "specs" / "002-insider-warehouse" / "audits",
+            yahoo=raw / "yahoo",
+            tiingo=raw / "tiingo",
+            french=raw / "french",
+            finra=raw / "finra",
+            sec_company=raw / "sec" / "company",
+            audits_004=root / "specs" / "004-market-data-events" / "audits",
+            reports_004=root / "specs" / "004-market-data-events",
             params_file=root / "config" / "params.yaml",
             env_file=root / ".env",
             plan_file=root / "docs" / "initialplan.md",
@@ -98,6 +112,7 @@ def load_params(path: Path) -> dict:
         raise ConfigError(
             "ops.sec_header_target_requests_per_second must be <= ops.sec_max_requests_per_second"
         )
+    _check_market_rules(params)
     for section in ("rules", "provisional"):
         for key, pattern in params[section].items():
             if key.endswith("_regex"):
@@ -106,6 +121,34 @@ def load_params(path: Path) -> dict:
                 except re.error as e:
                     raise ConfigError(f"{section}.{key} does not compile: {e}") from e
     return params
+
+
+def _check_market_rules(params: dict) -> None:
+    """Feature 004 rules (specs/004-market-data-events/contracts/params-rules.md, rules 2–5)."""
+    rules, ops = params["rules"], params["ops"]
+    if "g7_no_sic" in rules and rules["g7_no_sic"] not in ("exclude", "current_sic"):
+        raise ConfigError("rules.g7_no_sic must be 'exclude' or 'current_sic'")
+    if "g7_excluded_sic" in rules and not all(
+        isinstance(c, int) and not isinstance(c, bool) for c in rules["g7_excluded_sic"]
+    ):
+        raise ConfigError("rules.g7_excluded_sic must be a list of integers")
+    start, history = rules.get("final_detection_start"), rules.get("price_history_start")
+    if start is not None:
+        labelled = params["registered"]["labelled_window_start"]["value"]
+        if not start < labelled:
+            raise ConfigError("rules.final_detection_start must be before labelled_window_start")
+        if history is None or history > start.replace(year=start.year - 1):
+            raise ConfigError(
+                "rules.price_history_start must be at least a year before final_detection_start"
+            )
+    until = ops.get("tiingo_paid_until")
+    if until is not None and not until > ops["tiingo_paid_from"]:
+        raise ConfigError("ops.tiingo_paid_until must be after ops.tiingo_paid_from")
+    overlap = set(rules.get("delisting_merger_forms", [])) & set(
+        rules.get("delisting_performance_forms", [])
+    )
+    if overlap:
+        raise ConfigError(f"delisting form lists overlap: {sorted(overlap)}")
 
 
 def parse_appendix_e(plan_path: Path) -> list[tuple[str, str, str]]:

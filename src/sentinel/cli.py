@@ -22,6 +22,7 @@ from sentinel.config import (
 )
 
 OK, FAILED, USAGE, CONFIG, NOT_IMPLEMENTED, SEC_FORBIDDEN = 0, 1, 2, 3, 4, 5
+OUTSIDE_PAID_WINDOW = 6  # Tiingo data outside the paid month (feature 004)
 
 P0 = "Phase 0 — Set-up"
 P1 = "Phase 1 — Insider data"

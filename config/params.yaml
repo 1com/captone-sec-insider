@@ -9,7 +9,7 @@
 #              specs/002-insider-warehouse/contracts/params-rules.md
 # provisional: the pilot's simplified rules (Appendix A) — NOT pre-registered.
 
-version: 7
+version: 8
 
 registered:
   insider_data_period:
@@ -170,11 +170,12 @@ registered:
       performance_nyse_or_nyse_american: -0.30
       performance_nasdaq: -0.55
       unknown_treated_as: performance
+      other_venue_treated_as: performance_nasdaq
     unit: return
     sensitivity: [0.0, -1.0]
     register:
       parameter: "Delisting returns"
-      value: "0% acquired; −30% NYSE/NYSE American; −55% Nasdaq; unknown = performance-related"
+      value: "0% acquired; −30% NYSE/NYSE American; −55% Nasdaq and other venues; unknown = performance-related"
       sensitivity: "0%; −100%"
   merger_lookback:
     value: 12
@@ -286,6 +287,30 @@ ops:
   required_archive_tables: [SUBMISSION, REPORTINGOWNER, NONDERIV_TRANS, FOOTNOTES]
   sec_header_target_requests_per_second: 8
   sec_headers_url_pattern: "https://www.sec.gov/Archives/edgar/data/{cik}/{acc_nodash}/{acc}-index-headers.html"
+  # Market data (feature 004; contracts/params-rules.md)
+  reference_symbols: [SPY, IWM]
+  yahoo_batch_size: 50
+  yahoo_pause_seconds: 2
+  # The one paid Tiingo month (D39). Tiingo data may be written only inside [from, until);
+  # set tiingo_paid_until to the day the plan ends when subscribing.
+  tiingo_paid_from: 2026-10-29
+  tiingo_paid_until: null
+  tiingo_requests_per_second: 2
+  tiingo_api_base: "https://api.tiingo.com/tiingo/daily"
+  sec_companyfacts_url: "https://www.sec.gov/Archives/edgar/daily-index/xbrl/companyfacts.zip"
+  sec_submissions_url: "https://www.sec.gov/Archives/edgar/daily-index/bulkdata/submissions.zip"
+  french_base_url: "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/"
+  french_files:
+    - F-F_Research_Data_5_Factors_2x3_daily_CSV.zip
+    - F-F_Momentum_Factor_daily_CSV.zip
+    - F-F_ST_Reversal_Factor_daily_CSV.zip
+    - 49_Industry_Portfolios_daily_CSV.zip
+    - 12_Industry_Portfolios_daily_CSV.zip
+    - Siccodes49.zip
+    - Siccodes12.zip
+    - ME_Breakpoints_CSV.zip
+  finra_tick_pilot_url: "https://tsp.finra.org/finra_org/ticksizepilot/TSPilotChanges.txt"
+  market_cap_examples: []
 
 rules:
   # Production gates (plan §6.2), applied case-insensitively. Initial values = provisional.*
@@ -297,6 +322,23 @@ rules:
   role_ceo_cfo_title_regex: '\bCEO\b|\bCFO\b|chief executive|chief financial|principal executive|principal financial'
   # Preliminary events only (plan §6.4; about 63 sessions). Final events use registered.cooldown.
   prelim_cooldown_calendar_days: 91
+  # Final detection (plan §6.4; feature 004 research R1, R7): a six-month warm-up before the
+  # labelled window, so cooldowns are settled on its first day. Prices start a year earlier.
+  final_detection_start: 2011-07-01
+  price_history_start: 2010-01-01
+  # G7 (plan §6.2; D45). g7_no_sic: exclude | current_sic (the §11 fallback, set by the D45 check)
+  g7_excluded_sic: [6770, 6722, 6726]
+  g7_no_sic: exclude
+  # Delistings (plan §6.7; research R11). Forms match by prefix, so amendments count.
+  delisting_merger_forms: [DEFM14A, DEFM14C, PREM14A, PREM14C, SC 14D9, SC TO-T, SC 13E3, "425"]
+  delisting_performance_forms: ["25", 25-NSE, 15-12B, 15-12G, 15-15D]
+  delisting_notice_after_months: 12
+  delisting_end_gap_sessions: 5
+  remap_after_days: 90
+  # Costs (plan §6.5, §6.8; research R13, R14)
+  tick_size_usd: 0.01
+  tick_size_pilot_usd: 0.05
+  min_volatility_returns: 40
 
 provisional:
   # The pilot's G6 minimum per filing (Appendix A). Production uses registered.g6_min_value,

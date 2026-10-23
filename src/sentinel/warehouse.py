@@ -113,14 +113,25 @@ def log_build(
     )
 
 
+# Feature 004 raw sources feeding the warehouse (Yahoo, Tiingo, French, FINRA, SEC bulk).
+MARKET_SOURCES = ("yahoo", "tiingo", "french", "finra", "sec_company")
+
+
 def input_fingerprint(paths: Paths) -> str:
-    """SHA-256 over the stored archives' hashes and the parameter file."""
+    """SHA-256 over the stored archives' hashes, feature 004's raw files and the parameter file."""
+    entries = manifest.read_all(paths.manifest)
     originals = sorted(
-        (e.key, e.sha256)
-        for e in manifest.read_all(paths.manifest)
-        if e.source == SOURCE and e.role == "original"
+        (e.key, e.sha256) for e in entries if e.source == SOURCE and e.role == "original"
     )
-    blob = json.dumps({"archives": originals, "params": params_sha256(paths.params_file)})
+    market = sorted(
+        (e.source, e.key, e.sha256)
+        for e in entries
+        if e.source in MARKET_SOURCES and e.role == "original"
+    )
+    blob = json.dumps(
+        {"archives": originals, "params": params_sha256(paths.params_file)}
+        | ({"market": market} if market else {})
+    )
     return hashlib.sha256(blob.encode()).hexdigest()
 
 

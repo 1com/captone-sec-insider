@@ -11,6 +11,7 @@ dependencies = [
     "pyyaml>=6.0.3,<7",
     "python-dotenv>=1.2.4,<2",
     "typer>=0.27.3,<0.28",
+    "yfinance>=1.7,<1.8",
 ]
 
 [project.scripts]
@@ -27,7 +28,6 @@ mvp = [
     "fastapi>=0.156,<0.160",
     "uvicorn>=0.54,<0.55",
     "jinja2>=3.1.6,<4",
-    "yfinance>=1.7,<1.8",
     "scikit-learn>=1.9,<1.10",
     "lightgbm>=4.7,<4.8",
 ]
