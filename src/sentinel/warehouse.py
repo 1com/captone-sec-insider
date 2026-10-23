@@ -25,6 +25,10 @@ class MissingInput(Exception):
     """A step's input tables do not exist yet (CLI exit code 1)."""
 
 
+class NeedsFetch(MissingInput):
+    """A step needs raw files another command must fetch first (CLI exit code 3)."""
+
+
 def connect(paths: Paths, read_only: bool = False) -> duckdb.DuckDBPyConnection:
     if read_only:
         return duckdb.connect(
@@ -149,6 +153,10 @@ PRIMARY_KEYS = {
     "core.price_series": "issuer_cik, price_source, ticker",
     "core.price_daily": "issuer_cik, session",
     "core.session": "session",
+    "core.price_check": "accession, line_sk",
+    "core.priced_purchase": "accession",
+    "evt.event_candidate": "candidate_id",
+    "evt.event": "event_id",
 }
 
 
@@ -159,6 +167,7 @@ def check_invariants(
     been built. W9 and W25 are truncation tests; W11 needs the SEC ticker snapshot the map was built
     from, and W12 the raw-data paths."""
     from sentinel.core import entities, gates, prices, symbols, tiingo_register
+    from sentinel.events import final
 
     problems = []
 
@@ -212,4 +221,12 @@ def check_invariants(
     if table_exists(con, "core.price_daily"):
         add("W14 price series not unique per issuer", prices.check_one_series(con))
         add("W15 invalid or inconsistent prices", prices.check_valid_prices(con))
+    if table_exists(con, "core.price_check"):
+        add("W16 G8 rows inconsistent", final.check_price_check(con))
+        add("W17 priced purchases below the G6 minimum", final.check_priced_minimum(con, params))
+    if table_exists(con, "evt.event"):
+        add("W18 entry sessions", final.check_entry_sessions(con))
+        add("W19 events inside a cooldown", final.check_cooldown(con, params))
+        add("W20 kept events failing G7 or the floors", final.check_kept_events(con, params))
+        add("W21 events and funnel disagree", final.check_funnel(con))
     return problems

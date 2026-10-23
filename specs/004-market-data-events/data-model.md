@@ -138,6 +138,7 @@ Same columns as `core.clean_purchase`, plus `g8_status` (`checked` / `skipped_un
 | `issuer_cik`, `group`, `signal_date` (T), `signal_accession` | |
 | `t_session`, `t_session_no` | Last session on or before T |
 | `outcome` | `event` / `unpriced` / `cooldown` / `g7_issuer_type` / `g7_no_sic` / `needs_header` / `floor_price` / `floor_liquidity` / `floor_activity` |
+| `close_t`, `addv20`, `active_sessions_20` | Floor inputs at `t_session` (null when unpriced or not reached) |
 | `price_source` | |
 
 **Order of checks**: cooldown → G7 → priced → floors (research R7).

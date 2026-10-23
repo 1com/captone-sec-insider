@@ -394,3 +394,133 @@ def summarize_no_sic(out_dir: Path) -> dict[str, int] | None:
     counts["invalid"] = len(verdicts) - sum(counts.values())
     counts["blank"] = counts.pop("")
     return counts
+
+
+# --- Feature 004: the golden set of final events (FR-016, SC-003) ------------------------------
+
+GOLDEN_SHEET = "golden_set"
+GOLDEN_SEED = 20261025
+GOLDEN_SIZE = 30
+GOLDEN_PER_GROUP = 10
+GOLDEN_CHECKS = ("insiders_ok", "dates_ok", "amounts_ok")
+GOLDEN_VERDICTS = ("yes", "no", "unclear")
+GOLDEN_COLUMNS = [*_HEAD, "event_id", "group", "issuer_cik", "issuer_name", "signal_date",
+                  "entry_session", "accession", "filing_date", "entity_id_at_t",
+                  "entity_role_at_t", "owner_names", "value_usd", "trade_dates", "prices",
+                  "edgar_link", *GOLDEN_CHECKS, "notes"]  # fmt: skip
+
+
+def _golden_pick(con: duckdb.DuckDBPyConnection, seed: int) -> list[str]:
+    """10 events per group from the labelled window; a shortfall is filled from A, then any."""
+    rng = random.Random(seed)
+    by_group: dict[str, list[str]] = {}
+    for event_id, group in con.execute(
+        'select event_id, "group" from evt.event where in_labelled_window order by 2, 1'
+    ).fetchall():
+        by_group.setdefault(group, []).append(event_id)
+    picked = []
+    for group in ("A", "B1", "B2"):
+        picked += _sample(rng, by_group.get(group, []), GOLDEN_PER_GROUP)
+    for pool in (by_group.get("A", []), sorted(e for es in by_group.values() for e in es)):
+        rest = [e for e in pool if e not in picked]
+        picked += _sample(rng, rest, max(0, GOLDEN_SIZE - len(picked)))
+    return picked
+
+
+def make_golden_sheet(
+    con: duckdb.DuckDBPyConnection, out_dir: Path, seed: int = GOLDEN_SEED, force: bool = False
+) -> int:
+    """`golden_set.csv`: 30 final events, one row per member purchase; returns the events."""
+    path = out_dir / f"{GOLDEN_SHEET}.csv"
+    if path.exists() and not force:
+        raise SheetsExist(f"{path.name} in {out_dir} (use --force to replace)")
+    picked = _golden_pick(con, seed)
+    order = {e: i for i, e in enumerate(sorted(picked, key=lambda e: (e.split(":")[1], e)))}
+    con.register("_pick", pa.table({"event_id": pa.array(picked, pa.string())}))
+    try:
+        rows = con.execute(
+            """
+            with names as (
+                select issuer_cik,
+                       list(issuer_name order by filing_date desc, accession desc)[1] as name
+                from core.filing
+                where issuer_cik in (select issuer_cik from evt.event
+                                     where event_id in (select event_id from _pick))
+                group by 1
+            ),
+            owners as (
+                select accession_number as accession,
+                       string_agg(distinct rptownername, '; ' order by rptownername) as owner_names
+                from stg.reportingowner
+                where accession_number in (select accession from evt.event_member
+                                           where event_id in (select event_id from _pick))
+                group by 1
+            ),
+            lines as (
+                select t.accession,
+                       string_agg(distinct cast(t.trans_date as VARCHAR), '; ') as trade_dates,
+                       string_agg(cast(t.price as VARCHAR), '; ' order by t.line_sk) as prices
+                from core.transaction t
+                where t.passes_lines and t.accession in (
+                    select accession from evt.event_member
+                    where event_id in (select event_id from _pick))
+                group by 1
+            )
+            select e.event_id, e."group", e.issuer_cik, n.name, e.signal_date, e.entry_session,
+                   m.accession, f.filing_date, m.entity_id_at_t, m.entity_role_at_t,
+                   o.owner_names, m.value_usd, l.trade_dates, l.prices
+            from evt.event e join _pick using (event_id)
+            join evt.event_member m using (event_id)
+            join core.filing f on f.accession = m.accession
+            left join names n on n.issuer_cik = e.issuer_cik
+            left join owners o on o.accession = m.accession
+            left join lines l on l.accession = m.accession
+            order by e.event_id, f.filing_date, m.accession
+            """
+        ).fetchall()
+    finally:
+        con.unregister("_pick")
+    rows.sort(key=lambda r: (order[r[0]], r[7], r[6]))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(GOLDEN_COLUMNS)
+        for row in rows:
+            link = _link(row[2], row[6])
+            blanks = [""] * (len(GOLDEN_CHECKS) + 1)
+            writer.writerow([seed, order[row[0]] + 1, *(_cell(v) for v in row), link, *blanks])
+    return len(picked)
+
+
+@dataclass(frozen=True)
+class GoldenSummary:
+    events: int
+    all_yes: int
+    with_no: int
+    unclear: int
+    blank: int  # events whose checks are not all filled in
+
+    @property
+    def agreement(self) -> float | None:
+        judged = self.events - self.blank
+        return self.all_yes / judged if judged else None
+
+
+def summarize_golden(out_dir: Path) -> GoldenSummary:
+    """Per event (its first row holds the checks): all three `yes`, any `no`, unclear, blank."""
+    with (out_dir / f"{GOLDEN_SHEET}.csv").open(newline="", encoding="utf-8-sig") as f:
+        first: dict[str, dict] = {}
+        for row in csv.DictReader(f):
+            first.setdefault(row["event_id"], row)
+    counts = {"all_yes": 0, "with_no": 0, "unclear": 0, "blank": 0}
+    for row in first.values():
+        values = [(row[c] or "").strip().lower() for c in GOLDEN_CHECKS]
+        if any(v not in GOLDEN_VERDICTS for v in values):
+            counts["blank"] += 1
+        elif "no" in values:
+            counts["with_no"] += 1
+        elif "unclear" in values:
+            counts["unclear"] += 1
+        else:
+            counts["all_yes"] += 1
+    return GoldenSummary(events=len(first), **counts)

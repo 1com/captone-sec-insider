@@ -113,7 +113,12 @@ def build_transactions(con: duckdb.DuckDBPyConnection, params: dict, cutoff=None
 
 
 def build_clean_purchases(
-    con: duckdb.DuckDBPyConnection, params: dict, cutoff=None, issuers=None
+    con: duckdb.DuckDBPyConnection,
+    params: dict,
+    cutoff=None,
+    issuers=None,
+    target: str = "core.clean_purchase",
+    line_filter: str | None = None,
 ) -> int:
     """`core.clean_purchase`: filings whose passing lines reach the G6 minimum, with the entity
     as of the filing date and the entity's holdings before and after (research.md R5).
@@ -133,7 +138,7 @@ def build_clean_purchases(
                {exact_sum("value_usd")} as value_usd, {exact_sum("shares")} as shares,
                max(trans_date) as max_trade_date, min(trans_date) as min_trade_date
         from core.transaction t
-        where passes_lines and {where}
+        where passes_lines and {where} and ({line_filter or "true"})
         group by accession
         having {exact_sum("value_usd")} >= $min_value
         """,
@@ -154,7 +159,7 @@ def build_clean_purchases(
     role = " ".join(f"when {n} then '{r}'" for r, n in entities.SENIORITY.items())
     con.execute(
         f"""
-        create or replace table core.clean_purchase as
+        create or replace table {target} as
         with lines as (
             select t.accession, t.direct_indirect, t.nature_of_ownership, t.acq_disp, t.shares,
                    t.shares_after,
@@ -217,7 +222,7 @@ def build_clean_purchases(
     )
     for name in ("_clean", "_clean_owner", "_clean_entity"):
         con.execute(f"drop table {name}")
-    return row_count(con, "core.clean_purchase")
+    return row_count(con, target)
 
 
 def build_funnel(con: duckdb.DuckDBPyConnection) -> int:

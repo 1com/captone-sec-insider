@@ -187,7 +187,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
 
 ### Tests (write first)
 
-- [ ] T023 [P] [US2] `tests/unit/test_g8.py`:
+- [X] T023 [P] [US2] `tests/unit/test_g8.py`:
   - **Spec US2 acceptance 1**: $200 against a 1.80–2.10 range fails `outside_range`.
   - **Boundaries** are inclusive at `low × 0.9` and `high × 1.1`.
   - **Weekend trade date**: uses the Friday session.
@@ -195,7 +195,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
   - **Unpriced issuers**: their lines get no `core.price_check` row and their purchases get `g8_status = skipped_unpriced`.
   - **G6 re-applied**: removing one line drops a $30k purchase below $25k, so it leaves `core.priced_purchase`.
   - **`audit.g8_rate`**: totals by year.
-- [ ] T024 [P] [US2] `tests/unit/test_final_events.py` (spec US2 acceptance 2–7). The candidate outcome order is cooldown → G7 → priced → floors.
+- [X] T024 [P] [US2] `tests/unit/test_final_events.py` (spec US2 acceptance 2–7). The candidate outcome order is cooldown → G7 → priced → floors.
   - **G7**:
     - SIC 6726 in the header → `g7_issuer_type`;
     - no header SIC → `g7_no_sic` under `exclude`;
@@ -212,12 +212,12 @@ The stories read each other's *tables* in the real run, but each is **tested ind
     - a T dated on a session → `entry_session` is the next session.
   - **Window flag**: warm-up events (T < 2012-01-01) have `in_labelled_window = false`.
   - **Invariants**: W18–W21 hold on the fixture.
-- [ ] T025 [P] [US2] `tests/unit/test_truncation_events.py`, synthetic. In each case, `detect(cutoff=T)` must equal the full run for everything dated ≤ T: G8, candidates, outcomes, floor values and events.
+- [X] T025 [P] [US2] `tests/unit/test_truncation_events.py`, synthetic. In each case, `detect(cutoff=T)` must equal the full run for everything dated ≤ T: G8, candidates, outcomes, floor values and events.
   - a reverse split after T;
   - a floor that would pass only with later prices;
   - a cooldown chain crossing T;
   - an XBRL share count filed after T.
-- [ ] T026 [P] [US2] Golden-sheet part of `tests/unit/test_audit_004.py`:
+- [X] T026 [P] [US2] Golden-sheet part of `tests/unit/test_audit_004.py`:
   - the layout of [contracts/audit-sheets.md](contracts/audit-sheets.md) (one row per member, event columns repeated);
   - seed 20261025;
   - 10 per group, with a shortfall filled from A;
@@ -226,17 +226,17 @@ The stories read each other's *tables* in the real run, but each is **tested ind
 
 ### Implementation
 
-- [ ] T027 [US2] In `src/sentinel/events/prelim.py`, give `find_events` two new parameters:
+- [X] T027 [US2] In `src/sentinel/events/prelim.py`, give `find_events` two new parameters:
   - **`keep`**: a callable from candidates to kept candidates. The default is the existing `_cooldown(…, rules.prelim_cooldown_calendar_days)`. Passing `keep=None` returns all candidates.
   - **`start`**: the earliest T.
   
   Feature 002's tests (`tests/unit/test_prelim_events.py`) must pass unchanged.
-- [ ] T028 [US2] In `src/sentinel/core/gates.py`, parametrise `build_clean_purchases` with `target` (default `core.clean_purchase`) and an optional `line_filter` SQL. Defaults change nothing (feature 002's tests pass). Use it to build `core.priced_purchase`, adding the `g8_status` column.
-- [ ] T029 [US2] Implement G8 in `src/sentinel/events/final.py`: `build_price_check(con, params, cutoff=None, issuers=None)`.
+- [X] T028 [US2] In `src/sentinel/core/gates.py`, parametrise `build_clean_purchases` with `target` (default `core.clean_purchase`) and an optional `line_filter` SQL. Defaults change nothing (feature 002's tests pass). Use it to build `core.priced_purchase`, adding the `g8_status` column.
+- [X] T029 [US2] Implement G8 in `src/sentinel/events/final.py`: `build_price_check(con, params, cutoff=None, issuers=None)`.
   - **`core.price_check`**: an ASOF join of each line passing G1–G6a at a priced issuer onto `core.price_daily`, at the last session ≤ trade date. It passes when `low × (1 − tol) ≤ price ≤ high × (1 + tol)`, with tol = `registered.g8_tolerance`.
   - **`audit.g8_rate`**.
   - **`core.priced_purchase`**: via T028.
-- [ ] T030 [US2] Implement detection in `src/sentinel/events/final.py`: `detect(con, params, cutoff=None, issuers=None, floors=True)`.
+- [X] T030 [US2] Implement detection in `src/sentinel/events/final.py`: `detect(con, params, cutoff=None, issuers=None, floors=True)`.
   1. **Candidates**: `find_events(purchases="core.priced_purchase", keep=None, start=rules.final_detection_start)`.
   2. **Inputs**:
      - the signal header SIC from `core.filing_header`;
@@ -245,8 +245,8 @@ The stories read each other's *tables* in the real run, but each is **tested ind
   3. **Sequential pass in Python**, per (issuer, group) in date order. Outcomes are listed in [data-model.md](data-model.md). A cooldown is started by `event` and `unpriced` outcomes, and the distance uses `registered.cooldown` sessions.
   4. **Writes**: `evt.event_candidate`, `evt.event`, `evt.event_member` and `audit.event_funnel`. Market-cap columns stay null until US4.
   5. **Coverage**: with `floors=False`, write `audit.price_coverage` for A and B1 events from 2012. `delisting_status` is `listed` (chosen series reaches the data's end), `delisted` (series ends earlier) or `unpriced_issuer`. `covered` means the series' first row ≤ session T−19 and last row ≥ T+1.
-- [ ] T031 [US2] In `src/sentinel/ingest/sec_headers.py`, add `final_targets(con, paths)`: the signal accessions of `needs_header` candidates without a stored header, failures excluded unless asked. Add `fetch-headers --final` to `src/sentinel/cli.py`.
-- [ ] T032 [US2] In `src/sentinel/cli.py`:
+- [X] T031 [US2] In `src/sentinel/ingest/sec_headers.py`, add `final_targets(con, paths)`: the signal accessions of `needs_header` candidates without a stored header, failures excluded unless asked. Add `fetch-headers --final` to `src/sentinel/cli.py`.
+- [X] T032 [US2] In `src/sentinel/cli.py`:
   - **`detect [--fetch-missing-headers]`**, replacing the stub. It exits 3 with the count and the hint `sentinel fetch-headers --final` when headers are missing. With the flag it fetches them and reruns, at most 3 rounds. It prints the G8 rate, outcomes by group and coverage. It runs the floors-off pass after the main pass.
   - **`coverage`**, which writes `specs/004-market-data-events/coverage.md`:
     - SC-001: coverage by year × delisting status, against the 90% target;
@@ -254,9 +254,9 @@ The stories read each other's *tables* in the real run, but each is **tested ind
     - unpriced events by year × group;
     - placeholders for the US3 and US4 sections.
   - `_step_detect` in `STEPS`.
-- [ ] T033 [US2] Implement `make_golden_sheet` and `summarize_golden` in `src/sentinel/core/audit.py`, and add `sentinel audit golden [--force]` and `audit golden-summary`, writing to `Paths.audits_004`.
-- [ ] T034 [US2] In `src/sentinel/warehouse.py`, add W16–W21 to `check_invariants`, and add `evt.event`, `evt.event_candidate` and `core.price_check` to `PRIMARY_KEYS`.
-- [ ] T035 [US2] `tests/integration/test_truncation_events_real.py` (`@slow`, W25): 20 random (issuer, T) pairs with seed 20261023. For each pair, a scratch DuckDB (`memory_limit = warehouse.MEMORY_LIMIT`, `threads = 4`, each result fetched immediately) runs `detect(cutoff=T, issuers=[issuer])` and compares with the full warehouse.
+- [X] T033 [US2] Implement `make_golden_sheet` and `summarize_golden` in `src/sentinel/core/audit.py`, and add `sentinel audit golden [--force]` and `audit golden-summary`, writing to `Paths.audits_004`.
+- [X] T034 [US2] In `src/sentinel/warehouse.py`, add W16–W21 to `check_invariants`, and add `evt.event`, `evt.event_candidate` and `core.price_check` to `PRIMARY_KEYS`.
+- [X] T035 [US2] `tests/integration/test_truncation_events_real.py` (`@slow`, W25): 20 random (issuer, T) pairs with seed 20261023. For each pair, a scratch DuckDB (`memory_limit = warehouse.MEMORY_LIMIT`, `threads = 4`, each result fetched immediately) runs `detect(cutoff=T, issuers=[issuer])` and compares with the full warehouse.
 - [ ] T036 [US2] **Real run, free part**:
   - `uv run sentinel fetch-headers --final`, then `cap uv run sentinel detect`;
   - `uv run sentinel coverage`;

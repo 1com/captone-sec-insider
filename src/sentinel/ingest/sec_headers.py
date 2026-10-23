@@ -122,6 +122,28 @@ def signal_accessions(
     return [t for t in targets if not (paths.data_raw / t.relpath).exists()]
 
 
+def final_targets(
+    con: duckdb.DuckDBPyConnection, paths: Paths, include_failed: bool = False
+) -> list[Target]:
+    """Signal filings of final-event candidates whose G7 waits for a header (`needs_header`,
+    feature 004), without a stored header; earlier failures are left out unless asked."""
+    skip_failed = (
+        "and c.signal_accession not in (select accession from core.header_failure)"
+        if not include_failed and table_exists(con, "core.header_failure")
+        else ""
+    )
+    rows = con.execute(
+        f"""
+        select distinct c.signal_accession, c.issuer_cik, f.filing_date
+        from evt.event_candidate c join core.filing f on f.accession = c.signal_accession
+        where c.outcome = 'needs_header' {skip_failed}
+        order by 1
+        """
+    ).fetchall()
+    targets = [Target(*row) for row in rows]
+    return [t for t in targets if not (paths.data_raw / t.relpath).exists()]
+
+
 @dataclass
 class FetchReport:
     stored: int = 0

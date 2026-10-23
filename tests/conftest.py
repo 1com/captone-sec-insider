@@ -627,3 +627,52 @@ def store_tiingo(paths, params, listing_rows, series: dict, metas: dict, today=P
     for t, rows in series.items():
         data = gzip.compress(tiingo_csv(rows).encode())
         tiingo._write(paths, book, f"tiingo/prices/{t}.csv.gz", f"prices/{t}", data, "u")
+
+
+def headers_table(con) -> None:
+    con.execute(
+        "create table if not exists core.filing_header (accession VARCHAR, issuer_cik VARCHAR, "
+        "form_type VARCHAR, filed_as_of DATE, accepted_at_et TIMESTAMP_S, sic VARCHAR, "
+        "sic_label VARCHAR, raw_path VARCHAR)"
+    )
+
+
+@pytest.fixture
+def market_events(archives, pipeline):
+    """run(*filings, prices=…, headers=…) → a warehouse built through the gates (feature 002) from
+    synthetic filings, plus a market calendar, chosen price series and signal-filing headers.
+
+    `filings` are (submissions, owners, lines) triples; `prices[cik]` are `market_prices` rows;
+    every Form 4 gets a header with SIC 3674 unless `headers[accession]` gives another SIC, None
+    (a header without SIC) or "missing" (no header)."""
+
+    def run(*filings, prices=None, headers=None, sessions=None, quarter="2019q1"):
+        tables = {"SUBMISSION": [], "REPORTINGOWNER": [], "NONDERIV_TRANS": []}
+        for subs, owners, lines in filings:
+            tables["SUBMISSION"] += subs
+            tables["REPORTINGOWNER"] += owners
+            tables["NONDERIV_TRANS"] += lines
+        archives({quarter: tables})
+        con = pipeline(until="gates")
+        market_sessions(con, **(sessions or {"start": date(2018, 10, 1), "n": 260}))
+        for cik, rows in (prices or {}).items():
+            market_prices(con, cik, rows)
+        headers_table(con)
+        headers = headers or {}
+        for acc, cik, filed in con.execute(
+            "select accession, issuer_cik, filing_date from core.filing where document_type = '4'"
+        ).fetchall():
+            sic = headers.get(acc, "3674")
+            if sic != "missing":
+                con.execute(
+                    "insert into core.filing_header values (?, ?, '4', ?, null, ?, null, null)",
+                    [acc, cik, filed, sic],
+                )
+        return con
+
+    return run
+
+
+def flat(sessions, close=10.0, volume=50_000, **extra) -> list[dict]:
+    """A flat price path over `sessions` (dollar volume close × volume each day)."""
+    return [{"session": d, "close": close, "volume": volume, **extra} for d in sessions]

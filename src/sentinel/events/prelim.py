@@ -22,6 +22,7 @@ from sentinel.warehouse import exact_sum, scope
 
 DIRECTOR = entities.SENIORITY["director"]
 CEO_CFO = entities.SENIORITY["ceo_cfo"]
+PRELIM_COOLDOWN = object()  # `keep` default: the preliminary calendar-day cooldown
 
 
 def _cooldown(candidates: list[tuple[str, str, date]], days: int) -> list[tuple[str, str, date]]:
@@ -43,11 +44,17 @@ def find_events(
     cutoff=None,
     issuers=None,
     officer_or_director: bool = True,
+    keep=PRELIM_COOLDOWN,
+    start=None,
 ) -> int:
     """Detect events in `purchases` into temp tables `_events` and `_event_members`.
 
     `purchases` needs `accession`, `issuer_cik`, `filing_date`, `owner_ciks` and `value_usd`.
     `officer_or_director=False` drops the A rule's officer/director condition (comparison only).
+    `keep` chooses which (issuer, group, T) candidates become events: by default the preliminary
+    cooldown; None keeps every candidate (final detection applies its own, feature 004); or a
+    function of the candidate list. `start` is the earliest T (earlier purchases still count in
+    the window).
     """
     where, args = scope(cutoff, issuers, alias="p")
     window = registered_value(params, "cluster_window")
@@ -59,13 +66,16 @@ def find_events(
             select accession, issuer_cik, filing_date, value_usd, owner_ciks[1] as owner_cik
             from {purchases} p where {where}
         ),
-        dates as (select distinct issuer_cik, filing_date as t from p)
+        dates as (
+            select distinct issuer_cik, filing_date as t from p
+            where $start is null or filing_date >= cast($start as DATE)
+        )
         select d.issuer_cik, d.t, p.accession, p.filing_date, p.value_usd, p.owner_cik
         from dates d
         join p on p.issuer_cik = d.issuer_cik
               and p.filing_date between d.t - {window - 1} and d.t
         """,
-        args,
+        args | {"start": None if start is None else str(start)},
     )
     entities.resolve_entities(con, "_window", "_window_entity")
     a_seniority = DIRECTOR if officer_or_director else 0
@@ -84,7 +94,12 @@ def find_events(
         """,
         {"min_value": min_value},
     ).fetchall()
-    kept = _cooldown(candidates, params["rules"]["prelim_cooldown_calendar_days"])
+    if keep is PRELIM_COOLDOWN:
+        kept = _cooldown(candidates, params["rules"]["prelim_cooldown_calendar_days"])
+    elif keep is None:
+        kept = sorted(candidates)
+    else:
+        kept = keep(candidates)
     con.register(
         "_kept",
         pa.table(

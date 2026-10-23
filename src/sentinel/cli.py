@@ -293,6 +293,39 @@ def _step_prices(paths: Paths, params: dict, con) -> tuple[int, bool]:
     return r.daily_rows, not problems
 
 
+def _step_detect(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel import warehouse
+    from sentinel.events import final
+
+    r = final.detect(con, params)
+    outcomes = ", ".join(f"{k} {v:,}" for k, v in sorted(r.outcomes.items()))
+    events = ", ".join(f"{k} {v:,}" for k, v in sorted(r.events.items()))
+    rate = r.g8_passed / r.g8_checked if r.g8_checked else 0.0
+    typer.echo(
+        f"detect: G8 {r.g8_passed:,} of {r.g8_checked:,} lines pass ({rate:.1%})\n"
+        f"  {r.candidates:,} candidates: {outcomes}\n  events: {events or 'none'}"
+    )
+    for group, (n, k) in r.coverage.items():
+        typer.echo(f"  coverage from 2012, {group}: {k:,} of {n:,} ({k / n:.1%})" if n else "")
+    problems = []
+    for name, found in (
+        ("W18 entry sessions", final.check_entry_sessions(con)),
+        ("W19 cooldown", final.check_cooldown(con, params)),
+        ("W20 kept events", final.check_kept_events(con, params)),
+        ("W21 funnel", final.check_funnel(con)),
+    ):
+        if found:
+            problems.append(name)
+            typer.echo(f"  {name}: {len(found):,} (first {found[0]})")
+    if r.needs_header:
+        raise warehouse.NeedsFetch(
+            f"{len(r.needs_header):,} signal filings have no header yet: run "
+            "`sentinel fetch-headers --final`, then `sentinel detect` "
+            "(or `sentinel detect --fetch-missing-headers`)"
+        )
+    return r.candidates, not problems
+
+
 STEPS: dict = {
     "stage": _step_stage,
     "entities": _step_entities,
@@ -301,6 +334,7 @@ STEPS: dict = {
     "symbols": _step_symbols,
     "headers": _step_headers,
     "prices": _step_prices,
+    "detect": _step_detect,
     "invariants": _step_invariants,
 }
 
@@ -323,6 +357,9 @@ def _run_steps(names: list[str]) -> int:
             started, t0 = datetime.now(), time.monotonic()
             try:
                 rows, ok = STEPS[name](paths, params, con)
+            except warehouse.NeedsFetch as e:
+                typer.echo(str(e), err=True)
+                return CONFIG
             except warehouse.MissingInput as e:
                 typer.echo(str(e), err=True)
                 return FAILED
@@ -521,7 +558,7 @@ def gates_cmd():
 
 audit_app = typer.Typer(no_args_is_help=True)
 app.add_typer(
-    audit_app, name="audit", rich_help_panel=P1, help="[QA] Hand-audit sheets for steps 3–4."
+    audit_app, name="audit", rich_help_panel=P1, help="[QA] Hand-audit sheets for steps 3–10."
 )
 
 
@@ -621,6 +658,46 @@ def audit_no_sic(
     else:
         typer.echo("D45 stands: issuers without a header SIC are excluded by G7")
     raise typer.Exit(OK)
+
+
+@audit_app.command("golden")
+def audit_golden(
+    force: bool = typer.Option(False, "--force", help="Replace an existing sheet and verdicts."),
+):
+    """Feature 004: write 30 final events to check against EDGAR (golden set, SC-003)."""
+    import duckdb
+
+    from sentinel import warehouse
+    from sentinel.core import audit
+
+    paths, _ = _context()
+    try:
+        with warehouse.connect(paths, read_only=True) as con:
+            warehouse.require_tables(con, ["evt.event", "evt.event_member"], "detect")
+            n = audit.make_golden_sheet(con, paths.audits_004, force=force)
+    except (duckdb.IOException, warehouse.MissingInput) as e:
+        _fail(str(e), FAILED)
+    except audit.SheetsExist as e:
+        _fail(f"kept the existing sheet: {e}", FAILED)
+    typer.echo(f"wrote {n} events to {paths.audits_004 / audit.GOLDEN_SHEET}.csv")
+
+
+@audit_app.command("golden-summary")
+def audit_golden_summary():
+    """Feature 004: agreement of the golden set with EDGAR (exit 1 while checks are blank)."""
+    from sentinel.core import audit
+
+    paths, _ = _context()
+    try:
+        s = audit.summarize_golden(paths.audits_004)
+    except FileNotFoundError:
+        _fail("no golden set yet: run `sentinel audit golden`", FAILED)
+    agreement = f"{s.agreement:.0%}" if s.agreement is not None else "–"
+    typer.echo(
+        f"golden set: {s.events} events; all checks yes {s.all_yes}, with a no {s.with_no}, "
+        f"unclear {s.unclear}, not filled in {s.blank}; agreement {agreement} (target 30/30)"
+    )
+    raise typer.Exit(FAILED if s.blank else OK)
 
 
 @app.command("detect-prelim", rich_help_panel=P1)
@@ -736,14 +813,9 @@ def symbols_cmd(
     raise typer.Exit(OK)
 
 
-@app.command("fetch-headers", rich_help_panel=P1)
-def fetch_headers_cmd(
-    limit: int = typer.Option(None, "--limit", help="Fetch at most N missing headers."),
-    retry_failures: bool = typer.Option(
-        False, "--retry-failures", help="Also retry filings that failed before."
-    ),
-):
-    """[Step 6] Fetch the signal filings' EDGAR headers: SIC code at T and acceptance time."""
+def _fetch_headers(limit=None, retry_failures=False, final=False) -> int:
+    """Fetch missing signal-filing headers (preliminary events, or final candidates with
+    `final`), then load them; returns the exit code."""
     import duckdb
 
     from sentinel import warehouse
@@ -755,10 +827,15 @@ def fetch_headers_cmd(
     secrets = _secrets(paths)
     try:
         with warehouse.connect(paths, read_only=True) as con:
-            warehouse.require_tables(con, ["evt.prelim_event"], "detect-prelim")
-            targets = sec_headers.signal_accessions(con, params, paths, retry_failures)
+            if final:
+                warehouse.require_tables(con, ["evt.event_candidate"], "detect")
+                targets = sec_headers.final_targets(con, paths, retry_failures)
+            else:
+                warehouse.require_tables(con, ["evt.prelim_event"], "detect-prelim")
+                targets = sec_headers.signal_accessions(con, params, paths, retry_failures)
     except (duckdb.IOException, warehouse.MissingInput) as e:
-        _fail(str(e), FAILED)
+        typer.echo(str(e), err=True)
+        return FAILED
     total = len(targets) if limit is None else min(limit, len(targets))
     typer.echo(f"fetch-headers: {len(targets):,} missing; fetching {total:,}")
 
@@ -781,9 +858,11 @@ def fetch_headers_cmd(
                     on_progress=progress,
                 )
     except FetchLocked as e:
-        _fail(str(e), FAILED)
+        typer.echo(str(e), err=True)
+        return FAILED
     except SecForbidden as e:
-        _fail(f"{e}. The SEC rejected the client; check SEC_USER_AGENT in .env.", SEC_FORBIDDEN)
+        typer.echo(f"{e}. The SEC rejected the client; check SEC_USER_AGENT in .env.", err=True)
+        return SEC_FORBIDDEN
     typer.echo(f"stored {report.stored:,}; failed {len(report.failed):,}")
     for accession, reason in report.failed[:10]:
         typer.echo(f"  {accession}: {reason}")
@@ -791,8 +870,23 @@ def fetch_headers_cmd(
         with warehouse.connect(paths) as con:
             sec_headers.record_failures(con, report.failed)
     except duckdb.IOException as e:
-        _fail(f"headers are stored, but failures could not be recorded: {e}", FAILED)
-    raise typer.Exit(_run_steps(["headers"]))
+        typer.echo(f"headers are stored, but failures could not be recorded: {e}", err=True)
+        return FAILED
+    return _run_steps(["headers"])
+
+
+@app.command("fetch-headers", rich_help_panel=P1)
+def fetch_headers_cmd(
+    limit: int = typer.Option(None, "--limit", help="Fetch at most N missing headers."),
+    retry_failures: bool = typer.Option(
+        False, "--retry-failures", help="Also retry filings that failed before."
+    ),
+    final: bool = typer.Option(
+        False, "--final", help="Headers of final-event candidates waiting for G7 (feature 004)."
+    ),
+):
+    """[Step 6] Fetch the signal filings' EDGAR headers: SIC code at T and acceptance time."""
+    raise typer.Exit(_fetch_headers(limit, retry_failures, final))
 
 
 @app.command("build", rich_help_panel=P1)
@@ -987,7 +1081,44 @@ def tiingo_delete_cmd(
 
 
 _stub("fetch-reference", "7", P2, "Download factor, industry and breakpoint files")
-_stub("detect", "7", P2, "Final event detection with G7, G8, floors and cooldown")
+
+
+@app.command("detect", rich_help_panel=P2)
+def detect_cmd(
+    fetch_missing_headers: bool = typer.Option(
+        False, "--fetch-missing-headers", help="Fetch missing signal-filing headers and rerun."
+    ),
+):
+    """[Step 7] Final event detection: G8, G7, the floors and the 63-session cooldown."""
+    code = _run_steps(["detect"])
+    for _ in range(3):
+        if code != CONFIG or not fetch_missing_headers:
+            break
+        code = _fetch_headers(final=True)
+        if code == OK:
+            code = _run_steps(["detect"])
+    raise typer.Exit(code)
+
+
+@app.command("coverage", rich_help_panel=P2)
+def coverage_cmd():
+    """[Step 7–10] Write specs/004-market-data-events/coverage.md (coverage, G8, outcomes)."""
+    import duckdb
+
+    from sentinel import warehouse
+    from sentinel.events import coverage
+
+    paths, params = _context()
+    try:
+        with warehouse.connect(paths, read_only=True) as con:
+            warehouse.require_tables(con, ["audit.price_coverage", "audit.g8_rate"], "detect")
+            out = paths.reports_004 / "coverage.md"
+            coverage.write_report(con, params, out)
+    except (duckdb.IOException, warehouse.MissingInput) as e:
+        _fail(str(e), FAILED)
+    typer.echo(f"wrote {out.relative_to(paths.root)}")
+
+
 _stub("delistings", "8", P2, "Classify delistings and assign delisting returns")
 _stub("shares-out", "9", P2, "Load shares outstanding from XBRL")
 _stub("costs", "10", P2, "Estimate spreads and trading costs")
