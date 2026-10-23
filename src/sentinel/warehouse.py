@@ -160,6 +160,7 @@ PRIMARY_KEYS = {
     "core.issuer": "issuer_cik",
     "core.company_filing": "issuer_cik, accession",
     "core.delisting": "issuer_cik",
+    "evt.event_cost": "event_id",
 }
 
 
@@ -178,7 +179,7 @@ def check_invariants(
         symbols,
         tiingo_register,
     )
-    from sentinel.events import final
+    from sentinel.events import costs, final
 
     problems = []
 
@@ -245,4 +246,6 @@ def check_invariants(
         add("W22 XBRL facts not first-filed only", company.check_first_filed(con))
     if table_exists(con, "core.delisting"):
         add("W23 delisting classes or returns", delistings.check_delistings(con, params))
+    if table_exists(con, "evt.event_cost"):
+        add("W24 costs below the spread or the tick", costs.check_costs(con))
     return problems

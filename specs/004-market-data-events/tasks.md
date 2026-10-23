@@ -397,13 +397,13 @@ The stories read each other's *tables* in the real run, but each is **tested ind
 
 ### Tests (write first)
 
-- [ ] T055 [P] [US5] `tests/unit/test_finra.py`, using a small committed excerpt of FINRA's public change file in `tests/fixtures/finra_tick_pilot_excerpt.txt`, with CRLF line endings as served:
+- [X] T055 [P] [US5] `tests/unit/test_finra.py`, using a small committed excerpt of FINRA's public change file in `tests/fixtures/finra_tick_pilot_excerpt.txt`, with CRLF line endings as served:
   - the C→G1 change on 2016-10-03 opens a `G1` interval;
   - the G1→C change on 2018-10-01 closes it;
   - control-only tickers produce no rows;
   - deletions close intervals;
   - the `END_FILE` trailer is ignored.
-- [ ] T056 [P] [US5] `tests/unit/test_costs.py`:
+- [X] T056 [P] [US5] `tests/unit/test_costs.py`:
   - **Abdi–Ranaldo recovery**: on a simulated path with a known 2% spread, the estimate recovers it within 25% over 250 sessions.
   - **Negative two-day estimates** are averaged as they are, before `max(·, 0)`.
   - **Tick floor**: $0.01 ÷ `close_t`, or $0.05 for a pilot stock-day.
@@ -414,8 +414,8 @@ The stories read each other's *tables* in the real run, but each is **tested ind
 
 ### Implementation
 
-- [ ] T057 [US5] Implement `src/sentinel/ingest/finra.py` (fetch `ops.finra_tick_pilot_url` into `data/raw/finra/` with a manifest line, and parse the file), and `build_tick_pilot` in `src/sentinel/core/reference.py`, which writes `core.tick_pilot` with `valid_to` exclusive. Add `fetch-reference` (the FINRA part) and the `reference` step (`_step_reference`) to `src/sentinel/cli.py`.
-- [ ] T058 [US5] Implement `src/sentinel/events/costs.py`: `build(con, params, cutoff=None, issuers=None)`, which writes `evt.event_cost` for priced events using the formulas in research R14 and the [data-model.md](data-model.md) columns.
+- [X] T057 [US5] Implement `src/sentinel/ingest/finra.py` (fetch `ops.finra_tick_pilot_url` into `data/raw/finra/` with a manifest line, and parse the file), and `build_tick_pilot` in `src/sentinel/core/reference.py`, which writes `core.tick_pilot` with `valid_to` exclusive. Add `fetch-reference` (the FINRA part) and the `reference` step (`_step_reference`) to `src/sentinel/cli.py`.
+- [X] T058 [US5] Implement `src/sentinel/events/costs.py`: `build(con, params, cutoff=None, issuers=None)`, which writes `evt.event_cost` for priced events using the formulas in research R14 and the [data-model.md](data-model.md) columns.
 
   `write_report(con, path)` writes `costs.md`:
   - median and quartiles of spread and cost by as-traded price bucket, for development events (2012–2022);
@@ -423,7 +423,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
   - a flag on any boundary other than $2 where the median cost changes by more than half.
   
   Add `costs` (`_step_costs`) to `src/sentinel/cli.py`.
-- [ ] T059 [US5] Add W24 and the `evt.event_cost` key to `src/sentinel/warehouse.py`.
+- [X] T059 [US5] Add W24 and the `evt.event_cost` key to `src/sentinel/warehouse.py`.
 - [ ] T060 [US5] **Real run**: `uv run sentinel fetch-reference`, `sentinel reference`, then `cap uv run sentinel costs`. Record the bucket table, any flagged jump and the Corwin–Schultz agreement in the run notes.
 
 **Checkpoint**: every priced event has a cost estimate.
@@ -438,7 +438,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
 
 ### Tests (write first)
 
-- [ ] T061 [P] [US6] `tests/unit/test_french.py`, using small committed excerpts of the public files in `tests/fixtures/french/`:
+- [X] T061 [P] [US6] `tests/unit/test_french.py`, using small committed excerpts of the public files in `tests/fixtures/french/`:
   - free-text lines are skipped;
   - the 49-industry file's two sections ("Average Value Weighted Returns -- Daily" and "Average Equal Weighted Returns -- Daily") map to `vw` and `ew`;
   - percent → decimal;
@@ -449,7 +449,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
 
 ### Implementation
 
-- [ ] T062 [US6] Implement `src/sentinel/ingest/french.py` (fetch `ops.french_files` from `ops.french_base_url` into `data/raw/french/`, with manifest lines, and parse them). Extend `src/sentinel/core/reference.py` to build `core.ff_factor_daily`, `core.ff_industry_daily`, `core.sic_industry` and `core.me_breakpoint`. `fetch-reference` and `reference` now cover French and FINRA. `reference` prints the last date and the header SICs that map to no 49-industry portfolio.
+- [X] T062 [US6] Implement `src/sentinel/ingest/french.py` (fetch `ops.french_files` from `ops.french_base_url` into `data/raw/french/`, with manifest lines, and parse them). Extend `src/sentinel/core/reference.py` to build `core.ff_factor_daily`, `core.ff_industry_daily`, `core.sic_industry` and `core.me_breakpoint`. `fetch-reference` and `reference` now cover French and FINRA. `reference` prints the last date and the header SICs that map to no 49-industry portfolio.
 - [ ] T063 [US6] **Real run**: `uv run sentinel fetch-reference`, then `sentinel reference`. Record the last date (expected 2026-08-31) and the unmapped SIC list in the run notes.
 
 **Checkpoint**: all six stories are complete.
@@ -458,7 +458,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T064 Extend `sentinel build` in `src/sentinel/cli.py`:
+- [X] T064 Extend `sentinel build` in `src/sentinel/cli.py`:
   - after feature 002's steps, run `prices` → `reference` → `company-facts` → `detect` → `delistings` → `costs` → `invariants`;
   - skip, with a note, any step whose raw inputs are absent;
   - never fetch: missing headers are an error.

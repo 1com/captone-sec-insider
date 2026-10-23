@@ -1,0 +1,20 @@
+This file was created using the 202608 CRSP database.
+It contains value- and equal-weighted returns for 49 industry portfolios.
+
+The portfolios are constructed at the end of June.
+
+Missing data are indicated by -99.99 or -999.
+
+
+  Average Value Weighted Returns -- Daily
+,Agric,Food,Soda
+19260701,   0.56,  -0.07, -99.99
+19260702,   0.29,   0.06, -99.99
+
+
+  Average Equal Weighted Returns -- Daily
+,Agric,Food,Soda
+19260701,   0.63,  -0.28, -99.99
+19260702,   1.03,   0.11, -99.99
+
+Copyright 2026 Eugene F. Fama and Kenneth R. French

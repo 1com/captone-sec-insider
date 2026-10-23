@@ -1,0 +1,22 @@
+Posting_Date|Ticker_Symbol|Security_Name|Listing_Exchange|Effective_Date|Deleted_Date|Tick_Size_Pilot_Program_Group|Old_Tick_Size_Pilot_Program_Group|Old_Ticker_Symbol|Reason_for_Change
+20161003|CFI|Culp|N|20160906|20161003|C|||R
+20161003|CFI|Culp|N|20161003||G1|C||R
+20161017|AAME|Atlantic American Corporation Common Stock|Q|20160906|20161017|C|||R
+20161017|AAME|Atlantic American Corporation Common Stock|Q|20161017||G2|C||R
+20161017|TOF|Tofutti Brands Inc|A|20160906|20161017|C|||R
+20161017|TOF|Tofutti Brands Inc|A|20161017||G2|C||R
+20161021|MDGN|Medgenics Inc|A|20160906|20161021|C|||D
+20161021|MDGN|Medgenics, Inc. Common Stock|Q|20161021||C|||T
+20161024|TOF|Tofutti Brands Inc|A|20161017|20161024|G2|||D
+20161216|GNMX|Aevi Genomic Medicine, Inc. Common Stock|Q|20161216||C|C|MDGN|S
+20161216|MDGN|Aevi Genomic Medicine, Inc. Common Stock|Q|20161021|20161216|C|||C
+20170713|CFI|Culp|N|20161003|20170713|G1|||C
+20170713|CULP|Culp, Inc.|N|20170713||G1|G1|CFI|S
+20181001|AAME|Atlantic American Corporation Common Stock|Q|20161017|20181001|G2|||R
+20181001|AAME|Atlantic American Corporation Common Stock|Q|20181001||C|G2||R
+20181001|CULP|Culp, Inc.|N|20170713|20181001|G1|||R
+20181001|CULP|Culp, Inc.|N|20181001||C|G1||R
+20190401|AAME|Atlantic American Corporation Common Stock|Q|20181001|20190401|C|||V
+20190401|CULP|Culp, Inc.|N|20181001|20190401|C|||V
+20190401|GNMX|Aevi Genomic Medicine, Inc. Common Stock|Q|20161216|20190401|C|||V
+END_FILE|20190401|7141|||||||

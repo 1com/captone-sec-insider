@@ -354,6 +354,42 @@ def _step_delistings(paths: Paths, params: dict, con) -> tuple[int, bool]:
     return r.ended_early, not problems
 
 
+def _step_reference(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel.core import reference
+
+    pilot = reference.build_tick_pilot(con, paths)
+    r = reference.build_french(con, paths)
+    typer.echo(
+        f"reference: tick pilot {pilot if pilot is not None else 'not stored'} intervals; "
+        f"French factors {r.factor_rows:,} rows through {r.last_date}, industries "
+        f"{r.industry_rows:,}, SIC ranges {r.sic_ranges:,}, breakpoints {r.breakpoints:,}"
+    )
+    if r.missing_files:
+        typer.echo(f"  not stored: {', '.join(r.missing_files)}")
+    unmapped = reference.unmapped_sics(con) if r.sic_ranges else []
+    if unmapped:
+        shown = ", ".join(f"{sic} ({n:,})" for sic, n in unmapped[:15])
+        typer.echo(f"  header SICs outside the 49 industries: {shown}")
+    return (pilot or 0) + r.factor_rows + r.industry_rows, True
+
+
+def _step_costs(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel.events import costs
+
+    r = costs.build(con, params)
+    median = f"{r.median_cost:.2%}" if r.median_cost is not None else "–"
+    typer.echo(
+        f"costs: {r.events:,} priced events, {r.with_cost:,} with a cost (median {median}); "
+        f"{r.pilot_days:,} on tick-pilot days"
+    )
+    flags = costs.write_report(con, params, paths.reports_004 / "costs.md")
+    typer.echo(f"  wrote costs.md; jumps at a price other than $2: {'; '.join(flags) or 'none'}")
+    problems = costs.check_costs(con)
+    for problem in problems[:10]:
+        typer.echo(f"  W24: {problem}")
+    return r.events, not problems
+
+
 STEPS: dict = {
     "stage": _step_stage,
     "entities": _step_entities,
@@ -363,8 +399,10 @@ STEPS: dict = {
     "headers": _step_headers,
     "prices": _step_prices,
     "detect": _step_detect,
+    "reference": _step_reference,
     "company": _step_company,
     "delistings": _step_delistings,
+    "costs": _step_costs,
     "invariants": _step_invariants,
 }
 
@@ -989,14 +1027,29 @@ def fetch_headers_cmd(
 
 @app.command("build", rich_help_panel=P1)
 def build_cmd():
-    """[Steps 2–6] Rebuild the warehouse from data/raw, then check its invariants."""
-    from sentinel.ingest import sec_headers
+    """[Steps 2–10] Rebuild the warehouse from data/raw (no network), then check its invariants."""
+    from sentinel.ingest import sec_company, sec_headers, yahoo
     from sentinel.ingest.manifest import read_all
 
     paths = _paths()
+    stored = {e.source for e in read_all(paths.manifest) if e.role == "original"}
     steps = ["stage", "entities", "gates", "prelim", "symbols"]
-    if any(e.source == sec_headers.SOURCE for e in read_all(paths.manifest)):
+    if sec_headers.SOURCE in stored:
         steps.append("headers")
+    # Feature 004: each step runs when its raw files are stored (a build never fetches).
+    wanted = {
+        "prices": yahoo.SOURCE in stored,
+        "reference": bool({"french", "finra"} & stored),
+        "company": sec_company.SOURCE in stored,
+        "detect": yahoo.SOURCE in stored and sec_headers.SOURCE in stored,
+        "delistings": yahoo.SOURCE in stored and sec_company.SOURCE in stored,
+        "costs": yahoo.SOURCE in stored and sec_headers.SOURCE in stored,
+    }
+    for step, ok in wanted.items():
+        if ok:
+            steps.append(step)
+        else:
+            typer.echo(f"build: skipping {step} (its raw files are not stored yet)")
     raise typer.Exit(_run_steps([*steps, "invariants"]))
 
 
@@ -1178,7 +1231,31 @@ def tiingo_delete_cmd(
     typer.echo(f"  {report.log_line}")
 
 
-_stub("fetch-reference", "7", P2, "Download factor, industry and breakpoint files")
+@app.command("fetch-reference", rich_help_panel=P2)
+def fetch_reference_cmd():
+    """[Step 7] Download the French library files and FINRA's tick-size pilot change file."""
+    import httpx
+
+    from sentinel.ingest import finra, french
+    from sentinel.ingest.manifest import FetchLock, FetchLocked
+
+    paths, params = _context()
+    try:
+        with FetchLock(paths.lock):
+            done = french.fetch(paths, params, echo=typer.echo)
+            done[finra.FILE] = finra.fetch(paths, params, echo=typer.echo)
+    except FetchLocked as e:
+        _fail(str(e), FAILED)
+    except httpx.HTTPError as e:
+        _fail(f"download failed: {e}", FAILED)
+    kept = sum(1 for v in done.values() if v == "kept")
+    typer.echo(f"reference files: {len(done) - kept} stored, {kept} already stored")
+
+
+@app.command("reference", rich_help_panel=P2)
+def reference_cmd():
+    """[Step 7] Load factors, industries, SIC definitions, breakpoints and tick-pilot intervals."""
+    raise typer.Exit(_run_steps(["reference"]))
 
 
 @app.command("detect", rich_help_panel=P2)
@@ -1251,7 +1328,12 @@ def delistings_cmd():
     raise typer.Exit(_run_steps(["delistings"]))
 
 
-_stub("costs", "10", P2, "Estimate spreads and trading costs")
+@app.command("costs", rich_help_panel=P2)
+def costs_cmd():
+    """[Step 10] Estimate spreads and round-trip costs per event; write costs.md."""
+    raise typer.Exit(_run_steps(["costs"]))
+
+
 _stub("prereg-status", "10a", P2, "Check the prereg-v1 pre-registration tag")
 _stub("labels", "11", P2, "Compute development labels (windows ending by 2022-12-31)")
 _stub("features", "12", P2, "Compute features F1–F24 as of T")
