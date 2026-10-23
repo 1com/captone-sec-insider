@@ -185,7 +185,35 @@ def _step_gates(paths: Paths, params: dict, con) -> tuple[int, bool]:
     return r.rows_written, not problems
 
 
-STEPS: dict = {"stage": _step_stage, "entities": _step_entities, "gates": _step_gates}
+def _step_prelim(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel import warehouse
+    from sentinel.events import prelim
+
+    warehouse.require_tables(con, ["core.entity_member", "core.owner_role"], "entities")
+    warehouse.require_tables(con, ["core.transaction", "core.clean_purchase"], "gates")
+    by_group = prelim.detect_prelim(con, params)
+    labelled = dict(
+        con.execute(
+            'select "group", count(*) from evt.prelim_event where in_labelled_window group by 1'
+        ).fetchall()
+    )
+    for group in ("A", "B1", "B2"):
+        typer.echo(
+            f"  {group:<3} {by_group.get(group, 0):>7,} events, "
+            f"{labelled.get(group, 0):>7,} in the labelled window"
+        )
+    events = sum(by_group.values())
+    members = warehouse.row_count(con, "evt.prelim_event_member")
+    typer.echo(f"detect-prelim: {events:,} events with {members:,} member purchases")
+    return events + members, True
+
+
+STEPS: dict = {
+    "stage": _step_stage,
+    "entities": _step_entities,
+    "gates": _step_gates,
+    "prelim": _step_prelim,
+}
 
 
 def _run_steps(names: list[str]) -> int:
@@ -428,7 +456,50 @@ def audit_summary():
     raise typer.Exit(FAILED if incomplete else OK)
 
 
-_stub("detect-prelim", "5", P1, "Preliminary event detection (A, B1, B2)")
+@app.command("detect-prelim", rich_help_panel=P1)
+def detect_prelim_cmd():
+    """[Step 5] Preliminary event detection (A, B1, B2), to choose which symbols to price."""
+    raise typer.Exit(_run_steps(["prelim"]))
+
+
+@app.command("compare-provisional", rich_help_panel=P1)
+def compare_provisional():
+    """[QA] Compare the preliminary events with feature 001's provisional events."""
+    import duckdb
+
+    from sentinel import warehouse
+    from sentinel.events import compare
+
+    paths, params = _context()
+    parquet = paths.provisional / "events_PROVISIONAL.parquet"
+    if not parquet.is_file():
+        _fail(f"{parquet} not found: run `sentinel candidates-provisional` first", FAILED)
+    try:
+        con = warehouse.connect(paths, read_only=True)
+    except duckdb.IOException as e:
+        _fail(f"cannot open {paths.warehouse.name}: {e}", FAILED)
+    with con:
+        try:
+            warehouse.require_tables(con, ["evt.prelim_event"], "detect-prelim")
+        except warehouse.MissingInput as e:
+            _fail(str(e), FAILED)
+        table = compare.tabulate(con, parquet, params)
+    out = paths.audits.parent / "comparison.md"
+    compare.write_report(out, compare.render(table, params, parquet.name))
+    for group, rows in table.items():
+        totals = [sum(r.variants[i] for r in rows) for i in range(4)]
+        prov = "—" if group == "B2" else f"{sum(r.provisional for r in rows):,}"
+        flagged = [str(r.year) for r in rows if r.flagged]
+        typer.echo(
+            f"  {group:<3} feature 001 {prov:>7}; production / + $2 / − O/D / pilot G6: "
+            f"{' / '.join(f'{n:,}' for n in totals)}; flagged years: {', '.join(flagged) or '—'}"
+        )
+    a_total = sum(r.variants[1] for r in table["A"])
+    a_feature001 = sum(r.provisional for r in table["A"])
+    ok = a_total <= a_feature001
+    typer.echo(f"SC-005: A under production + $2 {a_total:,} ≤ {a_feature001:,}: {ok}")
+    typer.echo(f"written to {out}")
+    raise typer.Exit(OK if ok else FAILED)
 
 
 @app.command("candidates-provisional", rich_help_panel=P1)

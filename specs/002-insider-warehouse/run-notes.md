@@ -85,3 +85,17 @@ Seen while checking the sheets, before any verdicts:
 - **Likely G3 error**: Analog Devices' "Comm Stock - $.16-2/3 value" is common stock, but `gate_common_title_regex` needs the word "common". Expect abbreviations of this kind among the G3 exclusions.
 - **Judgment case**: master limited partnerships' "Common units representing limited partner interests" fail G3 on `\bunits?\b`, which is meant for SPAC units.
 - **Quoting, cosmetic only**: about 1.0 M of 9.5 M footnotes, and 6,165 security titles, keep the SEC files' CSV-style quoting (`"…(""Common Units"")…"`), because the TSV reader runs with quoting off so that row counts match the files exactly. The gate regexes match substrings, so no decision changes.
+
+## T031: Preliminary events and the comparison (2026-10-23)
+
+| Check | Result | Criterion |
+|---|---|---|
+| `sentinel detect-prelim` | 39,498 events with 70,831 member purchases, exit 0, in **20 s** | — |
+| A / B1 / B2 | 15,391 / 6,498 / 17,609; in the labelled window (from 2012) 10,401 / 4,602 / 12,287 | — |
+| Issuers with an event | 8,527 (6,373 in the labelled window): the symbols to map and price | — |
+| Event IDs unique; every event has members and a signal filing | yes | W3 ✅ |
+| A under production + $2 | **13,731** ≤ feature 001's 16,513 | SC-005 ✅ |
+| Gap to feature 001 with its rules restored (+ $2, − O/D, G6 $10k) | A −1.2%, B1 +0.1%; no year above 15% | SC-005 ✅ |
+| History check (W9) | events up to each cutoff are identical between cutoff and full builds | ✅ |
+
+`sentinel compare-provisional` writes `comparison.md`, with the per-year tables and the explanations of what each rule changes. Feature 001's provisional events were built at the pilot's G6 of $10k, now `provisional.filing_min_value`. The comparison isolates D46 with its own column.

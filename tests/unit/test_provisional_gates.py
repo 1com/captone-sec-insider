@@ -171,7 +171,7 @@ def test_price_standin_floor(run):
 
 
 def test_filing_minimum_value(run, params):
-    floor = params["registered"]["g6_min_value"]["value"]
+    floor = params["provisional"]["filing_min_value"]
     con = run(
         [sub("a"), sub("b")],
         [owner("a"), owner("b")],

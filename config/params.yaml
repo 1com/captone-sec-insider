@@ -9,7 +9,7 @@
 #              specs/002-insider-warehouse/contracts/params-rules.md
 # provisional: the pilot's simplified rules (Appendix A) — NOT pre-registered.
 
-version: 6
+version: 7
 
 registered:
   insider_data_period:
@@ -299,6 +299,9 @@ rules:
   prelim_cooldown_calendar_days: 91
 
 provisional:
+  # The pilot's G6 minimum per filing (Appendix A). Production uses registered.g6_min_value,
+  # $25k since D46; feature 001's provisional outputs were built with this value.
+  filing_min_value: 10000
   price_standin_floor: 2.0
   cooldown_calendar_days: 91
   min_buyers_cluster: 2

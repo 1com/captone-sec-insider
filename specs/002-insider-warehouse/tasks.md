@@ -189,7 +189,7 @@ The stories depend on one another's *data* (each reads the previous layer), but 
 
 ### Tests (write first)
 
-- [ ] T025 [P] [US3] Write `tests/unit/test_prelim_events.py`:
+- [X] T025 [P] [US3] Write `tests/unit/test_prelim_events.py`:
   - **A**: a director and an outside entity 13 days apart, ≥ $100k → A on the later date. At 14 days apart → none.
   - **10%-only**: two 10%-only entities → no A.
   - **Promotion before T**: an owner promoted to director before T satisfies the officer/director rule.
@@ -198,22 +198,22 @@ The stories depend on one another's *data* (each reads the previous layer), but 
   - **Cooldown**: 90 days suppressed, 91 allowed, per group.
   - **Signal filing**: `signal_accession` is the highest accession on T.
   - **Flags**: `passes_price_standin` is false when any member line has price < $2; `in_labelled_window` is true from 2012-01-01.
-- [ ] T026 [US3] Extend `tests/unit/test_truncation.py` so preliminary events at ≤ T are identical between the cutoff build and the full build (W9 complete).
-- [ ] T027 [P] [US3] Write `tests/unit/test_compare.py`, using a small synthetic `events_PROVISIONAL.parquet` with feature 001's schema and a small `evt.prelim_event`:
+- [X] T026 [US3] Extend `tests/unit/test_truncation.py` so preliminary events at ≤ T are identical between the cutoff build and the full build (W9 complete).
+- [X] T027 [P] [US3] Write `tests/unit/test_compare.py`, using a small synthetic `events_PROVISIONAL.parquet` with feature 001's schema and a small `evt.prelim_event`:
   - the report has per-year counts for A, B1 and B2 under the 3 variants (research R8);
   - years differing by more than 15% are flagged;
   - the module does not import `sentinel.provisional`.
 
 ### Implementation
 
-- [ ] T028 [US3] Implement `src/sentinel/events/prelim.py`: `detect_prelim(con, params, cutoff=None, issuers=None)` → `evt.prelim_event` and `evt.prelim_event_member`.
+- [X] T028 [US3] Implement `src/sentinel/events/prelim.py`: `detect_prelim(con, params, cutoff=None, issuers=None)` → `evt.prelim_event` and `evt.prelim_event_member`.
   - **Per issuer**: at each distinct clean-purchase date T, the window is [T − (`cluster_window` − 1), T]. Each purchase's owner maps to its entity at T, with the entity role at T, via SQL ASOF lookups on `core.entity_member` and `core.owner_role`.
   - **Groups**: as in data-model.md.
   - **Cooldown**: `rules.prelim_cooldown_calendar_days`.
   - **Other fields**: `passes_price_standin` (every member line has price ≥ `provisional.price_standin_floor`) and `in_labelled_window`.
-- [ ] T029 [US3] Implement `src/sentinel/events/compare.py`: `compare(con, parquet_path, params)` → markdown, with a table per group and year for provisional, production, production + $2, and production + $2 without the officer/director rule, plus the % gaps and the flags. Explanations are written by hand after the run.
-- [ ] T030 [US3] Replace the `detect-prelim` stub, and add `compare-provisional`, in `src/sentinel/cli.py`. The comparison writes `specs/002-insider-warehouse/comparison.md` and prints the totals.
-- [ ] T031 [US3] Run `uv run sentinel detect-prelim && uv run sentinel compare-provisional` on the real data. Check SC-005: total A under production + $2 ≤ 16,513. Write the explanations for every flagged year into `comparison.md`, and the totals into `run-notes.md`.
+- [X] T029 [US3] Implement `src/sentinel/events/compare.py`: `compare(con, parquet_path, params)` → markdown, with a table per group and year for provisional, production, production + $2, and production + $2 without the officer/director rule, plus the % gaps and the flags. Explanations are written by hand after the run.
+- [X] T030 [US3] Replace the `detect-prelim` stub, and add `compare-provisional`, in `src/sentinel/cli.py`. The comparison writes `specs/002-insider-warehouse/comparison.md` and prints the totals.
+- [X] T031 [US3] Run `uv run sentinel detect-prelim && uv run sentinel compare-provisional` on the real data. Check SC-005: total A under production + $2 ≤ 16,513. Write the explanations for every flagged year into `comparison.md`, and the totals into `run-notes.md`.
 
 **Checkpoint**: the preliminary events exist, and the differences from feature 001 are explained.
 

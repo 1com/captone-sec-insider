@@ -57,8 +57,8 @@ def test_four_sections_in_order():
     assert SECTIONS == ("registered", "ops", "rules", "provisional")
 
 
-def test_params_version_is_6(params):
-    assert params["version"] == 6  # 5: the rules section; 6: G6 minimum $25k (D46)
+def test_params_version_is_7(params):
+    assert params["version"] == 7  # 5: rules; 6: G6 minimum $25k (D46); 7: pilot G6 kept
 
 
 def test_rules_regexes_compile_in_python_and_duckdb(params):

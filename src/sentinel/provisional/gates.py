@@ -79,7 +79,7 @@ def apply_gates(con: duckdb.DuckDBPyConnection, params: dict) -> None:
         from v left join p_owner o using (accession)
         group by all
         """,
-        {"min_value": registered_value(params, "g6_min_value")},
+        {"min_value": prov["filing_min_value"]},
     )
     _build_funnel(con)
 
