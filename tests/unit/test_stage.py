@@ -1,5 +1,6 @@
 """Step 2: typed staging of the SEC tables (FR-001 – FR-005, W1, W2)."""
 
+import duckdb
 import pytest
 from conftest import holding, line, note, owner, sub
 
@@ -201,3 +202,14 @@ def test_a_failed_rebuild_keeps_the_previous_tables(staged, tmp_data, monkeypatc
         "select table_name from information_schema.tables "
         f"where starts_with(table_name, '{stage.SHADOW}')"
     ).fetchall()
+
+
+def test_explore_connection_reads_but_cannot_write(staged, tmp_data):
+    con, _ = staged
+    con.close()
+    explore = warehouse.explore_connection(tmp_data)
+    assert explore.execute("select count(*) from warehouse.stg.submission").fetchone()[0] == 4
+    with pytest.raises(duckdb.Error, match="read-only"):
+        explore.execute("delete from warehouse.stg.submission")
+    explore.close()
+    assert (tmp_data.warehouse.parent / "explore.duckdb").exists()

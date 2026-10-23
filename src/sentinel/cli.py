@@ -246,6 +246,36 @@ def _run_steps(names: list[str]) -> int:
 # --- Phase 0 -----------------------------------------------------------------------------------
 
 
+@app.command("explore", rich_help_panel=P0)
+def explore(port: int = typer.Option(4213, "--port", help="Local port for the DuckDB UI.")):
+    """Query the warehouse (read-only) in the DuckDB UI, a SQL notebook in the browser."""
+    import duckdb
+
+    from sentinel import warehouse
+
+    paths = _paths()
+    if not paths.warehouse.exists():
+        _fail(f"{paths.warehouse} not found: run `sentinel stage` first", FAILED)
+    try:
+        con = warehouse.explore_connection(paths)
+    except duckdb.IOException as e:
+        _fail(f"cannot open {paths.warehouse.name}; is a build step running? {e}", FAILED)
+    con.execute(f"set ui_local_port = {port}")
+    con.execute("install ui; load ui")
+    con.execute("call start_ui_server()")
+    typer.echo(f"DuckDB UI: http://localhost:{port}  (see docs/explore.md)")
+    typer.echo("The warehouse is attached read-only as `warehouse`, e.g.")
+    typer.echo("  select * from warehouse.evt.prelim_event limit 10;")
+    typer.echo("Press Ctrl-C to stop. Build steps cannot write to the warehouse while this runs.")
+    try:
+        while True:
+            time.sleep(3600)
+    except KeyboardInterrupt:
+        con.execute("call stop_ui_server()")
+        con.close()
+        typer.echo("stopped")
+
+
 @app.command("check", rich_help_panel=P0)
 def check():
     """[Step 0] Check .env, the parameter file and data folders (offline)."""
