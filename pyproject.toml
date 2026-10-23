@@ -22,6 +22,18 @@ dev = [
     "ruff>=0.17.1,<0.18",
     "respx>=0.23.1,<0.24",
 ]
+# MVP prototype (feature 003, constitution "Prototype Exception"); also the product stack (plan §8.3)
+mvp = [
+    "fastapi>=0.156,<0.160",
+    "uvicorn>=0.54,<0.55",
+    "jinja2>=3.1.6,<4",
+    "yfinance>=1.7,<1.8",
+    "scikit-learn>=1.9,<1.10",
+    "lightgbm>=4.7,<4.8",
+]
+
+[tool.uv]
+default-groups = ["dev", "mvp"]
 
 [build-system]
 requires = ["uv_build>=0.11,<0.12"]
@@ -38,7 +50,7 @@ target-version = "py314"
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "mvp/tests"]
 addopts = "-ra"
 markers = [
     "network: needs internet; run with --run-network",

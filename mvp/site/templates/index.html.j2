@@ -1,0 +1,553 @@
+{%- if mode == "local" -%}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+{% endif -%}
+<title>EDGAR-SENTINEL MVP</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Course prototype: do clusters of insider purchases predict stock returns? Pilot sample 2006–2011, survivors only.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap">
+<style>{{ css|safe }}</style>
+{% if mode == "local" %}</head>
+<body>
+{% endif -%}
+{% macro banner(text) -%}
+<div class="banner" role="note">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4"/><path d="M12 17.5v.01"/></svg>
+  <span><strong>{{ c.meta.label }}.</strong> {{ text }}</span>
+</div>
+{%- endmacro %}
+{% macro signed(x, digits=1) -%}
+<span class="{{ 'pos' if x is not none and x > 0 else ('neg' if x is not none and x < 0 else '') }}">{{ x|pct(digits) }}</span>
+{%- endmacro %}
+<a class="skip" href="#main">Skip to content</a>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#screener" data-tab="screener" aria-label="EDGAR-SENTINEL home">
+      <svg class="brand-mark" viewBox="0 0 26 26" aria-hidden="true">
+        <rect x="1" y="1" width="24" height="24" rx="6" fill="var(--ink)"/>
+        <path d="M6 17.5 10.5 12l3.2 3.2L20 8" fill="none" stroke="var(--surface)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="20" cy="8" r="2" fill="var(--s2)"/>
+      </svg>
+      <span class="brand-name">EDGAR-SENTINEL</span>
+      <span class="badge">MVP</span>
+    </a>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      {% for id, name in [("screener","New insider buying"),("overview","Does it work?"),("findings","Findings"),("model","Model"),("scoring","Score & features"),("company","Company lookup"),("method","Method & limits")] %}
+      <button class="tab" role="tab" id="tab-{{ id }}" data-tab="{{ id }}" aria-controls="{{ id }}" aria-selected="{{ 'true' if loop.first else 'false' }}">{{ name }}</button>
+      {% endfor %}
+    </nav>
+    <button class="icon-btn" id="theme-toggle" type="button" aria-label="Switch between light and dark theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+
+<!-- ============================== OVERVIEW ============================== -->
+<section id="overview" class="panel" role="tabpanel" aria-labelledby="tab-overview" hidden>
+  <div class="panel-head">
+    <p class="eyebrow">Capstone prototype · SEC Form 4 insider filings · 2006–2026</p>
+    <h1>Do clusters of insider purchases predict stock returns?</h1>
+    <p class="lead">When two or more of a company's insiders buy its shares on the open market within two weeks, does the stock beat the market afterwards, once trading costs are paid? EDGAR-SENTINEL reads every SEC Form 4 filing since 2006 to find these clusters, measures what happened next and scores the newest ones.</p>
+  </div>
+  {{ banner("Returns are measured only for 2006–2011 events, at companies that still trade today. The 2012–2026 study stays sealed until its plan is pre-registered.") }}
+  <div class="answer">
+    <p class="eyebrow">Pilot answer</p>
+    <p class="verdict">{{ v.verdict }}</p>
+    <p>{{ v.verdict_detail }}</p>
+  </div>
+  <div class="kpis">
+    <div class="kpi">
+      <span class="kpi-label"><i class="dot" style="background:var(--s1)"></i>Clusters · 3-month return vs small caps, after costs</span>
+      <span class="kpi-value">{{ signed(v.a.net) }}</span>
+      <span class="kpi-sub">95% band {{ v.a.lo|pct }} to {{ v.a.hi|pct }} · {{ v.a.n|num }} events</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label"><i class="dot" style="background:var(--s2)"></i>Solo CEO/CFO buys · same measure</span>
+      <span class="kpi-value">{{ signed(v.b.net) }}</span>
+      <span class="kpi-sub">95% band {{ v.b.lo|pct }} to {{ v.b.hi|pct }} · {{ v.b.n|num }} events</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label">Model ranking quality, 2011 test (0.5 = chance)</span>
+      <span class="kpi-value">{{ "%.2f"|format(v.m.auc) }}</span>
+      <span class="kpi-sub">Market-data-only model: {{ "%.2f"|format(v.m.base_auc) }}</span>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label">New insider events, Jul–Sep 2026</span>
+      <span class="kpi-value">{{ v.recent.total }}</span>
+      <span class="kpi-sub">{{ v.recent.a }} clusters · {{ v.recent.b1 }} solo CEO/CFO · {{ v.recent.open }} still inside their 3-month window</span>
+    </div>
+  </div>
+  <div class="grid wide-left">
+    <article class="card">
+      <div class="card-head"><div>
+        <h2>From 4.5 million filings to {{ v.used_total|num }} tradable pilot events</h2>
+        <p class="card-sub">Each step keeps only what the next one needs.</p>
+      </div></div>
+      <ol class="funnel">
+        {% for f in v.funnel %}
+        <li class="{{ 'final' if loop.last else '' }}">
+          <div class="stage"><strong>{{ f.stage }}</strong><span>{{ f.note }}</span></div>
+          <div><span class="n">{{ f.n|num }}</span>{% if f.keep is not none %}<span class="keep">{{ "%.0f"|format(f.keep * 100) }}% of previous</span>{% endif %}</div>
+        </li>
+        {% endfor %}
+      </ol>
+      <p class="source">Source: SEC Insider Transactions Data Sets (83 quarters), SEC company ticker map, Yahoo Finance daily prices.</p>
+    </article>
+    <article class="card">
+      <div class="card-head"><div>
+        <h2>Highest-scored new events</h2>
+        <p class="card-sub">Filed July–September 2026, scored by the pilot model.</p>
+      </div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Company</th><th>Type</th><th class="num">Value</th><th class="num">Score</th></tr></thead>
+          <tbody>
+          {% for r in v.top_recent %}
+            <tr>
+              <td class="co-cell"><button class="linkish" data-company="{{ r.cik }}"><span class="ticker">{{ r.ticker }}</span></button><span class="co-name">{{ r.name }}</span></td>
+              <td><span class="chip {{ r.group|lower }}"><i></i>{{ "Cluster" if r.group == "A" else "CEO/CFO" }}</span></td>
+              <td class="num">{{ r.value|money }}</td>
+              <td class="num">{{ "%.0f"|format(r.score * 100) }}%</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p><button class="linkish" data-tab="screener">See all new insider buying →</button></p>
+    </article>
+  </div>
+  <div class="grid three">
+    <article class="card">
+      <h2>Findings</h2>
+      <p class="card-sub">How stocks moved from 20 trading days before to a year after insiders bought, against small caps and the S&amp;P 500.</p>
+      <p><button class="linkish" data-tab="findings">See the return paths →</button></p>
+    </article>
+    <article class="card">
+      <h2>Model</h2>
+      <p class="card-sub">A logistic regression and a gradient-boosted model, tested on 2011 against a model that sees only market data.</p>
+      <p><button class="linkish" data-tab="model">See how well it ranks →</button></p>
+    </article>
+    <article class="card">
+      <h2>Company lookup</h2>
+      <p class="card-sub">Every insider purchase and sale on Form 4 for {{ c.meta.companies|num }} companies, with their events and scores.</p>
+      <p><button class="linkish" data-tab="company">Search a company →</button></p>
+    </article>
+  </div>
+</section>
+
+<!-- ============================== FINDINGS ============================== -->
+<section id="findings" class="panel" role="tabpanel" aria-labelledby="tab-findings" hidden>
+  <div class="panel-head">
+    <p class="eyebrow">Event study · pilot sample 2006–2011</p>
+    <h1>What happened after insiders bought</h1>
+    <p class="lead">Each event is bought at the opening price on the first trading day after the Form 4 was filed. The abnormal return is the stock's return minus the benchmark's over the same days. Costs are a round-trip bid–ask spread estimated from each stock's daily high and low prices.</p>
+  </div>
+  {{ banner("Companies that failed or were acquired after 2011 are missing, which likely flatters these numbers.") }}
+  <div class="kpis">
+    <div class="kpi"><span class="kpi-label"><i class="dot" style="background:var(--s1)"></i>Clusters · 63-day net, mean</span><span class="kpi-value">{{ signed(v.a.net) }}</span><span class="kpi-sub">Median {{ v.a.median|pct }} · {{ "%.0f"|format(v.a.share * 100) }}% positive</span></div>
+    <div class="kpi"><span class="kpi-label"><i class="dot" style="background:var(--s2)"></i>Solo CEO/CFO · 63-day net, mean</span><span class="kpi-value">{{ signed(v.b.net) }}</span><span class="kpi-sub">Median {{ v.b.median|pct }} · {{ "%.0f"|format(v.b.share * 100) }}% positive</span></div>
+    <div class="kpi"><span class="kpi-label">Typical round-trip cost</span><span class="kpi-value">{{ v.cost_median|pct(2, False) }}</span><span class="kpi-sub">Median estimated spread, all used events</span></div>
+    <div class="kpi"><span class="kpi-label">Events measured</span><span class="kpi-value">{{ v.used_total|num }}</span><span class="kpi-sub">{{ "%.0f"|format(v.coverage_share * 100) }}% of {{ v.pilot_total|num }} pilot events</span></div>
+  </div>
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2>Average abnormal return around the purchase</h2>
+        <p class="card-sub">Trading days relative to entry. Left of the dashed line, the line shows how far the price was above the entry price: insiders tend to buy after a fall. The shaded area around each line is its 95% range (blue for clusters, orange for solo CEO/CFO): the true average very likely lies inside it. Where a range stays above 0%, the gain is unlikely to be luck. Ranges widen further out because longer-run returns vary more, and the solo range is wider because it has fewer events. Ranges come from resampling whole calendar months, so events in the same month move together. Click a name in the legend to hide that line and its range.</p>
+      </div>
+      <div class="seg" role="group" aria-label="Benchmark">
+        <button type="button" data-bench="iwm" aria-pressed="true">vs small caps (IWM)</button>
+        <button type="button" data-bench="spy" aria-pressed="false">vs S&amp;P 500 (SPY)</button>
+      </div>
+    </div>
+    <div class="chart tall" id="chart-path" role="img" aria-label="Line chart of average abnormal return from 20 days before to 252 days after entry, for clusters and solo CEO/CFO purchases"></div>
+    <p class="source">{{ c.meta.label }}. Gross of costs; subtract the typical cost above for a net figure.</p>
+    <button class="linkish" data-table-toggle="table-path">Show the numbers</button>
+    <div class="table-wrap" id="table-path" hidden></div>
+  </article>
+  <article class="card">
+    <div class="card-head"><div>
+      <h2>Returns by holding period</h2>
+      <p class="card-sub">Abnormal returns at five horizons, before and after costs, with 95% month-resampled bands.</p>
+    </div></div>
+    {% for bench, title in [("iwm", "vs small caps (IWM)"), ("spy", "vs S&P 500 (SPY)")] %}
+    <div class="table-wrap" data-bench-table="{{ bench }}" {% if bench != "iwm" %}hidden{% endif %}>
+      <table>
+        <caption>{{ title }} · {{ c.meta.label }}</caption>
+        <thead><tr><th>Group</th><th class="num">Days held</th><th class="num">Events</th><th class="num">Mean, gross</th><th class="num">Mean, net</th><th class="num">95% band (net)</th><th class="num">Median, net</th><th class="num">Share positive</th></tr></thead>
+        <tbody>
+        {% for row in v.horizon_rows[bench] %}
+          <tr>
+            <td><span class="chip {{ row.group|lower }}"><i></i>{{ "Clusters" if row.group == "A" else "Solo CEO/CFO" }}</span></td>
+            <td class="num">{{ row.h }}</td>
+            <td class="num">{{ row.n|num }}</td>
+            <td class="num">{{ signed(row.gross) }}</td>
+            <td class="num">{{ signed(row.net) }}</td>
+            <td class="num">{{ row.lo|pct }} to {{ row.hi|pct }}</td>
+            <td class="num">{{ signed(row.median) }}</td>
+            <td class="num">{{ "%.0f"|format(row.share * 100) }}%</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  </article>
+  <div class="grid two">
+    <article class="card">
+      <div class="card-head"><div>
+        <h2>63-day net return by year</h2>
+        <p class="card-sub">The 2009 rebound after the financial crisis carries most of the average.</p>
+      </div></div>
+      <div class="chart short" id="chart-years" role="img" aria-label="Bar chart of 63-day net abnormal return by year for clusters and solo CEO/CFO purchases"></div>
+      <button class="linkish" data-table-toggle="table-years">Show the numbers</button>
+      <div class="table-wrap" id="table-years" hidden></div>
+    </article>
+    <article class="card">
+      <div class="card-head"><div>
+        <h2>Who is in the sample</h2>
+        <p class="card-sub">Only companies that still trade today can be priced from Yahoo. The full study adds delisted stocks.</p>
+      </div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Group</th><th class="num">Pilot events</th><th class="num">Still listed</th><th class="num">Priced</th><th class="num">Tradable</th><th class="num">Share kept</th></tr></thead>
+          <tbody>
+          {% for g, row in v.coverage %}
+            <tr><td><span class="chip {{ g|lower }}"><i></i>{{ "Clusters" if g == "A" else "Solo CEO/CFO" }}</span></td>
+            <td class="num">{{ row.events|num }}</td><td class="num">{{ row.listed|num }}</td><td class="num">{{ row.priced|num }}</td><td class="num">{{ row.used|num }}</td><td class="num">{{ "%.0f"|format(row.share * 100) }}%</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="card-sub">{% if v.coverage_share < 0.3 %}<strong>Low coverage.</strong> {% endif %}Roughly two in three pilot events are at companies that later failed, were acquired or were otherwise delisted. That is the survivorship bias the full study removes with delisted-stock prices.</p>
+    </article>
+  </div>
+</section>
+
+<!-- ============================== MODEL ============================== -->
+<section id="model" class="panel" role="tabpanel" aria-labelledby="tab-model" hidden>
+  <div class="panel-head">
+    <p class="eyebrow">Machine learning · trained 2006–2010, tested on 2011</p>
+    <h1>Can a model tell the good clusters from the bad?</h1>
+    <p class="lead">Each model predicts whether an event's 63-day abnormal return against small caps, after costs, will be positive. It sees only what was known on the filing date: who bought, how much, how their holdings changed, recent insider selling, and the stock's recent trading.</p>
+  </div>
+  {{ banner("The model is trained on a small, survivors-only sample. Treat its scores as a demonstration of the method.") }}
+  <div class="answer">
+    <p class="eyebrow">Pilot verdict</p>
+    <p class="verdict">{{ v.m.verdict }}</p>
+    <p>{{ v.m.verdict_detail }}</p>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><span class="kpi-label">Selected model</span><span class="kpi-value" style="font-size:1.35rem">{{ v.m.selected_name }}</span><span class="kpi-sub">Lowest 2011 log loss of the two candidates</span></div>
+    <div class="kpi"><span class="kpi-label">Ranking quality (AUC)</span><span class="kpi-value">{{ "%.2f"|format(v.m.auc) }}</span><span class="kpi-sub">Chance 0.50 · market-only {{ "%.2f"|format(v.m.base_auc) }}</span></div>
+    <div class="kpi"><span class="kpi-label">Top fifth by score · 63-day net</span><span class="kpi-value">{{ signed(v.m.top5) }}</span><span class="kpi-sub">All 2011 events: {{ v.m.all|pct }}</span></div>
+    <div class="kpi"><span class="kpi-label">Events used</span><span class="kpi-value">{{ v.m.n_train|num }}</span><span class="kpi-sub">training · {{ v.m.n_test|num }} test (2011)</span></div>
+  </div>
+  <article class="card">
+    <div class="card-head"><div>
+      <h2>Model comparison on 2011</h2>
+      <p class="card-sub">Lower log loss and Brier score are better; a higher AUC means better ranking. The base-rate row predicts the training share of winners for every event.</p>
+    </div></div>
+    <div class="table-wrap">
+      <table>
+        <caption>{{ c.meta.label }}</caption>
+        <thead><tr><th>Model</th><th>Sees</th><th class="num">AUC</th><th class="num">Log loss</th><th class="num">Brier</th><th class="num">Top-fifth hit rate</th><th class="num">Top-fifth net return</th></tr></thead>
+        <tbody>
+        {% for r in v.m.rows %}
+          <tr>
+            <td>{{ r.name }}{% if r.selected %} <span class="flag">selected</span>{% endif %}</td>
+            <td class="muted">{{ r.sees }}</td>
+            <td class="num">{{ "%.3f"|format(r.auc) if r.auc is not none else "–" }}</td>
+            <td class="num">{{ "%.3f"|format(r.log_loss) }}</td>
+            <td class="num">{{ "%.3f"|format(r.brier) }}</td>
+            <td class="num">{{ ("%.0f"|format(r.hit * 100) ~ "%") if r.hit is not none else "–" }}</td>
+            <td class="num">{{ signed(r.top5) if r.top5 is not none else "–" }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </article>
+  <div class="grid two">
+    <article class="card">
+      <div class="card-head"><div>
+        <h2>Do the probabilities mean what they say?</h2>
+        <p class="card-sub">Predicted chance of a positive net return against the share that actually came out positive, in five equal-sized groups of 2011 events. The dashed line is perfect calibration.</p>
+      </div></div>
+      <div class="chart" id="chart-calibration" role="img" aria-label="Calibration chart comparing predicted and observed rates for the selected model and the market-only model"></div>
+      <button class="linkish" data-table-toggle="table-calibration">Show the numbers</button>
+      <div class="table-wrap" id="table-calibration" hidden></div>
+    </article>
+    <article class="card">
+      <div class="card-head"><div>
+        <h2>What drives the score</h2>
+        <p class="card-sub">How much worse the selected model predicts 2011 when each input is shuffled (permutation importance). Longer bars matter more.</p>
+      </div></div>
+      <div class="chart" id="chart-drivers" role="img" aria-label="Bar chart of permutation importance for the top model inputs"></div>
+      <button class="linkish" data-table-toggle="table-drivers">Show the numbers</button>
+      <div class="table-wrap" id="table-drivers" hidden></div>
+    </article>
+  </div>
+  <article class="card">
+    <h2>How the model was built</h2>
+    <dl class="defs">
+      <dt>Outcome</dt><dd>1 if the 63-day abnormal return against IWM, after the estimated round-trip cost, is above zero; otherwise 0. Base rate {{ "%.0f"|format(v.m.base_rate * 100) }}%.</dd>
+      <dt>Training</dt><dd>{{ v.m.n_train|num }} events from {{ v.m.train_years[0] }}–{{ v.m.train_years[1] }} whose 63-day window ended before 2011 (purged, so no training outcome overlaps the test year).</dd>
+      <dt>Test</dt><dd>{{ v.m.n_test|num }} events from {{ v.m.test_year }}, scored once.</dd>
+      <dt>Candidates</dt><dd>Regularised logistic regression (median imputation, missing-value flags, standardised inputs) and LightGBM (small fixed settings, no tuning).</dd>
+      <dt>Baseline</dt><dd>The selected family trained on market data only: liquidity, recent returns, momentum, distance from the 52-week high, volatility and spread.</dd>
+      <dt>Live scores</dt><dd>The selected model, refitted on all {{ v.m.n_all|num }} pilot events, scores the Jul–Sep 2026 events using only data up to each filing date. No outcome is computed for any event after 2011.</dd>
+    </dl>
+  </article>
+</section>
+
+<!-- ============================== SCREENER ============================== -->
+<section id="screener" class="panel" role="tabpanel" aria-labelledby="tab-screener">
+  <div class="panel-head">
+    <p class="eyebrow">Screener · Form 4s filed {{ c.meta.recent[0] }} to {{ c.meta.recent[1] }} · prices as of {{ c.meta.as_of }}</p>
+    <h1>New insider buying</h1>
+    <p class="lead">Clusters of insiders, and CEOs or CFOs, buying their own company's stock on the open market. The score is the model's estimated chance that the stock beats small caps (IWM) over the 63 trading days after the filing, once trading costs are paid. "Time left" counts the trading days remaining in that window. <button class="linkish" data-tab="scoring">How the score is made →</button></p>
+  </div>
+  {{ banner("Scores come from a weak, survivors-only pilot model and are not investment advice. No outcome is shown for these events.") }}
+  <p class="evidence">How reliable are the scores? In the 2011 test, events in the top fifth of scores beat small caps by {{ v.m.top5|pct }} after costs against {{ v.m.all|pct }} for all events, but overall ranking skill was close to chance (AUC {{ "%.2f"|format(v.m.auc) }}, where 0.50 is a coin flip). <button class="linkish" data-tab="model">See the model test →</button></p>
+  <div class="filters" role="search">
+    <div class="field"><label for="f-window">Window</label>
+      <select id="f-window"><option value="open">Still open</option><option value="all">All events</option></select></div>
+    <div class="field"><label for="f-group">Type</label>
+      <select id="f-group"><option value="all">All types</option><option value="A">Clusters</option><option value="B1">Solo CEO/CFO</option></select></div>
+    <div class="field"><label for="f-score">Minimum score</label>
+      <select id="f-score"><option value="0">Any score</option><option value="0.5">50% or more</option><option value="0.55">55% or more</option><option value="0.6">60% or more</option></select></div>
+    <div class="field"><label for="f-value">Minimum value</label>
+      <select id="f-value"><option value="0">Any value</option><option value="250000">$250k or more</option><option value="1000000">$1M or more</option><option value="5000000">$5M or more</option></select></div>
+    <div class="field" style="flex:1;min-width:180px"><label for="f-text">Company or ticker</label>
+      <input id="f-text" type="search" placeholder="e.g. bank, AAPL" autocomplete="off"></div>
+    <span class="count" id="screener-count" aria-live="polite">{{ v.recent.open }} of {{ c.screener|length }} events</span>
+  </div>
+  <div class="table-wrap">
+    <table id="screener-table">
+      <thead><tr>
+        <th class="sortable" data-sort="date" aria-sort="descending">Filed</th>
+        <th class="sortable" data-sort="left">Time left</th>
+        <th class="sortable" data-sort="name">Company</th>
+        <th class="sortable" data-sort="group">Type</th>
+        <th class="sortable num" data-sort="insiders">Insiders</th>
+        <th class="sortable num" data-sort="value">Value</th>
+        <th>Roles</th>
+        <th class="sortable" data-sort="score">Score</th>
+      </tr></thead>
+      <tbody id="screener-body">
+      {% for r in c.screener if r.window_open %}
+        <tr>
+          <td><span class="mono">{{ r.date }}</span><span class="ago">{{ r.days_since }} days ago</span></td>
+          <td><span class="winbar"><span class="track"><span class="fill" style="width:{{ (r.left / c.meta.horizon * 100)|round(0) }}%"></span></span><span>{{ r.left }} days</span></span></td>
+          <td class="wrap-cell"><button class="linkish" data-company="{{ r.cik }}"><span class="ticker">{{ r.ticker or "—" }}</span></button> {{ r.name }}</td>
+          <td><span class="chip {{ r.group|lower }}"><i></i>{{ "Cluster" if r.group == "A" else "Solo CEO/CFO" }}</span></td>
+          <td class="num">{{ r.insiders }}</td>
+          <td class="num">{{ r.value|money }}</td>
+          <td class="muted">{{ r.roles }}</td>
+          <td>{% if r.g8_fail %}<span class="muted">price check failed</span>{% elif r.score is not none %}<span class="scorebar"><span class="track"><span class="fill" style="width:{{ (r.score * 100)|round(0) }}%"></span></span><span>{{ "%.0f"|format(r.score * 100) }}%</span></span>{% if r.pct is not none %}<span class="ago">higher than {{ "%.0f"|format(r.pct * 100) }}% of pilot events</span>{% endif %}{% if r.partial %}<span class="flag">partial data</span>{% endif %}{% else %}<span class="muted">not priced</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="source">{{ c.meta.g7_excluded }} events at funds, business development companies and blank-check companies are left out (gate G7: EDGAR gives them a fund or blank-check industry code, or none). Events without a score are at companies no longer in the SEC's list of traded companies, so no recent prices exist for them, or failed the price check (a reported purchase price outside that day's trading range, usually a filing typo). "Partial data" means four or more model inputs were missing.</p>
+</section>
+
+<!-- ============================== SCORE & FEATURES ============================== -->
+<section id="scoring" class="panel" role="tabpanel" aria-labelledby="tab-scoring" hidden>
+  <div class="panel-head">
+    <p class="eyebrow">Score &amp; features · what goes into each score</p>
+    <h1>How the score is made</h1>
+    <p class="lead">The definition of the score, every input the models consider, and what each model produced when tested.</p>
+  </div>
+  {{ banner("The models were trained on a small, survivors-only sample. Their weights describe 2006–2011, not a proven rule.") }}
+
+  <article class="card">
+    <h2>What the score means</h2>
+    <div class="defbox">
+      <p class="formula">Score = the model's estimated probability that<br><span class="mono">stock return − IWM return − trading cost &gt; 0</span><br>over the 63 trading days after the Form 4 filing</p>
+    </div>
+    <dl class="defs">
+      <dt>Buy and hold</dt><dd>Bought at the opening price on the first trading day after the filing date, the first price any investor could act on, and held for 63 trading days (about three months).</dd>
+      <dt>Benchmark</dt><dd>IWM, the iShares Russell 2000 ETF, which tracks small US companies. Most stocks insiders cluster-buy are small, so this is the fair comparison.</dd>
+      <dt>Trading cost</dt><dd>A round-trip bid–ask spread estimated from the stock's daily high, low and closing prices in the 20 days before the filing (median {{ v.cost_median|pct(2, False) }}).</dd>
+      <dt>Reading it</dt><dd>50% is a coin flip. In the pilot, {{ "%.0f"|format(v.m.base_rate * 100) }}% of events beat IWM after costs, so a score near that is "average". Pilot scores ranged from {{ "%.0f"|format(v.s.quantiles[5] * 100) }}% to {{ "%.0f"|format(v.s.quantiles[95] * 100) }}% for the middle 90% of events (median {{ "%.0f"|format(v.s.quantiles[50] * 100) }}%).</dd>
+      <dt>Percentile</dt><dd>"Higher than 53% of pilot events" means the score beats the scores of 53% of the {{ v.m.n_all|num }} pilot events.</dd>
+      <dt>Who makes it</dt><dd>The selected {{ v.s.selected_name|lower }}, refitted on all {{ v.m.n_all|num }} pilot events (2006–2011), using the 19 features below, each measured with data available on the filing date only.</dd>
+      <dt>Partial data</dt><dd>Four or more of the 19 inputs were missing, for example a stock listed less than a year ago has no momentum. Missing inputs are filled with the pilot median and flagged.</dd>
+      <dt>No score</dt><dd>The company no longer trades (no prices); the reported purchase price was outside that day's trading range (price check); or the company is a fund or blank-check company (excluded).</dd>
+      <dt>How good it is</dt><dd>Only slightly better than chance so far: AUC {{ "%.2f"|format(v.m.auc) }} on the 2011 test. See the comparison below and the Model tab.</dd>
+    </dl>
+  </article>
+
+  <article class="card">
+    <div class="card-head"><div>
+      <h2>What each model produced</h2>
+      <p class="card-sub">Each model was trained on {{ v.m.n_train|num }} events from {{ v.m.train_years[0] }}–{{ v.m.train_years[1] }} and scored the {{ v.m.n_test|num }} events of {{ v.m.test_year }} once. Higher AUC is better ranking; lower log loss and Brier mean better probabilities. "Top fifth" is the 20% of 2011 events each model scored highest.</p>
+    </div></div>
+    <div class="table-wrap">
+      <table class="tight">
+        <caption>{{ c.meta.label }}</caption>
+        <thead><tr><th>Model</th><th>Inputs</th><th class="num">AUC</th><th class="num">Log loss</th><th class="num">Brier</th><th class="num">Top-fifth hit rate</th><th class="num">Top-fifth net return</th><th class="num">All 2011 events</th><th>Role</th></tr></thead>
+        <tbody>
+        {% for r in v.s.outputs %}
+          <tr>
+            <td>{{ r.name }}{% if r.selected %} <span class="flag">selected</span>{% endif %}</td>
+            <td class="muted">{{ r.inputs }}</td>
+            <td class="num">{{ "%.3f"|format(r.auc) }}</td>
+            <td class="num">{{ "%.3f"|format(r.log_loss) }}</td>
+            <td class="num">{{ "%.3f"|format(r.brier) }}</td>
+            <td class="num">{{ ("%.0f"|format(r.hit * 100) ~ "%") if r.hit is not none else "–" }}</td>
+            <td class="num">{{ signed(r.top5) if r.top5 is not none else "–" }}</td>
+            <td class="num">{{ signed(r.all) if r.all is not none else "–" }}</td>
+            <td class="wrap-cell muted">{{ r.used }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </article>
+
+  <article class="card">
+    <div class="card-head"><div>
+      <h2>The 19 features and what each model learned from them</h2>
+      <p class="card-sub">Every input is measured with data public on the filing date. <strong>Logistic weight</strong>: effect of a one-standard-deviation increase; blue raises the score, orange lowers it. <strong>LightGBM share</strong>: the share of the trees' total gain that came from the feature. <strong>Market-only</strong>: the baseline's {{ "weight" if v.s.baseline_kind == "logit" else "share" }}, for the six stock features it sees. Availability and typical values are for the {{ v.m.n_all|num }} pilot events.</p>
+    </div></div>
+    <div class="table-wrap">
+      <table class="features tight">
+        <thead><tr><th>#</th><th>Feature</th><th>What it captures · how it is computed</th><th class="num">Available</th><th class="num">Typical (median)</th><th>Logistic weight</th><th>LightGBM share</th><th>Market-only</th></tr></thead>
+        <tbody>
+        {% for r in v.s.rows %}
+          <tr>
+            <td class="mono muted">{{ r.plan }}</td>
+            <td class="feat-name"><strong>{{ r.label }}</strong><span class="ago">{{ r.group }} · {{ r.source }}</span></td>
+            <td class="wrap-cell feat-desc">{{ r.desc }}<span class="ago">{{ r.how }}</span></td>
+            <td class="num">{{ "%.0f"|format(r.coverage * 100) }}%</td>
+            <td class="num">{{ r.typical }}</td>
+            <td><span class="wbar"><span class="track"><span class="fill {{ 'up' if r.logit > 0 else 'down' }}" style="width:{{ r.logit_w|round(0) }}%"></span></span><span class="mono">{{ "%+.2f"|format(r.logit) }}</span></span></td>
+            <td><span class="wbar"><span class="track"><span class="fill up" style="width:{{ r.lgbm_w|round(0) }}%"></span></span><span class="mono">{{ "%.0f"|format(r.lgbm * 100) }}%</span></span></td>
+            <td>{% if r.base is not none %}<span class="wbar"><span class="track"><span class="fill {{ 'up' if r.base > 0 else 'down' }}" style="width:{{ r.base_w|round(0) }}%"></span></span><span class="mono">{{ ("%+.2f"|format(r.base)) if v.s.baseline_kind == "logit" else ("%.0f"|format(r.base * 100) ~ "%") }}</span></span>{% else %}<span class="muted">not used</span>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="source">Weights are from the models trained on {{ v.m.train_years[0] }}–{{ v.m.train_years[1] }}. With an AUC near 0.5, most of these weights are small and could change with more data.</p>
+  </article>
+
+  <article class="card">
+    <h2>Considered but not used in the MVP</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Feature</th><th>Why it is left out</th></tr></thead>
+        <tbody>
+        {% for plan, name, why in v.s.not_used %}
+          <tr><td class="mono muted">{{ plan }}</td><td class="wrap-cell">{{ name }}</td><td class="wrap-cell muted">{{ why }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </article>
+</section>
+
+<!-- ============================== COMPANY ============================== -->
+<section id="company" class="panel" role="tabpanel" aria-labelledby="tab-company" hidden>
+  <div class="panel-head">
+    <p class="eyebrow">Company lookup · {{ c.meta.companies|num }} companies with insider events</p>
+    <h1>Insider activity for any company in the study</h1>
+  </div>
+  <div class="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="company-search" type="search" role="combobox" aria-expanded="false" aria-controls="company-suggest" aria-autocomplete="list" placeholder="Search by ticker or company name" autocomplete="off">
+    <ul id="company-suggest" class="suggest" role="listbox" hidden></ul>
+  </div>
+  <div id="company-profile" class="panel" aria-live="polite"><p class="empty">Loading company…</p></div>
+</section>
+
+<!-- ============================== METHOD ============================== -->
+<section id="method" class="panel" role="tabpanel" aria-labelledby="tab-method" hidden>
+  <div class="panel-head">
+    <p class="eyebrow">Method &amp; limits</p>
+    <h1>How the prototype works and what it cannot tell you yet</h1>
+  </div>
+  <div class="grid wide-left">
+    <article class="card prose">
+      <h2>The question</h2>
+      <p>Corporate insiders must report their trades to the SEC on Form 4 within two business days. The project asks whether purchases made by several insiders at once, or by the CEO or CFO alone, predict that the stock will beat the market, after the costs a small investor would pay.</p>
+      <h2>How an event is found</h2>
+      <ul>
+        <li><strong>Clean purchases:</strong> original Form 4s only; open-market purchases (transaction code P) of common stock; no ticked 10b5-1 plan box and no footnote pointing to a pre-planned plan, dividend reinvestment or a company share offering; at least $10,000 per filing; filed within 30 days of the trade; trade price at least $2.</li>
+        <li><strong>Cluster:</strong> clean purchases from at least two buyers filed within 14 calendar days, totalling at least $100,000.</li>
+        <li><strong>Solo CEO/CFO:</strong> a CEO or CFO buying at least $100,000 with no other insider buying in the window.</li>
+        <li><strong>Cooldown:</strong> no second event of the same type at the same company within 91 days.</li>
+      </ul>
+      <h2>How returns are measured</h2>
+      <ul>
+        <li>Entry at the opening price on the first trading day after the filing date, the first price any investor could act on.</li>
+        <li>Abnormal return: the stock's return minus that of IWM (small caps) or SPY (S&amp;P 500) over the same days.</li>
+        <li>Tradability: the as-traded price must be at least $2 and the average daily dollar volume at least $100,000 on the filing date.</li>
+        <li>Cost: a round-trip bid–ask spread estimated from daily high and low prices (Abdi &amp; Ranaldo, 2017).</li>
+        <li>Uncertainty: 95% bands from resampling blocks of whole calendar months, because events in the same month share market moves.</li>
+      </ul>
+      <h2>Why only 2006–2011</h2>
+      <p>The full study measures 2012–2022 for development and keeps 2023–2026 as a sealed test. Its rules are locked and time-stamped before any of those returns are computed. This prototype therefore uses only the years before the study window, so showing these results cannot influence the real test.</p>
+      <h2>What is missing here</h2>
+      <ul>
+        <li><strong>Delisted companies.</strong> {{ v.pilot_total|num }} pilot events shrink to {{ v.used_total|num }} because only companies still trading today have free price history. Failures and takeovers are both missing, so the direction of the bias is unknown, though failures usually matter more.</li>
+        <li><strong>Simplified insider rules.</strong> Co-filing funds and their managers can count as separate buyers here; the full study merges them using only filings made up to each date.</li>
+        <li><strong>Simple costs and benchmarks.</strong> No price-impact cost, no industry-adjusted returns and no risk-factor checks yet.</li>
+        <li><strong>A small, untuned model.</strong> About {{ v.m.n_all|num }} events and fixed settings.</li>
+      </ul>
+    </article>
+    <div class="grid" style="align-content:start">
+      <article class="card">
+        <h2>Data sources</h2>
+        <dl class="defs">
+          <dt>Insider filings</dt><dd>SEC Insider Transactions Data Sets, 2006 Q1 – 2026 Q3 (83 quarters, 37.9 million rows)</dd>
+          <dt>Company identity</dt><dd>SEC company ticker map (snapshot of 22 Oct 2026)</dd>
+          <dt>Prices</dt><dd>Yahoo Finance daily prices for {{ v.priced_tickers|num }} listed tickers plus IWM and SPY. Used only to compute results; never redistributed</dd>
+          <dt>Charts</dt><dd>Interactive charts drawn in your browser from the computed results</dd>
+        </dl>
+      </article>
+      <article class="card">
+        <h2>What the full study adds</h2>
+        <ul class="prose" style="padding-left:20px;margin:0">
+          <li>Delisted-stock prices, so failures and takeovers are counted</li>
+          <li>Production insider rules: co-filers merged and roles taken as of each date</li>
+          <li>2012–2022 development years and a sealed 2023–2026 holdout, tested once</li>
+          <li>Industry-adjusted returns, risk-factor checks and price-impact costs</li>
+          <li>Company financials: market cap, book-to-market, leverage, cash, losses</li>
+          <li>A pre-registered model tournament with calibration and explanations</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h2>Not investment advice</h2>
+        <p class="card-sub">{{ c.meta.disclaimer }}. This page is a student research prototype. Insider data comes from public SEC filings; EDGAR-SENTINEL is not affiliated with the SEC.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot wrap">
+  <span>{{ c.meta.disclaimer }}. {{ c.meta.label }}.</span>
+  <span>Built {{ c.meta.built }} from SEC Form 4 data (2006 Q1 – 2026 Q3) and Yahoo Finance prices.</span>
+</footer>
+
+<script id="dashboard-data" type="application/json">{{ data_json|safe }}</script>
+<script src="{{ echarts_src }}"></script>
+<script>window.MVP_MODE = "{{ mode }}";</script>
+<script>{{ js|safe }}</script>
+{% if mode == "local" %}
+</body>
+</html>
+{% endif %}
