@@ -34,7 +34,7 @@ From [01](01-outcome-goals.md):
 | 1.6 | Symbol map for all three groups; Tiingo coverage counted in memory only | `core/symbols.py`, `sentinel symbols` | At least 95% mapped (98.1%); W10, W11 | 1.4 | C | ✅ 23 Oct |
 | 1.7 | Fetch about 27,300 signal-filing headers in the background (a few hours); parse SIC and acceptance time; D45 report and a 30-row no-SIC sheet (`audit no-sic`) | `ingest/sec_headers.py`, `fetch-headers` | At least 99% parsed; no-SIC events counted per year and group | 1.4 | C | Code ✅ 23 Oct; the download waits for EDGAR maintenance |
 | 1.8 | Fill the three audit sheets (about 2 h) | `specs/002-…/audits/` | No blank verdicts | ✅ sheets | R | Tue 27 Oct |
-| 1.9 | Invariant check, real-data truncation test (20 pairs), full rebuild timing, docs | `warehouse.py`, `tests/integration/` | All pass; timings in the run notes | 1.6, 1.7 | C | Tue 27 Oct |
+| 1.9 | Invariant check, real-data truncation test (20 pairs), full rebuild timing, docs | `warehouse.py`, `tests/integration/` | All pass (rebuild 6 min; 20/20 pairs); timings in the run notes | 1.6 | C | ✅ 23 Oct |
 | 1.10 | Audit summary; fix or document each error pattern | `sentinel audit summary`, run notes | At least 90% per sheet, or fixes recorded | 1.8 | C | Tue 27 Oct |
 | 1.11 | Merge features 001–003 into `main`; delete the feature branches | git | Tests green on `main` | — | R, C | ✅ 23 Oct |
 | 1.12 | Specify, plan and break down E2 + E3 (one spec-kit feature) | `specs/…` | Tasks reviewed by R | 1.11 | C, R | Wed 28 Oct |

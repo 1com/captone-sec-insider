@@ -18,7 +18,7 @@ import pyarrow as pa
 
 from sentinel.config import registered_value
 from sentinel.core import entities
-from sentinel.warehouse import scope
+from sentinel.warehouse import exact_sum, scope
 
 DIRECTOR = entities.SENIORITY["director"]
 CEO_CFO = entities.SENIORITY["ceo_cfo"]
@@ -76,7 +76,7 @@ def find_events(
                    when n = 1 and top = {CEO_CFO} then 'B1'
                    when n = 1 and top >= {DIRECTOR} then 'B2' end as grp, t
         from (
-            select issuer_cik, t, count(distinct entity_id) as n, sum(value_usd) as total,
+            select issuer_cik, t, count(distinct entity_id) as n, {exact_sum("value_usd")} as total,
                    max(entity_seniority) as top
             from _window_entity group by issuer_cik, t
         )
@@ -111,7 +111,7 @@ def find_events(
     finally:
         con.unregister("_kept")
     con.execute(
-        """
+        f"""
         create or replace temp table _events as
         with priced as (
             select accession, bool_and(coalesce(price >= $floor, false)) as ok
@@ -123,7 +123,7 @@ def find_events(
                any_value(m.t) as signal_date,
                max(m.accession) filter (where m.filing_date = m.t) as signal_accession,
                count(distinct m.entity_id_at_t) as n_entities,
-               sum(m.value_usd) as total_value_usd,
+               {exact_sum("m.value_usd")} as total_value_usd,
                max(m.entity_seniority) as max_seniority,
                any_value(m.t) >= cast($start as DATE) as in_labelled_window,
                bool_and(coalesce(pr.ok, false)) as passes_price_standin

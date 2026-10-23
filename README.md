@@ -30,6 +30,16 @@ uv run sentinel check
 | `sentinel verify-sec` | 1 | Re-hashes the stored archives against the manifest (offline) |
 | `sentinel fetch-sec-tickers` | 6 (partial) | Saves today's SEC company-ticker map |
 | `sentinel candidates-provisional` | 5 (provisional) | Ranks likely-delisted companies whose prices must come from Tiingo. Look-ahead, used only to plan the price pull; output goes to `data/provisional/` |
+| `sentinel stage` | 2 | Loads every table of every quarter into typed staging tables in `data/warehouse.duckdb` (37.9 M rows, about 4 min) |
+| `sentinel entities` | 3 | Point-in-time insider entities (co-filers count as one buyer) and roles |
+| `sentinel gates` | 4 | Gate flags on every trade line, clean purchases (at least $25,000 per filing) with holdings, and the funnel |
+| `sentinel detect-prelim` | 5 | Preliminary events: clusters (A), solo CEO/CFO (B1) and solo officer or director (B2) |
+| `sentinel compare-provisional` | QA | Compares the events with feature 001's; writes `specs/002-insider-warehouse/comparison.md` |
+| `sentinel symbols [--tiingo-report]` | 6 | Maps every company to price tickers from SEC data; optionally counts matches in Tiingo's public list, in memory |
+| `sentinel fetch-headers` | 6 | Downloads each signal filing's EDGAR header (industry code, acceptance time). Resumable; a few hours |
+| `sentinel build` | 2–6 | Rebuilds the whole warehouse from `data/raw/` and checks its invariants (about 6 min) |
+| `sentinel audit sheets\|summary\|no-sic` | QA | Hand-audit sheets and their scores; `no-sic` is the D45 check |
+| `sentinel explore` | — | Opens the warehouse read-only in the DuckDB UI at http://localhost:4213 ([docs/explore.md](docs/explore.md)) |
 
 `uv run sentinel --help` lists every pipeline step. Steps not built yet exit with code 4.
 
@@ -52,13 +62,14 @@ Everything under `data/` is git-ignored and can be regenerated:
 - `data/raw/`: downloads exactly as received, read-only, recorded in `manifest.jsonl`.
 - `data/provisional/`: the provisional candidate list and its summary against the pilot.
 - `data/mvp/`: the MVP's own downloads (Yahoo prices, SEC company records), work tables and the built dashboard.
-- Later features add `data/warehouse.duckdb`, rebuilt from `data/raw/` by commands.
+- `data/warehouse.duckdb`: the analysis database (schemas `stg`, `core`, `evt`, `audit`), rebuilt from `data/raw/` by `sentinel build`. Browse it with `sentinel explore` or DBeaver (read-only); see [docs/explore.md](docs/explore.md).
 
 ## Development
 
 ```bash
 uv run pytest            # offline; network tests need --run-network
+uv run pytest -m slow    # against the real data/warehouse.duckdb
 uv run ruff check .
 ```
 
-Features follow spec-kit: `specs/<feature>/` holds each feature's spec, plan, tasks and run notes. The current feature is [specs/001-skeleton-sec-ingest/](specs/001-skeleton-sec-ingest/).
+Heavy data steps run under a memory ceiling, e.g. `systemd-run --user --wait -p MemoryMax=5G … uv run sentinel build`, so a runaway step cannot take down WSL. Features follow spec-kit: `specs/<feature>/` holds each feature's spec, plan, tasks and run notes. The schedule is in [docs/planning/](docs/planning/README.md).

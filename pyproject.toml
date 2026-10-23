@@ -51,7 +51,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "mvp/tests"]
-addopts = "-ra"
+addopts = "-ra -m 'not slow'"
 markers = [
     "network: needs internet; run with --run-network",
     "slow: needs the real data/warehouse.duckdb; skipped when absent",

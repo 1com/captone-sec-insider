@@ -15,7 +15,7 @@ import duckdb
 from sentinel.config import registered_value
 from sentinel.core import entities
 from sentinel.core.stage import TABLE_SPECS
-from sentinel.warehouse import row_count, scope
+from sentinel.warehouse import exact_sum, row_count, scope
 
 LINE_GATES = (
     "g1_form4",
@@ -130,12 +130,12 @@ def build_clean_purchases(
         create or replace temp table _clean as
         select accession, any_value(issuer_cik) as issuer_cik,
                any_value(filing_date) as filing_date, any_value(quarter) as quarter,
-               sum(value_usd) as value_usd, sum(shares) as shares,
+               {exact_sum("value_usd")} as value_usd, {exact_sum("shares")} as shares,
                max(trans_date) as max_trade_date, min(trans_date) as min_trade_date
         from core.transaction t
         where passes_lines and {where}
         group by accession
-        having sum(value_usd) >= $min_value
+        having {exact_sum("value_usd")} >= $min_value
         """,
         args,
     )
@@ -168,19 +168,22 @@ def build_clean_purchases(
         per_holding as (
             select accession,
                    max(shares_after) filter (where from_last = 1) as after,
-                   sum(case acq_disp when 'A' then shares when 'D' then -shares end) as net_bought,
+                   {exact_sum("case acq_disp when 'A' then shares when 'D' then -shares end")}
+                       as net_bought,
                    bool_or(shares is null or acq_disp not in ('A', 'D')
                            or (from_last = 1 and shares_after is null)) as broken
             from lines
             group by accession, direct_indirect, nature_of_ownership
         ),
         traded as (
-            select accession, sum(after - net_bought) as before, sum(after) as after,
+            select accession, {exact_sum("after - net_bought")} as before,
+                   {exact_sum("after")} as after,
                    bool_or(broken) as broken, bool_or(after - net_bought < 0) as negative
             from per_holding group by accession
         ),
         untraded as (
-            select h.accession_number as accession, sum(h.shrs_ownd_folwng_trans) as shares,
+            select h.accession_number as accession,
+                   {exact_sum("h.shrs_ownd_folwng_trans")} as shares,
                    bool_or(h.shrs_ownd_folwng_trans is null) as broken
             from stg.nonderiv_holding h
             join _clean c on c.accession = h.accession_number and c.quarter = h.quarter

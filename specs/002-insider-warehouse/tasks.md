@@ -268,16 +268,16 @@ The stories depend on one another's *data* (each reads the previous layer), but 
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T038 [P] Add `check_invariants(con, params) -> list[str]` to `src/sentinel/warehouse.py`, covering W1–W8, W10 and W11 from contracts/warehouse-schema.md. `sentinel build` runs it at the end and exits 1 on problems. Add `tests/integration/test_warehouse_real.py` (`@slow`), which runs it on the real warehouse.
-- [ ] T039 [P] Write `tests/integration/test_truncation_real.py` (`@slow`), as in research R10: 20 (issuer, T) pairs with seed 2002, from issuers with at least 5 clean purchases and at least one merge. Rebuild Steps 3–5 for each with `cutoff=T` and `issuers=[issuer]`, and compare with the full build at ≤ T. Run it, and record the result (SC-003).
-- [ ] T040 Time a full rebuild: move `data/warehouse.duckdb` aside, run `time uv run sentinel build`, and confirm under 30 minutes (SC-008) and that `check_invariants` returns no problems. Record the results in `run-notes.md`.
+- [X] T038 [P] Add `check_invariants(con, params) -> list[str]` to `src/sentinel/warehouse.py`, covering W1–W8, W10 and W11 from contracts/warehouse-schema.md. `sentinel build` runs it at the end and exits 1 on problems. Add `tests/integration/test_warehouse_real.py` (`@slow`), which runs it on the real warehouse.
+- [X] T039 [P] Write `tests/integration/test_truncation_real.py` (`@slow`), as in research R10: 20 (issuer, T) pairs with seed 2002, from issuers with at least 5 clean purchases and at least one merge. Rebuild Steps 3–5 for each with `cutoff=T` and `issuers=[issuer]`, and compare with the full build at ≤ T. Run it, and record the result (SC-003).
+- [X] T040 Time a full rebuild: move `data/warehouse.duckdb` aside, run `time uv run sentinel build`, and confirm under 30 minutes (SC-008) and that `check_invariants` returns no problems. Record the results in `run-notes.md`.
 - [ ] T041 Once the researcher has filled in the sheets, run `uv run sentinel audit summary` and confirm agreement ≥ 90% per sheet (SC-004). Record the rates and the error patterns in `run-notes.md`. Fix any systematic error found (for example, a missed footnote keyword) with a params version bump and a rebuild, and document it.
-- [ ] T042 [P] Documentation:
+- [X] T042 [P] Documentation:
   - **README**: the new commands, plus a "warehouse" section in the data layout.
   - **Plan decision log**: append **D44** to `docs/initialplan.md` §12: keyword rules and the preliminary cooldown move to the params `rules` section, locked by `prereg-v1`; preliminary events carry no price filter (floors come with prices); headers are fetched only for events from 2012.
   - **Plan data model**: update §8.2 with the new tables (`core.filing`, `core.owner_role`, `evt.prelim_event`, `core.filing_header`).
-- [ ] T043 Run `uv run ruff check .`, `uv run ruff format --check .` and `uv run pytest` (offline), then `uv run pytest -m slow` against the real warehouse. Walk through `quickstart.md` and record the outcomes in `run-notes.md`. Confirm `find data -iname '*tiingo*'` is empty.
-- [ ] T044 With the researcher's approval, commit on `002-insider-warehouse` in small logical commits: params/config, warehouse and manifest, staging, entities and gates, events and comparison, symbols and headers, audits and docs.
+- [X] T043 Run `uv run ruff check .`, `uv run ruff format --check .` and `uv run pytest` (offline), then `uv run pytest -m slow` against the real warehouse. Walk through `quickstart.md` and record the outcomes in `run-notes.md`. Confirm `find data -iname '*tiingo*'` is empty.
+- [X] T044 With the researcher's approval, commit on `002-insider-warehouse` in small logical commits: params/config, warehouse and manifest, staging, entities and gates, events and comparison, symbols and headers, audits and docs.
 
 ---
 

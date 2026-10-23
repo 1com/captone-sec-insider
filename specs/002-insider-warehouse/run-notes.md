@@ -117,3 +117,20 @@ The first run ran out of memory: `list(issuer_name order by …)[1]` built one l
 ## T037 (part 2): Filing headers (pending)
 
 On 23 Oct EDGAR answered uncached pages with HTTP 503, "SEC.gov is undergoing maintenance". A 20-header smoke test stored 9, which parse correctly (e.g. CIK 2488 SIC 3674; CIK 2230 no SIC). A background job retries every 10 minutes and then runs the full fetch of about 27,300 headers, one request at a time (about 0.6 s each when EDGAR is healthy).
+
+## T038–T040, T043: Invariants, history test on real data, full rebuild (2026-10-23)
+
+| Check | Result | Criterion |
+|---|---|---|
+| `sentinel build` from `data/raw/` (warehouse set aside first) | **6 min 2 s** (stage 288 s, entities 18 s, gates 28 s, events 21 s, symbols 1 s, headers 2 s, invariants 4 s); peak 5.1 GB including file cache, under a 5 GB cgroup ceiling | SC-008 < 30 min ✅ |
+| `check_invariants` (W1–W8, W10, W11) after the rebuild | all hold | ✅ |
+| History test on real data: 20 (issuer, T) pairs, seed 2002, issuers with ≥ 5 clean purchases and a co-filing merge; entities, roles, clean purchases and events rebuilt from filings ≤ T | **20 of 20 identical** to the full build at ≤ T | W9, SC-003 ✅ |
+| Rebuilt against the previous warehouse | identical counts in every table; identical entities, roles, symbol map and events (ids, groups, entities, signal filings) | Determinism ✅ |
+| `ruff check`, `ruff format --check`, `pytest` (offline), `pytest -m slow` | clean, clean, 205 passed (1 network test skipped), 21 passed | ✅ |
+| `find data -iname '*tiingo*'` | empty | W12 ✅ |
+
+**Order-dependent sums, found by the history test.** The first run failed 5 of 20 pairs on `core.clean_purchase`: totals such as `133916.40000000002` against `133916.4`, a different pair on each run. DuckDB adds rows in parallel, in an order that changes between runs, and floating-point addition depends on order. Every SQL sum of values and shares (gates, events, comparison) now goes through `warehouse.exact_sum`: each term is rounded to 1e-8 and added as DECIMAL, so rebuilds are identical. Effects against the previous build: 23 clean purchases changed value by more than 1e-6, all of them over $1 billion (the largest $0.50), and 5 purchases whose "before" holdings were a floating-point −1e-10 (nulled as negative) now compute as 0. Holdings not computable: before 2,011 (was 2,016), after 142.
+
+**Memory.** The first slow-test run opened its scratch databases without the 3 GB DuckDB cap (default: 80% of RAM, 16 threads) and was killed by the kernel. Scratch databases now take `warehouse.MEMORY_LIMIT` and 4 threads, and slow tests run under the same cgroup ceiling as the build steps.
+
+**Quickstart.** Every step has been run on the real data except `sentinel verify-sec` for the headers, which follows the full header fetch, and `audit summary`, which waits for the researcher's verdicts (T041).

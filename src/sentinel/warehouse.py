@@ -94,6 +94,12 @@ def scope(cutoff, issuers: list[str] | None, alias: str = "f") -> tuple[str, dic
     return " and ".join(clauses), args
 
 
+def exact_sum(expr: str) -> str:
+    """SQL for a sum that does not depend on row order. Floating-point addition does, so each
+    term is rounded to 1e-8 and added as DECIMAL; a rebuild then gives identical values."""
+    return f"cast(sum(cast({expr} as DECIMAL(38, 8))) as DOUBLE)"
+
+
 def row_count(con: duckdb.DuckDBPyConnection, name: str) -> int:
     return con.execute(f"select count(*) from {name}").fetchone()[0]
 
@@ -116,3 +122,67 @@ def input_fingerprint(paths: Paths) -> str:
     )
     blob = json.dumps({"archives": originals, "params": params_sha256(paths.params_file)})
     return hashlib.sha256(blob.encode()).hexdigest()
+
+
+STAGED = ("submission", "reportingowner", "nonderiv_trans", "nonderiv_holding", "deriv_trans",
+          "deriv_holding", "footnotes", "owner_signature")  # fmt: skip
+PRIMARY_KEYS = {
+    "core.filing": "accession",
+    "core.transaction": "accession, line_sk",
+    "core.entity_member": "issuer_cik, owner_cik, valid_from",
+    "core.owner_role": "issuer_cik, owner_cik, valid_from",
+    "core.clean_purchase": "accession",
+    "evt.prelim_event": "event_id",
+}
+
+
+def check_invariants(con: duckdb.DuckDBPyConnection, params: dict, snapshot=None) -> list[str]:
+    """W1–W8, W10 and W11 (contracts/warehouse-schema.md) for the steps that have been built.
+    W9 is the truncation test; W11 needs the SEC ticker snapshot the map was built from."""
+    from sentinel.core import entities, gates, symbols
+
+    problems = []
+
+    def add(rule: str, found: list) -> None:
+        if found:
+            problems.append(f"{rule}: {len(found):,} (first {found[0]})")
+
+    if table_exists(con, "stg.load_report"):
+        counts = " union all ".join(
+            f"select '{t}' as table_name, quarter, count(*) as n from stg.{t} group by 2"
+            for t in STAGED
+        )
+        add("W1 staged rows differ from the files", con.execute(
+            f"select r.table_name, r.quarter from stg.load_report r "
+            f"left join ({counts}) c using (table_name, quarter) "
+            f"where coalesce(c.n, 0) <> r.rows_expected order by all"
+        ).fetchall())  # fmt: skip
+        add("W2 (quarter, src_row) not unique", [
+            t for t in STAGED
+            if con.execute(
+                f"select count(*) <> count(distinct (quarter, src_row)) from stg.{t}"
+            ).fetchone()[0]
+        ])  # fmt: skip
+    for table, key in PRIMARY_KEYS.items():
+        if (
+            table_exists(con, table)
+            and con.execute(f"select count(*) <> count(distinct ({key})) from {table}").fetchone()[
+                0
+            ]
+        ):
+            add("W3 primary key not unique", [table])
+    if table_exists(con, "core.transaction"):
+        add("W4 transactions without a filing", [r[0] for r in con.execute(
+            "select distinct accession from core.transaction "
+            "where accession not in (select accession from core.filing) order by 1"
+        ).fetchall()])  # fmt: skip
+        add("W5 funnel does not reconcile", gates.check_funnel(con))
+        add("W6 clean purchases below the G6 minimum", gates.check_min_value(con, params))
+    if table_exists(con, "core.entity_member"):
+        add("W7 membership not monotonic", entities.check_monotonic(con))
+        add("W8 filing owners in several entities", entities.check_filings_map_to_one_entity(con))
+    if table_exists(con, "core.symbol_map"):
+        add("W10 event companies neither mapped nor listed", symbols.check_events_covered(con))
+        if snapshot is not None:
+            add("W11 tickers not from SEC data", symbols.check_sec_only(con, snapshot))
+    return problems

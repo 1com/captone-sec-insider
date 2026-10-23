@@ -20,6 +20,7 @@ import pyarrow.parquet as pq
 
 from sentinel.config import registered_value
 from sentinel.events.prelim import find_events
+from sentinel.warehouse import exact_sum
 
 GROUPS = ("A", "B1", "B2")
 FLAG = 0.15  # SC-005: a larger gap needs an explanation
@@ -67,12 +68,13 @@ def tabulate(
     find_events(con, params, officer_or_director=False)
     variants.append(_counts(con, "_events", "passes_price_standin"))
     con.execute(
-        """
+        f"""
         create or replace temp table _pilot_clean as
         with c as (
-            select accession, issuer_cik, filing_date, quarter, sum(value_usd) as value_usd
+            select accession, issuer_cik, filing_date, quarter,
+                   {exact_sum("value_usd")} as value_usd
             from core.transaction where passes_lines
-            group by all having sum(value_usd) >= $floor
+            group by all having {exact_sum("value_usd")} >= $floor
         )
         select c.accession, c.issuer_cik, c.filing_date, c.value_usd,
                list_sort(list_distinct(list(o.rptownercik))) as owner_ciks

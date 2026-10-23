@@ -625,14 +625,18 @@ Each layer is rebuilt deterministically from the one above by an idempotent comm
 | Table | One row per | Key columns |
 |---|---|---|
 | `core.issuer` | Company (CIK) | Name, current SIC, symbol history |
-| `core.issuer_sic_at_filing` | Event signal filing | Accession, SIC at filing, acceptance time |
-| `core.entity_member` | Issuer × reporting owner × valid-from date | Entity id, role |
+| `core.filing` | Filing (accession), first quarter that lists it | Issuer, filing date, form type, reported ticker |
+| `core.filing_header` | Event signal filing | Accession, SIC at filing and its label, acceptance time (ET) |
+| `core.entity_member` | Issuer × reporting owner × valid-from date | Entity id |
+| `core.owner_role` | Issuer × reporting owner × valid-from date | Role, seniority, relationship flags, title |
 | `core.transaction` | Form 4 transaction line (all codes) | Accession, issuer, entity, trade date, filing date, code, shares, price, holdings after, gate flags |
 | `core.clean_purchase` | Entity × filing | Value, shares, holdings change, role |
 | `core.price_daily` | Symbol × session | Unadjusted and adjusted OHLC, volume, split factor, source |
 | `core.symbol_map` | Issuer × symbol × date range | Price source, match quality |
+| `core.symbol_unmatched` | Issuer without a usable ticker | Reason (`no_ticker`, `fund_like`) |
 | `core.delisting` | Delisted issuer | Last session, class, venue, delisting return |
 | `core.xbrl_fact` | Issuer × concept × period end (first-filed value only) | Concept (shares outstanding, equity, assets, liabilities, cash, net income), value, period end, filed date |
+| `evt.prelim_event` / `evt.prelim_event_member` | Preliminary event (Step 5) / its purchases | Group, issuer, T, signal filing, entities, value; entity and role as of T |
 | `evt.event` | Event | Group, issuer, T, entry session, window statistics, floor results |
 | `feat.event_features` | Event | F1–F29, feature version |
 | `lab.event_label` / `hold.event_label` | Event × horizon × measure | Gross abnormal return, cost, net abnormal return, delisting class |
@@ -927,6 +931,7 @@ Every significant choice, what else was considered, and why. "v1" refers to the 
 | D46 | Raise the G6 minimum from $10,000 to $25,000 per entity per filing; sensitivities $10k and $50k (decided 2026-10-23) | Keep $10k (sensitivities $5k; $25k); $50k; count only buyers of ≥ $25k toward a cluster's two entities while keeping $10k for G6 | Owner's view: $10k is retail-sized money. The event minimum ($100k) already stops any event resting on a small purchase, but at $10k a token buy could still count as a cluster's second, independent buyer. Measured on purchase sizes only (no returns), in feature 001's provisional events for 2006–2026: 23% of clean filings are $10–25k, and the higher floor removes about 15% of clusters (12% lose their second buyer, 3% fall below $100k). A $50k floor would remove 35%, and a $100k floor 59%. A fixed dollar floor also ignores company size, which features F7, F18 and F25 measure. The provisional outputs of feature 001, built at $10k, are kept as they are: their candidate list is a superset of what $25k needs. `provisional.filing_min_value` keeps the pilot's $10k, so feature 001 still rebuilds them and the comparison (feature 002) can isolate this change |
 | D47 | Product v1 shows each cluster's score as a band: top fifth, middle three fifths or bottom fifth of the model's calibration-slice predictions (the top fifth is H5's model portfolio), with the band's holdout hit rate and count and a one-line caveat beside it, plus a plain fact line. The calibrated probability appears only on the event page and the model card. If H4 is not confirmed, every score is labelled "no proven skill" and the screener sorts by filing date by default (decided 2026-10-23) | Show the calibrated probability in lists (§8.6 before this decision) | Synthetic user research on the MVP (23 Oct 2026; docs/planning/06): a precise "97%" from a near-chance model was misread as a chance of profit, or undermined trust, in 4 of 5 personas. Bands carry only what the evidence supports, and the rule is fixed before the holdout so the display cannot be chosen after seeing the result. The research design is unchanged |
 | D48 | Record `prereg-v1` with a GitHub Release of the tag instead of emailing the commit hash; there is no external review (decided 2026-10-23; constitution v3.1.0) | Email the hash to a supervisor (D38) | There is no supervisor to email. GitHub records a release's creation time on its own servers, so the lock stays independently time-stamped, and the tag and its commit are public |
+| D49 | Feature 002 design choices (decided 2026-10-22): the gate keyword lists and the preliminary cooldown move to a `rules` section of `params.yaml`, locked by `prereg-v1`; preliminary events carry no price filter; filing headers are fetched only for signal filings from 2012 | Keep the lists in `provisional`; apply feature 001's $2 stand-in; fetch headers for every event | Research rules must be locked like the Appendix E numbers. Price floors use market prices (Step 7), so the preliminary set is a superset, which is right for choosing what to price. G7 applies to labelled and holdout events only |
 
 ---
 

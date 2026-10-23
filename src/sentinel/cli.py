@@ -261,6 +261,17 @@ def _step_headers(paths: Paths, params: dict, con) -> tuple[int, bool]:
     return n, True
 
 
+def _step_invariants(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel import warehouse
+    from sentinel.ingest.sec_reference import latest_snapshot
+
+    problems = warehouse.check_invariants(con, params, latest_snapshot(paths))
+    for problem in problems:
+        typer.echo(f"  {problem}")
+    typer.echo(f"invariants: {'all hold' if not problems else f'{len(problems)} broken'}")
+    return 0, not problems
+
+
 STEPS: dict = {
     "stage": _step_stage,
     "entities": _step_entities,
@@ -268,6 +279,7 @@ STEPS: dict = {
     "prelim": _step_prelim,
     "symbols": _step_symbols,
     "headers": _step_headers,
+    "invariants": _step_invariants,
 }
 
 
@@ -759,7 +771,7 @@ def fetch_headers_cmd(
 
 @app.command("build", rich_help_panel=P1)
 def build_cmd():
-    """[Steps 2–6] Rebuild the warehouse from data/raw: stage → … → symbols, then headers."""
+    """[Steps 2–6] Rebuild the warehouse from data/raw, then check its invariants."""
     from sentinel.ingest import sec_headers
     from sentinel.ingest.manifest import read_all
 
@@ -767,7 +779,7 @@ def build_cmd():
     steps = ["stage", "entities", "gates", "prelim", "symbols"]
     if any(e.source == sec_headers.SOURCE for e in read_all(paths.manifest)):
         steps.append("headers")
-    raise typer.Exit(_run_steps(steps))
+    raise typer.Exit(_run_steps([*steps, "invariants"]))
 
 
 @app.command("fetch-sec-tickers", rich_help_panel=P1)
