@@ -189,9 +189,11 @@ def run(skip_prices: bool, echo, timed) -> None:
         model = pilot_model.run(data, recent, s)
         model_data = data.dropna(subset=[f"net_{h}_iwm"])
         feature_stats = {
-            f: {"coverage": float(model_data[f].notna().mean()),
+            f: {
+                "coverage": float(model_data[f].notna().mean()),
                 "median": None if model_data[f].isna().all() else float(model_data[f].median()),
-                "mean": None if model_data[f].isna().all() else float(model_data[f].mean())}
+                "mean": None if model_data[f].isna().all() else float(model_data[f].mean()),
+            }
             for f in feats.ALL_FEATURES
         }
         scores = model.pop("scores")

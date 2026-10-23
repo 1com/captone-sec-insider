@@ -283,35 +283,64 @@ def scoring_view(c: dict) -> dict:
         plan, source, fmt, desc, how = FEATURE_DOCS[key]
         lw, gw = learned["logit"][key], learned["lgbm"][key]
         bw = learned["baseline"].get(key)
-        rows.append({
-            "plan": plan, "label": label, "desc": desc, "how": how, "source": source,
-            "group": "Stock" if key in MARKET_FEATURES else
-                     ("Insider + stock" if source == "Form 4 + prices" else "Insider"),
-            "coverage": stats[key]["coverage"], "typical": _typical(fmt, stats[key]),
-            "market": key in MARKET_FEATURES,
-            "logit": lw, "logit_w": abs(lw) / logit_max * 100,
-            "lgbm": gw, "lgbm_w": gw / max(learned["lgbm"].values()) * 100 if gw else 0,
-            "base": bw, "base_w": abs(bw) / base_max * 100 if bw is not None else 0,
-            "final": learned["final"][key],
-        })
-    used_for = {sel: f"Live scores (refitted on all {model['n_all']:,} pilot events)",
-                "baseline": "Comparison: do insider details add anything?",
-                "constant": "Comparison: the no-skill line"}
+        rows.append(
+            {
+                "plan": plan,
+                "label": label,
+                "desc": desc,
+                "how": how,
+                "source": source,
+                "group": "Stock"
+                if key in MARKET_FEATURES
+                else ("Insider + stock" if source == "Form 4 + prices" else "Insider"),
+                "coverage": stats[key]["coverage"],
+                "typical": _typical(fmt, stats[key]),
+                "market": key in MARKET_FEATURES,
+                "logit": lw,
+                "logit_w": abs(lw) / logit_max * 100,
+                "lgbm": gw,
+                "lgbm_w": gw / max(learned["lgbm"].values()) * 100 if gw else 0,
+                "base": bw,
+                "base_w": abs(bw) / base_max * 100 if bw is not None else 0,
+                "final": learned["final"][key],
+            }
+        )
+    used_for = {
+        sel: f"Live scores (refitted on all {model['n_all']:,} pilot events)",
+        "baseline": "Comparison: do insider details add anything?",
+        "constant": "Comparison: the no-skill line",
+    }
     other = "lgbm" if sel == "logit" else "logit"
     outputs = []
-    for key, name, inputs in ((sel, MODEL_NAMES[sel], "All 19 features"),
-                              (other, MODEL_NAMES[other], "All 19 features"),
-                              ("baseline", "Market-only baseline", "6 stock features"),
-                              ("constant", "Base rate (no skill)", "None")):
+    for key, name, inputs in (
+        (sel, MODEL_NAMES[sel], "All 19 features"),
+        (other, MODEL_NAMES[other], "All 19 features"),
+        ("baseline", "Market-only baseline", "6 stock features"),
+        ("constant", "Base rate (no skill)", "None"),
+    ):
         r = model["results"][key]
-        outputs.append({"name": name, "inputs": inputs, "auc": r["auc"], "log_loss": r["log_loss"],
-                        "brier": r["brier"], "hit": r.get("top_fifth_hit"),
-                        "top5": r.get("top_fifth_net"), "all": r.get("all_net"),
-                        "used": used_for.get(key, "Comparison: candidate not selected"),
-                        "selected": key == sel})
-    return {"rows": rows, "not_used": NOT_USED, "outputs": outputs,
-            "quantiles": model["score_quantiles"], "baseline_kind": learned["baseline_kind"],
-            "selected_name": MODEL_NAMES[sel]}
+        outputs.append(
+            {
+                "name": name,
+                "inputs": inputs,
+                "auc": r["auc"],
+                "log_loss": r["log_loss"],
+                "brier": r["brier"],
+                "hit": r.get("top_fifth_hit"),
+                "top5": r.get("top_fifth_net"),
+                "all": r.get("all_net"),
+                "used": used_for.get(key, "Comparison: candidate not selected"),
+                "selected": key == sel,
+            }
+        )
+    return {
+        "rows": rows,
+        "not_used": NOT_USED,
+        "outputs": outputs,
+        "quantiles": model["score_quantiles"],
+        "baseline_kind": learned["baseline_kind"],
+        "selected_name": MODEL_NAMES[sel],
+    }
 
 
 def render(context: dict, out_dir: Path, mode: str) -> Path:
