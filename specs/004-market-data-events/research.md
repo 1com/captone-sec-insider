@@ -173,6 +173,7 @@ Live checks were run on 2026-10-23 against the warehouse built by feature 002, t
   - `rules.g7_excluded_sic: [6770, 6722, 6726]`.
   - `rules.g7_no_sic: exclude` (D45 as adopted), or `current_sic` (the §11 fallback, using `core.issuer.sic`). The researcher's D45 sheet result (feature 002, due about 29 October) sets it before final detection. With `current_sic`, an issuer with no current SIC is still excluded.
   - Each event records `g7_sic` and `g7_sic_source` (`header` / `current`).
+  - A header SIC of "0000" is EDGAR's code for none assigned, so it counts as no SIC (27 signal filings on 2026-10-23).
 
 ## R11. Delisting classification (FR-017 – FR-020)
 

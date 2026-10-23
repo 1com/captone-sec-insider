@@ -30,6 +30,7 @@ from sentinel.events import prelim
 from sentinel.warehouse import MissingInput, require_tables, scope, table_exists
 
 KEPT = ("event", "unpriced")
+NO_SIC = {"", "0000"}  # EDGAR's "0000" means no industry code assigned (D45)
 EPS = 1e-9  # float slack at the G8 boundaries
 G8_FAILS = (
     "not exists (select 1 from core.price_check pc where pc.accession = t.accession "
@@ -203,6 +204,10 @@ def _inputs(con, params: dict, prices: str) -> list[dict]:
     return [dict(zip(names, row, strict=True)) for row in cursor.fetchall()]
 
 
+def _known(sic: str | None) -> str | None:
+    return None if sic is None or sic.strip() in NO_SIC else sic
+
+
 def _sic_number(sic) -> int | None:
     try:
         return int(sic)
@@ -229,9 +234,9 @@ def decide(candidates: list[dict], params: dict, floors: bool = True) -> dict[st
         elif not c["header_found"]:
             outcome = "needs_header"
         else:
-            sic, source = c["sic"], "header"
+            sic, source = _known(c["sic"]), "header"
             if sic is None and rules["g7_no_sic"] == "current_sic":
-                sic, source = c["current_sic"], "current"
+                sic, source = _known(c["current_sic"]), "current"
             if sic is None:
                 outcome, source = "g7_no_sic", None
             elif _sic_number(sic) in excluded:

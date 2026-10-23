@@ -77,7 +77,7 @@ During the paid month only: Tiingo's list rows (ticker, exchange, asset type, st
 |---|---|---|
 | `core.ff_factor_daily` | `date`, `factor` (`mkt_rf`, `smb`, `hml`, `rmw`, `cma`, `rf`, `mom`, `st_rev`), `ret` | Decimal returns (the file's percent ÷ 100) |
 | `core.ff_industry_daily` | `date`, `scheme` (12 / 49), `industry_no`, `industry`, `weighting` (`vw` / `ew`), `ret` | −99.99 → null |
-| `core.sic_industry` | `scheme`, `industry_no`, `industry`, `sic_from`, `sic_to` | From `Siccodes49` / `Siccodes12` |
+| `core.sic_industry` | `scheme`, `industry_no`, `industry`, `description`, `sic_from`, `sic_to` | From `Siccodes49` / `Siccodes12`. Industry 12 "Other" lists no ranges: it takes every SIC the others do not |
 | `core.me_breakpoint` | `month`, `n_firms`, `percentile` (5 … 100), `value_musd` | NYSE market-cap breakpoints |
 | `core.tick_pilot` | `ticker`, `pilot_group` (`G1` / `G2` / `G3`), `valid_from`, `valid_to`, `listing_exchange` | Test-group intervals from FINRA's change file. `valid_to` is exclusive |
 
@@ -138,7 +138,7 @@ Same columns as `core.clean_purchase`, plus `g8_status` (`checked` / `skipped_un
 | `issuer_cik`, `group`, `signal_date` (T), `signal_accession` | |
 | `t_session`, `t_session_no` | Last session on or before T |
 | `outcome` | `event` / `unpriced` / `cooldown` / `g7_issuer_type` / `g7_no_sic` / `needs_header` / `floor_price` / `floor_liquidity` / `floor_activity` |
-| `close_t`, `addv20`, `active_sessions_20` | Floor inputs at `t_session` (null when unpriced or not reached) |
+| `close_t`, `addv20`, `active_sessions_20` | Floor inputs at `t_session`, whatever the outcome (null when unpriced) |
 | `price_source` | |
 
 **Order of checks**: cooldown → G7 → priced → floors (research R7).

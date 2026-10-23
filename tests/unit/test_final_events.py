@@ -112,7 +112,8 @@ def test_a_clean_cluster_becomes_an_event_with_its_inputs(market_events, params)
 
 @pytest.mark.parametrize(
     ("sic", "expected"), [("6726", "g7_issuer_type"), ("6770", "g7_issuer_type"),
-                          (None, "g7_no_sic"), ("missing", "needs_header")],
+                          (None, "g7_no_sic"), ("0000", "g7_no_sic"),
+                          ("missing", "needs_header")],
 )  # fmt: skip
 def test_g7_uses_the_signal_filings_header(market_events, params, sic, expected):
     """Spec US2 acceptance 2 (D45 as adopted: no header SIC is excluded)."""
