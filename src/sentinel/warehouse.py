@@ -144,13 +144,21 @@ PRIMARY_KEYS = {
     "core.owner_role": "issuer_cik, owner_cik, valid_from",
     "core.clean_purchase": "accession",
     "evt.prelim_event": "event_id",
+    "stg.price_yahoo": "ticker, session",
+    "stg.price_tiingo": "ticker, session",
+    "core.price_series": "issuer_cik, price_source, ticker",
+    "core.price_daily": "issuer_cik, session",
+    "core.session": "session",
 }
 
 
-def check_invariants(con: duckdb.DuckDBPyConnection, params: dict, snapshot=None) -> list[str]:
-    """W1–W8, W10 and W11 (contracts/warehouse-schema.md) for the steps that have been built.
-    W9 is the truncation test; W11 needs the SEC ticker snapshot the map was built from."""
-    from sentinel.core import entities, gates, symbols
+def check_invariants(
+    con: duckdb.DuckDBPyConnection, params: dict, snapshot=None, paths: Paths | None = None
+) -> list[str]:
+    """W1–W8, W10–W24 (feature 002 and 004 contracts/warehouse-schema.md) for the steps that have
+    been built. W9 and W25 are truncation tests; W11 needs the SEC ticker snapshot the map was built
+    from, and W12 the raw-data paths."""
+    from sentinel.core import entities, gates, prices, symbols, tiingo_register
 
     problems = []
 
@@ -196,4 +204,12 @@ def check_invariants(con: duckdb.DuckDBPyConnection, params: dict, snapshot=None
         add("W10 event companies neither mapped nor listed", symbols.check_events_covered(con))
         if snapshot is not None:
             add("W11 tickers not from SEC data", symbols.check_sec_only(con, snapshot))
+    if paths is not None:
+        add(
+            "W12 Tiingo data outside the register",
+            tiingo_register.status(con, paths, params).problems,
+        )
+    if table_exists(con, "core.price_daily"):
+        add("W14 price series not unique per issuer", prices.check_one_series(con))
+        add("W15 invalid or inconsistent prices", prices.check_valid_prices(con))
     return problems

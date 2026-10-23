@@ -94,13 +94,13 @@ The stories read each other's *tables* in the real run, but each is **tested ind
 
 ### Tests (write first)
 
-- [ ] T010 [P] [US1] `tests/unit/test_yahoo.py`, with `yf.download` monkeypatched:
+- [X] T010 [P] [US1] `tests/unit/test_yahoo.py`, with `yf.download` monkeypatched:
   - Each ticker is stored as `data/raw/yahoo/{ticker}.parquet` with one manifest line: `source = yahoo`, key the ticker, url `yfinance.download(start=2010-01-01, auto_adjust=False, actions=True)`, and the SHA-256 of the file.
   - A rerun skips stored tickers.
   - A batch failing 3 times lists its tickers in `failures.csv`.
   - `universe_tickers` returns Yahoo-mapped tickers of issuers with a preliminary event on or after `rules.final_detection_start`, plus SPY and IWM.
   - The primary ticker is the current ticker most often reported in the issuer's Form 4s, with ties broken alphabetically.
-- [ ] T011 [P] [US1] `tests/unit/test_tiingo.py`, using respx and synthetic data:
+- [X] T011 [P] [US1] `tests/unit/test_tiingo.py`, using respx and synthetic data:
   - `require_paid_window` raises before `tiingo_paid_from`, when `tiingo_paid_until` is null, and on or after `tiingo_paid_until`.
   - The token goes in the `Authorization` header and never appears in a URL or manifest line.
   - **Resolution**:
@@ -112,7 +112,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
     - `no_data` when the meta start date is null.
   - **Storage**: files go to `data/raw/tiingo/meta/{ticker}.json.gz` and `prices/{ticker}.csv.gz` with `source = tiingo` manifest lines, and a rerun refetches nothing.
   - **Yahoo fallback**: an issuer with no Yahoo file, or whose Yahoo file starts after its first event in the universe, is selected for Tiingo.
-- [ ] T012 [P] [US1] `tests/unit/test_prices.py` (spec US1 acceptance 1 and 3):
+- [X] T012 [P] [US1] `tests/unit/test_prices.py` (spec US1 acceptance 1 and 3):
   - **1-for-10 reverse split** (`split_ratio` 0.1): before the split, as-traded close = Yahoo close × 0.1 and as-traded volume = Yahoo volume ÷ 0.1, with equal `dollar_volume`. `cum_split_after` = the product of split ratios after the session.
   - **Tiingo rows** are copied as-traded.
   - **Series choice and `reason`**: `yahoo_primary`, `tiingo_resolved`, `yahoo_starts_late→tiingo`, and an unpriced issuer with no chosen series.
@@ -120,7 +120,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
   - **Dropped rows**: rows with `close ≤ 0` or `high < low` are dropped and listed.
   - **`core.session`**: SPY sessions numbered from 1.
   - **Truncation**: `build(cutoff=T)` drops `core.price_daily` rows after the last session on or before T, but not `core.session` rows.
-- [ ] T013 [P] [US1] `tests/unit/test_tiingo_register.py`:
+- [X] T013 [P] [US1] `tests/unit/test_tiingo_register.py`:
   - every warehouse table with a `price_source` column is in `TIINGO_DERIVED` (introspect `information_schema.columns` after building fixtures for all stories);
   - `status` counts registered files and rows;
   - `delete(yes=False)` changes nothing;
@@ -128,41 +128,41 @@ The stories read each other's *tables* in the real run, but each is **tested ind
 
 ### Implementation
 
-- [ ] T014 [US1] Implement `src/sentinel/ingest/yahoo.py`: `universe_tickers(con, params)`, `primary_tickers(con)` and `download(paths, params, tickers, limit=None, retry_failures=False, echo=print)`.
+- [X] T014 [US1] Implement `src/sentinel/ingest/yahoo.py`: `universe_tickers(con, params)`, `primary_tickers(con)` and `download(paths, params, tickers, limit=None, retry_failures=False, echo=print)`.
   - Batches of `ops.yahoo_batch_size`, with `ops.yahoo_pause_seconds` between them and 3 retries with back-off.
   - Parquet written atomically (`.part` → rename, then `chmod 0o444`).
   - Lines written through `manifest.Manifest`.
   
   Follow feature 003's `mvp/pipeline/prices.py` pattern without importing it.
-- [ ] T015 [US1] Implement `src/sentinel/ingest/tiingo.py`, with every write guarded by `require_paid_window`:
+- [X] T015 [US1] Implement `src/sentinel/ingest/tiingo.py`, with every write guarded by `require_paid_window`:
   - **Client**: an `httpx.Client` with the `Authorization: Token …` header and a generic User-Agent; the SEC contact is never sent. A `RateLimiter` at `ops.tiingo_requests_per_second`.
   - **`store_list`**: stores `supported_tickers.zip` once in `data/raw/tiingo/`.
   - **`resolve(con, index, params)`**: (issuer, ticker, role, list interval, exchange) rows. It reuses `sentinel.core.symbols.match` logic for the `Q` suffix.
   - **`fetch(paths, params, targets, limit, retry_failures)`**: meta, then prices with `startDate = rules.price_history_start` and `format=csv`. Both are gzip-written atomically with manifest lines.
   - **`identity(meta, sec_name, filing_span)`**.
-- [ ] T016 [US1] Implement `src/sentinel/core/prices.py`: `build(con, paths, params, cutoff=None, issuers=None) -> PriceReport`, creating:
+- [X] T016 [US1] Implement `src/sentinel/core/prices.py`: `build(con, paths, params, cutoff=None, issuers=None) -> PriceReport`, creating:
   - **`stg.price_yahoo` and `stg.price_tiingo`**: loaded in chunks of 250 files, each chunk one transaction into a `_new_` shadow table, then swapped. Building `stg.price_tiingo` from files outside the paid window raises `OutsidePaidWindow`.
   - **`core.tiingo_listing`**.
   - **`core.price_series`**: choice rules from research R4.
   - **`core.price_daily`**: as-traded = Yahoo value × `cum_split_after` (volume ÷ it), rounded to 6 decimals; Tiingo raw as-is. Validity: "`close > 0`, `low ≤ high`".
   - **`core.session`**: from SPY.
   - **`audit.price_issue`**.
-- [ ] T017 [US1] Implement `status(con, paths, params)` and `delete(con, paths, params, yes)` in `src/sentinel/core/tiingo_register.py`, following the contract:
+- [X] T017 [US1] Implement `status(con, paths, params)` and `delete(con, paths, params, yes)` in `src/sentinel/core/tiingo_register.py`, following the contract:
   1. stop if the warehouse lock is held;
   2. delete the registered rows and tables;
   3. `ATTACH` a fresh file, `COPY FROM DATABASE`, compare row counts, replace the file;
   4. delete `data/raw/tiingo/` and any `data/**/*tiingo*`;
   5. append the manifest lines;
   6. verify, and print the decision-log line.
-- [ ] T018 [US1] In `src/sentinel/cli.py`:
+- [X] T018 [US1] In `src/sentinel/cli.py`:
   - **`fetch-prices --source yahoo|tiingo [--limit N] [--retry-failures]`**, replacing the stub; progress every 250 items; exit 6 outside the window for Tiingo;
   - **`prices`**: `_step_prices` registered in `STEPS`;
   - **`tiingo-status`**: exit 1 if any Tiingo data lies outside the register;
   - **`tiingo-delete [--yes]`**: a dry run without `--yes`, exit 2.
-- [ ] T019 [US1] In `src/sentinel/warehouse.py`:
+- [X] T019 [US1] In `src/sentinel/warehouse.py`:
   - add W12 (revised), W13 for the price keys, W14 and W15 to `check_invariants`, each skipped when its tables are absent;
   - add the price tables to `PRIMARY_KEYS`.
-- [ ] T020 [US1] `tests/integration/test_prices_real.py` (`@slow`):
+- [X] T020 [US1] `tests/integration/test_prices_real.py` (`@slow`):
   - a real Yahoo ticker with a reverse split in `stg.price_yahoo` satisfies the as-traded relation and equal dollar volume;
   - SPY's 2024 sessions number 252 and exclude 2024-03-29 and 2024-07-04.
 - [ ] T021 [US1] **Real run, free part**:

@@ -266,11 +266,31 @@ def _step_invariants(paths: Paths, params: dict, con) -> tuple[int, bool]:
     from sentinel import warehouse
     from sentinel.ingest.sec_reference import latest_snapshot
 
-    problems = warehouse.check_invariants(con, params, latest_snapshot(paths))
+    problems = warehouse.check_invariants(con, params, latest_snapshot(paths), paths)
     for problem in problems:
         typer.echo(f"  {problem}")
     typer.echo(f"invariants: {'all hold' if not problems else f'{len(problems)} broken'}")
     return 0, not problems
+
+
+def _step_prices(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel import warehouse
+    from sentinel.core import prices
+
+    warehouse.require_tables(con, ["core.symbol_map"], "symbols")
+    r = prices.build(con, paths, params)
+    chosen = ", ".join(f"{k} {v:,}" for k, v in r.chosen.items()) or "none"
+    issues = ", ".join(f"{k} {v:,}" for k, v in r.issues.items()) or "none"
+    typer.echo(
+        f"prices: {r.yahoo_rows:,} Yahoo rows, {r.tiingo_rows:,} Tiingo rows → "
+        f"{r.daily_rows:,} daily rows\n"
+        f"  universe {r.universe:,} issuers; chosen series: {chosen}; unpriced {r.unpriced:,}\n"
+        f"  price issues: {issues}"
+    )
+    problems = prices.check_one_series(con) + prices.check_valid_prices(con)
+    for problem in problems[:10]:
+        typer.echo(f"  W14/W15: {problem}")
+    return r.daily_rows, not problems
 
 
 STEPS: dict = {
@@ -280,6 +300,7 @@ STEPS: dict = {
     "prelim": _step_prelim,
     "symbols": _step_symbols,
     "headers": _step_headers,
+    "prices": _step_prices,
     "invariants": _step_invariants,
 }
 
@@ -289,6 +310,7 @@ def _run_steps(names: list[str]) -> int:
     import duckdb
 
     from sentinel import warehouse
+    from sentinel.core.tiingo_register import OutsidePaidWindow
 
     paths, params = _context()
     fingerprint = warehouse.input_fingerprint(paths)
@@ -304,6 +326,9 @@ def _run_steps(names: list[str]) -> int:
             except warehouse.MissingInput as e:
                 typer.echo(str(e), err=True)
                 return FAILED
+            except OutsidePaidWindow as e:
+                typer.echo(str(e), err=True)
+                return OUTSIDE_PAID_WINDOW
             warehouse.log_build(con, name, started, fingerprint, rows)
             typer.echo(f"{name}: {rows:,} rows written in {time.monotonic() - t0:.0f} s")
             if not ok:
@@ -808,7 +833,159 @@ def fetch_sec_tickers():
 
 # --- Phase 2 -----------------------------------------------------------------------------------
 
-_stub("fetch-prices", "7", P2, "Fetch prices: Yahoo (listed), Tiingo (delisted)")
+
+@app.command("fetch-prices", rich_help_panel=P2)
+def fetch_prices_cmd(
+    source: str = typer.Option(..., "--source", help="yahoo (listed) or tiingo (delisted)."),
+    limit: int = typer.Option(None, "--limit", help="Fetch at most N tickers (for testing)."),
+    retry_failures: bool = typer.Option(
+        False, "--retry-failures", help="Also retry Yahoo tickers that failed before."
+    ),
+):
+    """[Step 7] Fetch daily prices: Yahoo for listed stocks, SPY and IWM; Tiingo for delisted
+    stocks (paid month only)."""
+    import duckdb
+
+    from sentinel import warehouse
+    from sentinel.core import prices
+    from sentinel.core.symbols import fetch_list
+    from sentinel.core.tiingo_register import OutsidePaidWindow, require_paid_window
+    from sentinel.ingest import tiingo, yahoo
+    from sentinel.ingest.http import RateLimiter, RetryPolicy
+    from sentinel.ingest.manifest import FetchLock, FetchLocked
+
+    if source not in ("yahoo", "tiingo"):
+        _fail("--source must be yahoo or tiingo", USAGE)
+    paths, params = _context()
+    ops = params["ops"]
+    try:
+        if source == "tiingo":
+            require_paid_window(params)
+        with warehouse.connect(paths, read_only=True) as con:
+            warehouse.require_tables(con, ["core.symbol_map", "evt.prelim_event"], "symbols")
+            if source == "yahoo":
+                tickers = yahoo.universe_tickers(con, params)
+            else:
+                fallback = []
+                if warehouse.table_exists(con, "stg.price_yahoo"):
+                    fallback = prices.yahoo_fallback_issuers(con, params)
+                else:
+                    typer.echo("note: run `sentinel prices` first to include Yahoo fallbacks")
+    except (duckdb.IOException, warehouse.MissingInput) as e:
+        _fail(str(e), FAILED)
+    except OutsidePaidWindow as e:
+        _fail(str(e), OUTSIDE_PAID_WINDOW)
+    try:
+        with FetchLock(paths.lock):
+            if source == "yahoo":
+                r = yahoo.download(
+                    paths, params, tickers, limit=limit, retry_failures=retry_failures,
+                    echo=typer.echo,
+                )  # fmt: skip
+                typer.echo(
+                    f"yahoo: {r.stored:,} stored, {r.cached:,} already stored, "
+                    f"{len(r.failed):,} failed (data/raw/yahoo/failures.csv)"
+                )
+                raise typer.Exit(OK)
+            secrets = _secrets(paths)
+            if not secrets.tiingo_api:
+                _fail("TIINGO_API is not set in .env", CONFIG)
+            if not (paths.tiingo / tiingo.LIST_FILE).exists():
+                url = ops["tiingo_supported_tickers_url"]
+                payload, _, _ = fetch_list(url, ops["http_timeout_seconds"])
+                tiingo.store_list(paths, params, payload, url)
+            listing = tiingo.stored_listing(paths, params)
+            with warehouse.connect(paths, read_only=True) as con:
+                targets = tiingo.resolve(con, listing, params, fallback_issuers=fallback)
+            roles = {}
+            for t in targets:
+                roles[t.role] = roles.get(t.role, 0) + 1
+            typer.echo(f"tiingo: {len(targets):,} tickers resolved ({roles})")
+            rps = ops["tiingo_requests_per_second"]
+            with tiingo.make_client(secrets.tiingo_api, ops["http_timeout_seconds"]) as client:
+                r = tiingo.fetch(
+                    paths, params, client, targets=targets, limiter=RateLimiter(rps, rps),
+                    policy=RetryPolicy.from_ops(ops), limit=limit, echo=typer.echo,
+                )  # fmt: skip
+            typer.echo(
+                f"tiingo: {r.stored:,} stored, {r.cached:,} already done, "
+                f"{len(r.not_found):,} not in Tiingo, {len(r.failed):,} failed"
+            )
+            for ticker, reason in r.failed[:10]:
+                typer.echo(f"  {ticker}: {reason}")
+    except FetchLocked as e:
+        _fail(str(e), FAILED)
+    except OutsidePaidWindow as e:
+        _fail(str(e), OUTSIDE_PAID_WINDOW)
+    except tiingo.TiingoRejected as e:
+        _fail(str(e), FAILED)
+
+
+@app.command("prices", rich_help_panel=P2)
+def prices_cmd():
+    """[Step 7] Build one as-traded price series per issuer, and the market calendar."""
+    raise typer.Exit(_run_steps(["prices"]))
+
+
+@app.command("tiingo-status", rich_help_panel=P2)
+def tiingo_status_cmd():
+    """[Step 7] The Tiingo deletion register: stored files and rows, the paid window."""
+    from datetime import date
+
+    import duckdb
+
+    from sentinel import warehouse
+    from sentinel.core import tiingo_register
+
+    paths, params = _context()
+    con = None
+    try:
+        if paths.warehouse.exists():
+            con = warehouse.connect(paths, read_only=True)
+        st = tiingo_register.status(con, paths, params)
+    except duckdb.IOException as e:
+        _fail(str(e), FAILED)
+    finally:
+        if con is not None:
+            con.close()
+    if st.paid_until:
+        left = (st.paid_until - date.today()).days
+        window = f"open until {st.paid_until} ({left} days left)" if st.window_open else "closed"
+    else:
+        window = "closed: ops.tiingo_paid_until is not set"
+    typer.echo(f"Tiingo paid window: {window}")
+    typer.echo(f"  raw files: {st.files:,} ({st.bytes / 1e6:,.1f} MB) under data/raw/tiingo/")
+    for table, n in st.rows.items():
+        typer.echo(f"  {table}: {n:,} Tiingo rows")
+    for problem in st.problems:
+        typer.echo(f"  PROBLEM: {problem}")
+    raise typer.Exit(FAILED if st.problems else OK)
+
+
+@app.command("tiingo-delete", rich_help_panel=P2)
+def tiingo_delete_cmd(
+    yes: bool = typer.Option(False, "--yes", help="Really delete (otherwise a dry run)."),
+):
+    """[End of the paid month] Delete every Tiingo file and Tiingo-derived row (constitution VI)."""
+    import duckdb
+
+    from sentinel.core import tiingo_register
+
+    paths, params = _context()
+    try:
+        report = tiingo_register.delete(paths, params, yes=yes)
+    except duckdb.IOException as e:
+        _fail(f"{e}\nClose `sentinel explore` and any running step first.", FAILED)
+    typer.echo(f"{report.files:,} files ({report.bytes / 1e6:,.1f} MB)")
+    for table, n in report.rows.items():
+        typer.echo(f"  {table}: {n:,} rows")
+    if not yes:
+        typer.echo("dry run: nothing deleted. Run with --yes to delete.")
+        raise typer.Exit(USAGE)
+    typer.echo("deleted. Record this line in docs/initialplan.md §12:")
+    typer.echo(f"  {report.log_line}")
+
+
 _stub("fetch-reference", "7", P2, "Download factor, industry and breakpoint files")
 _stub("detect", "7", P2, "Final event detection with G7, G8, floors and cooldown")
 _stub("delistings", "8", P2, "Classify delistings and assign delisting returns")

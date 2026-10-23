@@ -1,6 +1,7 @@
 import io
 import socket
 import zipfile
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -563,3 +564,66 @@ def companyfacts_zip(companies: dict) -> bytes:
             doc = {"cik": int(cik), "entityName": f"Company {cik}", "facts": facts}
             zf.writestr(f"{_cik10(cik)}.json", json.dumps(doc))
     return buf.getvalue()
+
+
+# Synthetic universe and raw files, written the way the fetchers write them (feature 004).
+
+PAID_DAY = date(2026, 11, 2)  # inside the test paid window [2026-10-29, 2026-11-28)
+
+
+def universe_tables(con) -> None:
+    """The feature 002 tables the price steps read, with only the columns they use."""
+    con.execute(
+        "create table if not exists core.symbol_map (issuer_cik VARCHAR, ticker VARCHAR, "
+        "valid_from DATE, valid_to DATE, price_source VARCHAR, match_quality VARCHAR)"
+    )
+    con.execute(
+        "create table if not exists evt.prelim_event (issuer_cik VARCHAR, signal_date DATE)"
+    )
+    con.execute(
+        "create table if not exists core.filing (accession VARCHAR, issuer_cik VARCHAR, "
+        "filing_date DATE, symbol_raw VARCHAR, issuer_name VARCHAR)"
+    )
+
+
+def issuer(con, cik, ticker, source, name, first_event=date(2012, 1, 5),
+           valid=(date(2010, 1, 4), None)):  # fmt: skip
+    """An issuer of the price universe: one symbol-map row, one preliminary event, one filing."""
+    con.execute("insert into core.symbol_map values (?, ?, ?, ?, ?, 'x')",
+                [cik, ticker, valid[0], valid[1], source])  # fmt: skip
+    con.execute("insert into evt.prelim_event values (?, ?)", [cik, first_event])
+    con.execute("insert into core.filing values (?, ?, ?, ?, ?)",
+                [f"{cik}-1", cik, valid[0], ticker, name])  # fmt: skip
+
+
+def store_yahoo(paths, params, data: dict) -> None:
+    """Yahoo files for `{ticker: rows}` through the real downloader (a stand-in for yfinance)."""
+    from sentinel.ingest import yahoo
+
+    def fetch(tickers, **kwargs):
+        return yahoo_frame({t: data[t] for t in tickers if t in data})
+
+    yahoo.download(
+        paths, params, list(data), fetch=fetch, sleep=lambda s: None, echo=lambda *a: None
+    )
+
+
+def store_tiingo(paths, params, listing_rows, series: dict, metas: dict, today=PAID_DAY) -> None:
+    """Synthetic Tiingo files: the ticker list, meta answers and price CSVs (paid window only)."""
+    import gzip
+    import json
+
+    from sentinel.ingest import manifest, tiingo
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        lines = ["ticker,exchange,assetType,priceCurrency,startDate,endDate"]
+        zf.writestr("t.csv", "\n".join(lines + [",".join(r) for r in listing_rows]) + "\n")
+    tiingo.store_list(paths, params, buf.getvalue(), "u", today)
+    book = manifest.Manifest(paths.manifest)
+    for t, meta in metas.items():
+        data = gzip.compress(json.dumps(meta).encode())
+        tiingo._write(paths, book, f"tiingo/meta/{t}.json.gz", f"meta/{t}", data, "u")
+    for t, rows in series.items():
+        data = gzip.compress(tiingo_csv(rows).encode())
+        tiingo._write(paths, book, f"tiingo/prices/{t}.csv.gz", f"prices/{t}", data, "u")
