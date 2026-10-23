@@ -154,3 +154,38 @@ def test_delisting_summary_by_class(delisted, tmp_path):
     s = audit.summarize_delistings(tmp_path)
     assert s["all"]["agree"] == 27 and s["all"]["disagree"] == 3 and s["all"]["blank"] == 0
     assert sum(v["agree"] + v["disagree"] for k, v in s.items() if k != "all") == 30
+
+
+# --- Market-cap sheet (T052) --------------------------------------------------------------------
+
+
+def test_market_cap_sheet_compares_with_yahoo_and_stores_it_once(tmp_data, params):
+    from conftest import market_prices, market_sessions
+
+    from sentinel import warehouse
+    from sentinel.core import company
+    from sentinel.ingest import manifest
+
+    con = warehouse.connect(tmp_data)
+    days = market_sessions(con, start=date(2026, 9, 1), n=20)
+    market_prices(con, "100", [{"session": d, "close": 20.0} for d in days], ticker="ABC")
+    con.execute(f"create table core.xbrl_fact ({company.FACT_COLUMNS})")
+    con.execute(
+        "insert into core.xbrl_fact values ('100', 'shares_outstanding', 'shares', null, "
+        "'2026-07-31', 5e6, '2026-08-05', 'x', '10-Q', 'Q2', 'main:x')"
+    )
+    params["ops"]["market_cap_examples"] = ["ABC"]
+    calls = []
+
+    def fetch(t):
+        calls.append(t)
+        return 102_000_000.0
+
+    rows = audit.make_market_cap_sheet(con, tmp_data, params, fetch=fetch)
+    assert rows[0][5:7] == [100_000_000.0, 102_000_000.0] and rows[0][-1] is True
+    sheet = read(tmp_data.audits_004 / "market_caps.csv")
+    assert sheet[0]["market_cap_pipeline"] == "100000000" and sheet[0]["within_5pct"] == "True"
+    assert manifest.find_original(tmp_data.manifest, "yahoo", "market_cap/ABC") is not None
+    audit.make_market_cap_sheet(con, tmp_data, params, fetch=fetch)
+    assert calls == ["ABC"]  # stored once, offline afterwards
+    con.close()

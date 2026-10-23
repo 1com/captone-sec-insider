@@ -352,6 +352,33 @@ def _write(con, params: dict, candidates: list[dict], decided: dict[str, dict]) 
         con.unregister("_event_out")
 
 
+def _market_caps(con: duckdb.DuckDBPyConnection, cutoff=None) -> None:
+    """Shares outstanding with the latest `filed` on or before T (then the latest period end), and
+    market capitalisation = as-traded close at T × those shares (FR-022)."""
+    if not table_exists(con, "core.xbrl_fact"):
+        return
+    con.execute(
+        """
+        create or replace temp table _caps as
+        select e.event_id, f.value as shares, f.filed
+        from evt.event e join core.xbrl_fact f
+          on f.issuer_cik = e.issuer_cik and f.concept = 'shares_outstanding'
+         and f.filed <= e.signal_date and ($cutoff is null or f.filed <= cast($cutoff as DATE))
+        qualify row_number() over (
+            partition by e.event_id order by f.filed desc, f.period_end desc, f.value desc) = 1
+        """,
+        {"cutoff": None if cutoff is None else str(cutoff)},
+    )
+    con.execute(
+        """
+        update evt.event set shares_outstanding = c.shares, shares_filed = c.filed,
+               market_cap = case when priced then close_t * c.shares end
+        from _caps c where c.event_id = evt.event.event_id
+        """
+    )
+    con.execute("drop table _caps")
+
+
 def _coverage(con, params: dict, candidates: list[dict], decided: dict[str, dict]) -> None:
     """`audit.price_coverage` (SC-001): A and B1 events from the labelled start, before floors."""
     start = registered_value(params, "labelled_window_start")
@@ -399,6 +426,7 @@ def detect(con: duckdb.DuckDBPyConnection, params: dict, cutoff=None, issuers=No
     candidates = _inputs(con, params, _prices(con, cutoff, issuers))
     decided = decide(candidates, params)
     _write(con, params, candidates, decided)
+    _market_caps(con, cutoff)
     _coverage(con, params, candidates, decide(candidates, params, floors=False))
     report.candidates = len(candidates)
     for c in candidates:
@@ -540,3 +568,14 @@ def check_funnel(con: duckdb.DuckDBPyConnection) -> list[str]:
     if diff:
         problems.append(f"{diff} funnel rows differ from the candidates")
     return problems
+
+
+def check_market_caps(con: duckdb.DuckDBPyConnection) -> list[str]:
+    """W22 (part): market caps use only shares filed on or before T."""
+    return [
+        r[0]
+        for r in con.execute(
+            "select event_id from evt.event where shares_filed > signal_date "
+            "or (market_cap is not null and not priced) order by 1"
+        ).fetchall()
+    ]

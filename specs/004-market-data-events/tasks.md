@@ -354,7 +354,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
 
 ### Tests (write first)
 
-- [ ] T048 [P] [US4] Facts part of `tests/unit/test_sec_company.py` (spec US4 acceptance 1 and 3):
+- [X] T048 [P] [US4] Facts part of `tests/unit/test_sec_company.py` (spec US4 acceptance 1 and 3):
   - **Restatements**: a value restated in a later filing keeps the first-filed value and date.
   - **Ties**: on equal `filed`, the smallest accession wins.
   - **Fallback tags**:
@@ -363,21 +363,21 @@ The stories read each other's *tables* in the real run, but each is **tested ind
     - liabilities have no fallback tag, because assets − equity is computed at use.
   - **Shares** come only from `dei:EntityCommonStockSharesOutstanding`.
   - **Durations** keep `period_start`.
-- [ ] T049 [P] [US4] Market-cap cases in `tests/unit/test_final_events.py` (spec US4 acceptance 2, W22):
+- [X] T049 [P] [US4] Market-cap cases in `tests/unit/test_final_events.py` (spec US4 acceptance 2, W22):
   - market cap = `close_t` × the shares with the latest `filed ≤ T`, then the latest period end;
   - shares filed the day after T are ignored;
   - no shares filed on or before T → null.
 
 ### Implementation
 
-- [ ] T050 [US4] Add `build_facts(con, paths, params, issuers=None, cutoff=None)` to `src/sentinel/core/company.py`, writing `core.xbrl_fact` by reading each universe issuer's companyfacts member. Key: "(`issuer_cik`, `concept`, `unit`, `period_start`, `period_end`)"; first-filed rule "the earliest `filed`, then the smallest accession". `sentinel company-facts` now builds profiles and facts.
-- [ ] T051 [US4] In `src/sentinel/events/final.py`, fill `shares_outstanding`, `shares_filed` and `market_cap` on `evt.event` when `core.xbrl_fact` exists, inside the same cutoff scope (facts filed ≤ cutoff).
-- [ ] T052 [US4] Implement `audit market-caps` in `src/sentinel/core/audit.py` and `src/sentinel/cli.py`:
+- [X] T050 [US4] Add `build_facts(con, paths, params, issuers=None, cutoff=None)` to `src/sentinel/core/company.py`, writing `core.xbrl_fact` by reading each universe issuer's companyfacts member. Key: "(`issuer_cik`, `concept`, `unit`, `period_start`, `period_end`)"; first-filed rule "the earliest `filed`, then the smallest accession". `sentinel company-facts` now builds profiles and facts.
+- [X] T051 [US4] In `src/sentinel/events/final.py`, fill `shares_outstanding`, `shares_filed` and `market_cap` on `evt.event` when `core.xbrl_fact` exists, inside the same cutoff scope (facts filed ≤ cutoff).
+- [X] T052 [US4] Implement `audit market-caps` in `src/sentinel/core/audit.py` and `src/sentinel/cli.py`:
   - choose 10 single-class, currently listed event companies with recent share counts, and set them in `ops.market_cap_examples`;
   - on the first run, fetch yfinance `Ticker(t).fast_info["market_cap"]` once per ticker into `data/raw/yahoo/market_cap/{ticker}.json`, with manifest lines;
   - compare with this pipeline's value at the latest session;
   - write `audits/market_caps.csv` per the contract, rounded to $1 million, with no prices.
-- [ ] T053 [US4] Add W22 to `src/sentinel/warehouse.py`. `coverage.md` gains XBRL coverage per item: the share of events from 2012 with a value first filed on or before T, by year.
+- [X] T053 [US4] Add W22 to `src/sentinel/warehouse.py`. `coverage.md` gains XBRL coverage per item: the share of events from 2012 with a value first filed on or before T, by year.
 - [ ] T054 [US4] **Real run**:
   - `cap uv run sentinel company-facts`, then `cap uv run sentinel detect`;
   - `uv run sentinel audit market-caps`, with a target of 10 of 10 within 5%, or each miss explained (SC-005);

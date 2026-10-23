@@ -48,9 +48,20 @@ def path(close=10.0, volume=50_000, skip=(), zero=(), low_from=None, low_close=N
 T1 = date(2019, 3, 14)  # a Thursday
 
 
-def detect(market_events, params, *filings, prices=None, headers=None, issuer_sic=None):
+def detect(market_events, params, *filings, prices=None, headers=None, issuer_sic=None,
+           shares=None):  # fmt: skip
     con = market_events(*filings, prices=prices if prices is not None else {"100": path()},
                         headers=headers, sessions=CAL)  # fmt: skip
+    if shares is not None:
+        from sentinel.core import company
+
+        con.execute(f"create table core.xbrl_fact ({company.FACT_COLUMNS})")
+        for cik, end, value, filed in shares:
+            con.execute(
+                "insert into core.xbrl_fact values (?, 'shares_outstanding', 'shares', null, ?, ?, "
+                "?, 'x', '10-Q', 'Q1', 'main:EntityCommonStockSharesOutstanding')",
+                [cik, end, value, filed],
+            )
     if issuer_sic is not None:
         con.execute(
             "create table core.issuer (issuer_cik VARCHAR, name VARCHAR, sic VARCHAR, "
@@ -212,3 +223,22 @@ def test_invariants_hold(market_events, params):
     assert final.check_cooldown(con, params) == []
     assert final.check_kept_events(con, params) == []
     assert final.check_funnel(con) == []
+
+
+def test_market_cap_uses_shares_first_filed_on_or_before_t(market_events, params):
+    """Spec US4 acceptance 2: the day-after filing is ignored."""
+    shares = [("100", date(2018, 12, 31), 1_000_000, date(2019, 2, 1)),
+              ("100", date(2019, 3, 1), 2_000_000, T1 + timedelta(days=1))]  # fmt: skip
+    con = detect(market_events, params, *cluster("a", T1), shares=shares)
+    e = event(con)
+    assert (e["shares_outstanding"], e["shares_filed"].date(), e["market_cap"]) == (
+        1_000_000,
+        date(2019, 2, 1),
+        10_000_000,
+    )
+
+
+def test_market_cap_is_missing_without_earlier_shares(market_events, params):
+    shares = [("100", date(2019, 3, 1), 2_000_000, T1 + timedelta(days=1))]
+    con = detect(market_events, params, *cluster("a", T1), shares=shares)
+    assert event(con)["market_cap"] != event(con)["market_cap"]  # NaN

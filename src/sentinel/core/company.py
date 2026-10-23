@@ -8,6 +8,7 @@ issuer, including those filed about it (25-NSE, SC 14D9, 425, …), except insid
 
 import contextlib
 import zipfile
+from dataclasses import dataclass, field
 from datetime import date
 
 import duckdb
@@ -124,3 +125,127 @@ def build_profiles(con, paths: Paths, params: dict, issuers=None) -> tuple[int, 
         con.execute("select count(*) from core.issuer").fetchone()[0],
         con.execute("select count(*) from core.company_filing").fetchone()[0],
     )
+
+
+# --- Step 9: first-filed XBRL facts (plan §7.2; research R9) -----------------------------------
+
+# concept → (taxonomy, tag, unit) in order: the main tag, then its one fallback.
+CONCEPTS = {
+    "shares_outstanding": [("dei", "EntityCommonStockSharesOutstanding", "shares")],
+    "equity": [
+        ("us-gaap", "StockholdersEquity", "USD"),
+        (
+            "us-gaap",
+            "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+            "USD",
+        ),
+    ],
+    "assets": [("us-gaap", "Assets", "USD")],
+    "liabilities": [("us-gaap", "Liabilities", "USD")],  # else assets − equity, at use
+    "cash": [
+        ("us-gaap", "CashAndCashEquivalentsAtCarryingValue", "USD"),
+        ("us-gaap", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents", "USD"),
+    ],
+    "net_income": [("us-gaap", "NetIncomeLoss", "USD"), ("us-gaap", "ProfitLoss", "USD")],
+}
+FACT_COLUMNS = (
+    "issuer_cik VARCHAR, concept VARCHAR, unit VARCHAR, period_start DATE, period_end DATE, "
+    "value DOUBLE, filed DATE, accession VARCHAR, form VARCHAR, fp VARCHAR, tag_used VARCHAR"
+)
+FACT_SCHEMA = [
+    ("issuer_cik", pa.string()), ("concept", pa.string()), ("unit", pa.string()),
+    ("period_start", pa.date32()), ("period_end", pa.date32()), ("value", pa.float64()),
+    ("filed", pa.date32()), ("accession", pa.string()), ("form", pa.string()),
+    ("fp", pa.string()), ("tag_used", pa.string()),
+]  # fmt: skip
+
+
+@dataclass
+class FactsReport:
+    issuers: int = 0
+    with_facts: int = 0
+    rows: int = 0
+    concepts: dict[str, int] = field(default_factory=dict)
+
+    def __str__(self) -> str:
+        per = ", ".join(f"{k} {v:,}" for k, v in self.concepts.items())
+        return (
+            f"{self.rows:,} first-filed values for {self.with_facts:,} of {self.issuers:,} "
+            f"issuers ({per})"
+        )
+
+
+def first_filed(doc: dict, cik: str, cutoff=None) -> list[tuple]:
+    """One row per concept and period: the value as first filed (earliest `filed`, then smallest
+    accession). A fallback tag fills only periods the main tag lacks. `cutoff` drops facts filed
+    after it (truncation tests)."""
+    facts = doc.get("facts", {}) if doc else {}
+    rows = []
+    for concept, tags in CONCEPTS.items():
+        chosen: dict[tuple, tuple] = {}
+        for rank, (taxonomy, tag, unit) in enumerate(tags):
+            label = f"{'main' if rank == 0 else 'fallback'}:{tag}"
+            best: dict[tuple, tuple] = {}
+            for f in facts.get(taxonomy, {}).get(tag, {}).get("units", {}).get(unit, []):
+                filed, end = _date(f.get("filed")), _date(f.get("end"))
+                if filed is None or end is None or f.get("val") is None:
+                    continue
+                if cutoff is not None and filed > cutoff:
+                    continue
+                period = (_date(f.get("start")), end)
+                key = (filed, f.get("accn") or "")
+                if period not in best or key < best[period][0]:
+                    best[period] = (key, f, label, unit)
+            for period, value in best.items():
+                chosen.setdefault(period, value)  # the main tag wins its periods
+        for (start, end), ((filed, accn), f, label, unit) in sorted(
+            chosen.items(), key=lambda kv: (kv[0][1], kv[0][0] or date.min)
+        ):
+            rows.append((cik, concept, unit, start, end, float(f["val"]), filed, accn or None,
+                         f.get("form"), f.get("fp"), label))  # fmt: skip
+    return rows
+
+
+def build_facts(con, paths: Paths, params: dict, issuers=None, cutoff=None) -> FactsReport:
+    """`core.xbrl_fact` for the universe, read one company at a time."""
+    ciks = universe(con, params, issuers)
+    report = FactsReport(issuers=len(ciks))
+    con.execute(f"create or replace table core._new_xbrl_fact ({FACT_COLUMNS})")
+    with _open(paths, "companyfacts") as zf:
+        rows: list[tuple] = []
+
+        def flush():
+            with _transaction(con):
+                con.register("_chunk", _arrow(rows, FACT_SCHEMA))
+                try:
+                    con.execute("insert into core._new_xbrl_fact select * from _chunk")
+                finally:
+                    con.unregister("_chunk")
+            rows.clear()
+
+        for i, cik in enumerate(ciks, 1):
+            found = first_filed(sec_company.read_companyfacts(zf, cik), cik, cutoff)
+            report.with_facts += bool(found)
+            report.rows += len(found)
+            for r in found:
+                report.concepts[r[1]] = report.concepts.get(r[1], 0) + 1
+            rows += found
+            if i % CHUNK == 0:
+                flush()
+        flush()
+    with _transaction(con):
+        con.execute("drop table if exists core.xbrl_fact")
+        con.execute("alter table core._new_xbrl_fact rename to xbrl_fact")
+    return report
+
+
+def check_first_filed(con: duckdb.DuckDBPyConnection) -> list[str]:
+    """W22 (part): one row per fact key."""
+    return [
+        f"{r[0]} {r[1]} {r[3]}"
+        for r in con.execute(
+            "select issuer_cik, concept, unit, period_end, count(*) from core.xbrl_fact "
+            "group by issuer_cik, concept, unit, period_start, period_end having count(*) > 1 "
+            "order by 1, 2, 4 limit 10"
+        ).fetchall()
+    ]

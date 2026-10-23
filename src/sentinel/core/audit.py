@@ -607,3 +607,92 @@ def summarize_delistings(out_dir: Path) -> dict[str, dict[str, int]]:
             )
             counts[verdict] += 1
     return out
+
+
+# --- Feature 004: market capitalisation check (SC-005) -----------------------------------------
+
+MARKET_CAP_SHEET = "market_caps"
+MARKET_CAP_COLUMNS = ["ticker", "issuer_cik", "session", "shares_outstanding", "shares_filed",
+                      "market_cap_pipeline", "market_cap_yahoo", "fetched_at", "ratio",
+                      "within_5pct"]  # fmt: skip
+
+
+def _yahoo_market_cap(ticker: str) -> float | None:
+    import yfinance
+
+    value = yfinance.Ticker(ticker).fast_info["market_cap"]
+    return float(value) if value else None
+
+
+def make_market_cap_sheet(
+    con: duckdb.DuckDBPyConnection, paths, params: dict, fetch=None
+) -> list[list]:
+    """`market_caps.csv`: this pipeline's market cap at the latest session (as-traded close ×
+    latest shares filed on or before it) against Yahoo's, for `ops.market_cap_examples`. Yahoo's
+    value is fetched once and stored under `data/raw/yahoo/market_cap/`; later runs are offline.
+    Values are rounded to $1 million; no prices are written."""
+    import json
+    import os
+    from datetime import UTC, datetime
+
+    from sentinel.ingest import manifest
+
+    fetch = fetch or _yahoo_market_cap
+    book = manifest.Manifest(paths.manifest)
+    store = paths.yahoo / "market_cap"
+    out = []
+    for ticker in params["ops"]["market_cap_examples"]:
+        row = con.execute(
+            """
+            with s as (select issuer_cik from core.price_series
+                       where chosen and price_source = 'yahoo' and ticker = $t),
+            last as (select d.issuer_cik, d.session, d.close from core.price_daily d
+                     join s using (issuer_cik) order by d.session desc limit 1)
+            select l.issuer_cik, l.session, l.close, f.value, f.filed from last l
+            left join lateral (
+                select value, filed from core.xbrl_fact x
+                where x.issuer_cik = l.issuer_cik and x.concept = 'shares_outstanding'
+                  and x.filed <= l.session
+                order by x.filed desc, x.period_end desc limit 1
+            ) f on true
+            """,
+            {"t": ticker},
+        ).fetchone()
+        if row is None:
+            continue
+        cik, session, close, shares, filed = row
+        path = store / f"{ticker}.json"
+        if not path.exists():
+            store.mkdir(parents=True, exist_ok=True)
+            now = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+            payload = json.dumps({"ticker": ticker, "market_cap": fetch(ticker), "fetched_at": now})
+            part = path.with_name(path.name + ".part")
+            part.write_text(payload, encoding="utf-8")
+            os.replace(part, path)
+            os.chmod(path, 0o444)
+            book.add(
+                manifest.ManifestEntry(
+                    path=path.relative_to(paths.data_raw).as_posix(), source="yahoo",
+                    key=f"market_cap/{ticker}", role="original",
+                    url=f"yfinance.Ticker({ticker}).fast_info['market_cap']", fetched_at=now,
+                    bytes=path.stat().st_size, sha256=manifest.sha256_file(path),
+                    http_last_modified=None, http_etag=None, tool="sentinel",
+                )
+            )  # fmt: skip
+        stored = json.loads(path.read_text(encoding="utf-8"))
+        ours = close * shares if shares else None
+        theirs = stored["market_cap"]
+        ratio = ours / theirs if ours and theirs else None
+        out.append([
+            ticker, cik, session, shares, filed,
+            round(ours, -6) if ours else None, round(theirs, -6) if theirs else None,
+            stored["fetched_at"], round(ratio, 4) if ratio else None,
+            None if ratio is None else abs(ratio - 1) <= 0.05,
+        ])  # fmt: skip
+    out_dir = paths.audits_004
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with (out_dir / f"{MARKET_CAP_SHEET}.csv").open("w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(MARKET_CAP_COLUMNS)
+        writer.writerows([[_cell(v) for v in r] for r in out])
+    return out

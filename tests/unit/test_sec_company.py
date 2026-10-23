@@ -1,9 +1,12 @@
 """SEC bulk company data: filing histories and profiles (T039), XBRL facts (T048)."""
 
+import io
+import json
+import zipfile
 from datetime import date
 
 import pytest
-from conftest import submissions_zip, universe_tables
+from conftest import companyfacts_zip, submissions_zip, universe_tables
 
 from sentinel import warehouse
 from sentinel.core import company
@@ -73,3 +76,70 @@ def test_profiles_hold_current_sic_and_exchanges(con, tmp_data, params):
 def test_missing_archive_is_reported(con, tmp_data, params):
     with pytest.raises(MissingInput, match="fetch-company"):
         company.build_profiles(con, tmp_data, params)
+
+
+# --- XBRL facts (T048; spec US4 acceptance 1 and 3) ---------------------------------------------
+
+
+def fact(end, val, filed, accn, start=None, form="10-Q", fp="Q1"):
+    f = {"end": end, "val": val, "filed": filed, "accn": accn, "form": form, "fp": fp}
+    return f | ({"start": start} if start else {})
+
+
+def facts_of(doc_tags, cik="100", cutoff=None):
+    with zipfile.ZipFile(io.BytesIO(companyfacts_zip({cik: doc_tags}))) as zf:
+        doc = json.loads(zf.read(f"CIK{int(cik):010d}.json"))
+    return {(r[1], r[3], r[4]): r for r in company.first_filed(doc, cik, cutoff)}
+
+
+def test_restated_values_keep_the_first_filing():
+    rows = facts_of({"us-gaap:Assets": {"USD": [
+        fact("2018-12-31", 900, "2019-03-01", "0001-19-000002"),
+        fact("2018-12-31", 950, "2020-03-01", "0001-20-000001", form="10-K/A"),  # restated
+        fact("2018-12-31", 910, "2019-03-01", "0001-19-000001"),  # same day: smaller accession
+    ]}})  # fmt: skip
+    r = rows[("assets", None, date(2018, 12, 31))]
+    assert (r[5], r[6], r[7], r[10]) == (910.0, date(2019, 3, 1), "0001-19-000001", "main:Assets")
+
+
+def test_fallback_tags_fill_only_periods_the_main_tag_lacks():
+    rows = facts_of({
+        "us-gaap:StockholdersEquity": {"USD": [fact("2019-03-31", 100, "2019-05-01", "a")]},
+        "us-gaap:StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest": {
+            "USD": [fact("2019-03-31", 120, "2019-05-01", "a"),
+                    fact("2019-06-30", 130, "2019-08-01", "b")]},
+        "us-gaap:ProfitLoss": {"USD": [fact("2019-06-30", -5, "2019-08-01", "b",
+                                            start="2019-04-01")]},
+    })  # fmt: skip
+    q1, q2 = rows[("equity", None, date(2019, 3, 31))], rows[("equity", None, date(2019, 6, 30))]
+    assert (q1[5], q1[10]) == (100.0, "main:StockholdersEquity")
+    assert q2[5] == 130.0 and q2[10].startswith("fallback:")
+    ni = rows[("net_income", date(2019, 4, 1), date(2019, 6, 30))]
+    assert (ni[5], ni[10]) == (-5.0, "fallback:ProfitLoss")
+
+
+def test_shares_come_only_from_the_cover_page_tag():
+    cover = {"shares": [fact("2019-04-30", 5e6, "2019-05-01", "a")]}
+    balance = {"shares": [fact("2019-03-31", 4e6, "2019-05-01", "a")]}
+    rows = facts_of({"dei:EntityCommonStockSharesOutstanding": cover,
+                     "us-gaap:CommonStockSharesOutstanding": balance})  # fmt: skip
+    assert [(k, r[2], r[5]) for k, r in rows.items()] == [
+        (("shares_outstanding", None, date(2019, 4, 30)), "shares", 5e6)
+    ]
+
+
+def test_cutoff_drops_facts_filed_after_it():
+    tags = {"us-gaap:Assets": {"USD": [fact("2018-12-31", 900, "2019-03-01", "a"),
+                                       fact("2019-03-31", 950, "2019-05-01", "b")]}}  # fmt: skip
+    assert len(facts_of(tags, cutoff=date(2019, 4, 1))) == 1
+
+
+def test_build_facts_loads_the_universe(con, tmp_data, params):
+    tmp_data.sec_company.mkdir(parents=True, exist_ok=True)
+    tags = {"us-gaap:Assets": {"USD": [fact("2018-12-31", 900, "2019-03-01", "a")]}}
+    (tmp_data.sec_company / "companyfacts.zip").write_bytes(
+        companyfacts_zip({"100": tags, "300": tags})
+    )
+    report = company.build_facts(con, tmp_data, params)
+    assert (report.issuers, report.with_facts, report.rows) == (2, 1, 1)
+    assert company.check_first_filed(con) == []

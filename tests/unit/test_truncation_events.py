@@ -65,3 +65,21 @@ def test_unpriced_and_weekend_cutoffs(market_events, params):
     con = market_events(*cluster("a", T1, cik="200"), prices={}, sessions=CAL)
     full = same_at(con, params, sat)
     assert [c[1] for c in full["candidates"]] == ["unpriced"]
+
+
+def test_share_count_filed_after_t(market_events, params):
+    from datetime import timedelta
+
+    from sentinel.core import company
+
+    con = market_events(*cluster("a", T1), prices={"100": path()}, sessions=CAL)
+    con.execute(f"create table core.xbrl_fact ({company.FACT_COLUMNS})")
+    for end, value, filed in ((date(2018, 12, 31), 1e6, date(2019, 2, 1)),
+                              (date(2019, 3, 1), 9e6, T1 + timedelta(days=3))):  # fmt: skip
+        con.execute(
+            "insert into core.xbrl_fact values ('100', 'shares_outstanding', 'shares', null, ?, "
+            "?, ?, 'x', '10-Q', 'Q1', 'main:x')",
+            [end, value, filed],
+        )
+    full = same_at(con, params, T1 + timedelta(days=1))
+    assert full["events"][0][-1] == 10.0 * 1e6

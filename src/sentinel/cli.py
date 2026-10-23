@@ -333,12 +333,12 @@ def _step_company(paths: Paths, params: dict, con) -> tuple[int, bool]:
     warehouse.require_tables(con, ["evt.prelim_event"], "detect-prelim")
     n_issuers, n_filings = company.build_profiles(con, paths, params)
     typer.echo(f"company-facts: {n_issuers:,} issuer profiles, {n_filings:,} filings")
-    rows = n_issuers + n_filings
-    if hasattr(company, "build_facts"):
-        report = company.build_facts(con, paths, params)
-        typer.echo(f"  XBRL facts: {report}")
-        rows += report.rows
-    return rows, True
+    report = company.build_facts(con, paths, params)
+    typer.echo(f"  XBRL facts: {report}")
+    problems = company.check_first_filed(con)
+    for problem in problems:
+        typer.echo(f"  W22: duplicate fact {problem}")
+    return n_issuers + n_filings + report.rows, not problems
 
 
 def _step_delistings(paths: Paths, params: dict, con) -> tuple[int, bool]:
@@ -771,6 +771,31 @@ def audit_delistings_summary():
         )
     typer.echo("target: ≥ 90% overall (SC-004)")
     raise typer.Exit(FAILED if s.get("all", {}).get("blank") else OK)
+
+
+@audit_app.command("market-caps")
+def audit_market_caps():
+    """Feature 004: market caps at the latest session against Yahoo's (SC-005; 10 companies)."""
+    import duckdb
+
+    from sentinel import warehouse
+    from sentinel.core import audit
+    from sentinel.ingest.manifest import FetchLock, FetchLocked
+
+    paths, params = _context()
+    if not params["ops"]["market_cap_examples"]:
+        _fail("set ops.market_cap_examples (10 tickers) in config/params.yaml first", CONFIG)
+    try:
+        with FetchLock(paths.lock), warehouse.connect(paths, read_only=True) as con:
+            warehouse.require_tables(con, ["core.price_daily"], "prices")
+            warehouse.require_tables(con, ["core.xbrl_fact"], "company-facts")
+            rows = audit.make_market_cap_sheet(con, paths, params)
+    except (duckdb.IOException, warehouse.MissingInput, FetchLocked) as e:
+        _fail(str(e), FAILED)
+    ok = sum(1 for r in rows if r[-1])
+    for r in rows:
+        typer.echo(f"  {r[0]:<8} ratio {r[8] if r[8] is not None else '–'}")
+    typer.echo(f"{ok} of {len(rows)} within 5% (target: 10 of 10, or each miss explained)")
 
 
 @app.command("detect-prelim", rich_help_panel=P1)
