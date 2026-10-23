@@ -4,7 +4,7 @@
 
 Research and engineering specification · Version 2.2 · 22 October 2026
 v2.2: one month of Tiingo Power replaces the free-tier price budget, the labelled window now starts on 1 January 2012, and five simple company-financial features are added (decisions D39–D43)
-Status: draft for review. The pre-registration is locked after review and before any return is computed (§3.3)
+Status: draft. The pre-registration is locked before any return is computed (§3.3)
 Capstone duration: 4 weeks (22 October – 18 November 2026)
 
 ---
@@ -160,7 +160,7 @@ Only these five tests are confirmatory. Each has one primary statistic and a one
 
 **Null results are results.** If a hypothesis fails, it is reported with the same detail as a success. The pipeline, methods and product remain the deliverable either way.
 
-**Pre-registration.** After reviewer feedback, and before any post-event return is computed (Step 11), this document and the parameter file (`config/params.yaml`) are tagged `prereg-v1` in git. The tag is pushed to the remote repository, and the commit hash is emailed to the supervisor. Any later change is logged in §12 with its reason.
+**Pre-registration.** Before any post-event return is computed (Step 11), this document and the parameter file (`config/params.yaml`) are tagged `prereg-v1` in git. The tag is pushed to the remote repository and published as a GitHub Release, whose creation time GitHub records on its own servers (D48). Any later change is logged in §12 with its reason.
 
 **What the author has already seen.** The pilot (Appendix A) examined counts and purchase-size distributions for all years, including the holdout years, but never any returns. The author's general knowledge of 2023–26 market events (for example, the March 2023 regional-bank stress) is an unavoidable limitation.
 
@@ -795,7 +795,7 @@ The product's lookup page runs as a parallel track from Week 2, because it needs
 | 8 | Classify delistings (acquired / performance-related / unknown) and assign delisting returns | `core.delisting` | Hand check of 30 companies across all three classes |
 | 9 | Load shares outstanding and the five F26–F29 items from XBRL company facts (first-filed values only) | `core.xbrl_fact` | Market caps and book values match known examples; coverage report per item |
 | 10 | Estimate spreads and costs | Cost estimates | Plot of estimated cost by price bucket |
-| 10a | **Lock the pre-registration** after reviewer feedback: tag `prereg-v1`, push it, email the commit hash to the supervisor | Locked parameters | Tag on the remote before Step 11 starts |
+| 10a | **Lock the pre-registration**: tag `prereg-v1`, push it, and publish it as a GitHub Release (D48) | Locked parameters | Tag and release on GitHub before Step 11 starts |
 | 11 | Compute development labels: 5 horizons × 4 measures, gross and net, with delisting handling — windows ending by 31 December 2022 only | `lab.event_label` | Point-in-time tests pass; 10 events recomputed by hand |
 | 12 | Compute features F1–F29 as of T (F10 from development windows only) | `feat.event_features` | Point-in-time tests pass; missing-value report |
 | P | *Parallel track:* stock lookup page and its API endpoints on the core tables | Working lookup page | Endpoint tests pass |
@@ -926,6 +926,7 @@ Every significant choice, what else was considered, and why. "v1" refers to the 
 | D45 | G7 also excludes issuers whose signal-filing header carries no SIC code (decided 2026-10-23). A 30-event check across 2012–2026 is made before the lock; if 3 or more of the 30 are operating companies, issuers without a header SIC take the current-SIC fallback (§11) instead of being excluded | Exclude only SIC 6770, 6722, 6726 | In the MVP's July–September 2026 events, 27 events were at funds, BDCs or blank-check companies, but only 1 had one of those codes: EDGAR leaves almost all funds and BDCs uncoded (specs/003-mvp-dashboard/run-notes.md, M5). Such issuers also have no industry benchmark for the primary label |
 | D46 | Raise the G6 minimum from $10,000 to $25,000 per entity per filing; sensitivities $10k and $50k (decided 2026-10-23) | Keep $10k (sensitivities $5k; $25k); $50k; count only buyers of ≥ $25k toward a cluster's two entities while keeping $10k for G6 | Owner's view: $10k is retail-sized money. The event minimum ($100k) already stops any event resting on a small purchase, but at $10k a token buy could still count as a cluster's second, independent buyer. Measured on purchase sizes only (no returns), in feature 001's provisional events for 2006–2026: 23% of clean filings are $10–25k, and the higher floor removes about 15% of clusters (12% lose their second buyer, 3% fall below $100k). A $50k floor would remove 35%, and a $100k floor 59%. A fixed dollar floor also ignores company size, which features F7, F18 and F25 measure. The provisional outputs of feature 001, built at $10k, are kept as they are: their candidate list is a superset of what $25k needs. `provisional.filing_min_value` keeps the pilot's $10k, so feature 001 still rebuilds them and the comparison (feature 002) can isolate this change |
 | D47 | Product v1 shows each cluster's score as a band: top fifth, middle three fifths or bottom fifth of the model's calibration-slice predictions (the top fifth is H5's model portfolio), with the band's holdout hit rate and count and a one-line caveat beside it, plus a plain fact line. The calibrated probability appears only on the event page and the model card. If H4 is not confirmed, every score is labelled "no proven skill" and the screener sorts by filing date by default (decided 2026-10-23) | Show the calibrated probability in lists (§8.6 before this decision) | Synthetic user research on the MVP (23 Oct 2026; docs/planning/06): a precise "97%" from a near-chance model was misread as a chance of profit, or undermined trust, in 4 of 5 personas. Bands carry only what the evidence supports, and the rule is fixed before the holdout so the display cannot be chosen after seeing the result. The research design is unchanged |
+| D48 | Record `prereg-v1` with a GitHub Release of the tag instead of emailing the commit hash; there is no external review (decided 2026-10-23; constitution v3.1.0) | Email the hash to a supervisor (D38) | There is no supervisor to email. GitHub records a release's creation time on its own servers, so the lock stays independently time-stamped, and the tag and its commit are public |
 
 ---
 

@@ -38,6 +38,7 @@ This folder applies the course's six planning steps (neue fische / SPICED AI PM 
 |---|---|
 | **D45 adopted** | G7 also excludes issuers whose signal-filing header has no SIC code, subject to a 30-event check by the researcher (tasks 1.7 and 1.13). Logged in plan §12 |
 | **D47 adopted** | Product v1 shows score bands with their holdout hit rate and a caveat, and "no proven skill" if H4 fails ([06](06-user-research-response.md#decision-d47)). Logged in plan §12; §8.6 updated |
+| **D48: no external review** | `prereg-v1` is recorded by a GitHub Release of the tag instead of an email (constitution v3.1.0). Logged in plan §12 |
 | **Weekends** | Used as working days when the schedule needs them; otherwise buffer |
 | **No testing with real people** | No interviews or user tests in the capstone. The product presentation rules are checked by automated tests instead |
 | **MVP prototype stays as it is** | Product v1 replaces it in week 4 |

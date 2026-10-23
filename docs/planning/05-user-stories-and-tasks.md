@@ -31,7 +31,6 @@ From [01](01-outcome-goals.md):
 | 1.2 | Point-in-time entities and roles | `core/entities.py` | W7, W8, truncation pass | 1.1 | C | ✅ 23 Oct |
 | 1.3 | Gates G1–G6, clean purchases, holdings, funnel | `core/gates.py` | Funnel reconciles; W5, W6 | 1.2 | C | ✅ 23 Oct |
 | 1.4 | Preliminary events A, B1, B2; comparison with feature 001 | `events/prelim.py`, `compare.py` | SC-005 holds; no year flagged | 1.3 | C | ✅ 23 Oct |
-| 1.5 | Send the spec and `params.yaml` (version 7) to the supervisor for pre-registration review | Email | Sent | — | R | Mon 26 Oct (earlier is better) |
 | 1.6 | Symbol map for all three groups; Tiingo coverage counted in memory only | `core/symbols.py`, `sentinel symbols` | At least 95% mapped (98.1%); W10, W11 | 1.4 | C | ✅ 23 Oct |
 | 1.7 | Fetch about 27,300 signal-filing headers in the background (a few hours); parse SIC and acceptance time; D45 report and a 30-row no-SIC sheet (`audit no-sic`) | `ingest/sec_headers.py`, `fetch-headers` | At least 99% parsed; no-SIC events counted per year and group | 1.4 | C | Code ✅ 23 Oct; the download waits for EDGAR maintenance |
 | 1.8 | Fill the three audit sheets (about 2 h) | `specs/002-…/audits/` | No blank verdicts | ✅ sheets | R | Tue 27 Oct |
@@ -88,8 +87,8 @@ From [01](01-outcome-goals.md):
 | # | Task | Component | Done when | Depends on | Who | Day |
 |---|---|---|---|---|---|---|
 | L.1 | Decision log: add the D45 check's result (D45 and D47 are logged); check Appendix E against `params.yaml`; prepare the tag | `docs/initialplan.md` §12, `sentinel check` | `check` passes | 1.13, 2.5 | C | Tue 3 Nov |
-| L.2 | Answer the reviewer's comments; approve the decision entries | — | Approved | 1.5, L.1 | R | Tue 3 Nov |
-| L.3 | Tag `prereg-v1`, push it, email the commit hash | git, email | Tag on the remote | L.2 | R | Wed 4 Nov |
+| L.2 | Approve the decision entries (D45 with its check result, D46–D48) | — | Approved | L.1 | R | Tue 3 Nov |
+| L.3 | Tag `prereg-v1`, push it, publish it as a GitHub Release (D48) | git, GitHub | Tag and release on GitHub | L.2 | R | Wed 4 Nov |
 
 ---
 
@@ -195,12 +194,11 @@ The agent prepares these but never does them unless told to.
 
 | When | Action |
 |---|---|
-| Mon 26 Oct | Send the spec and `params.yaml` to the supervisor for review (1.5) |
 | Tue 27 Oct | Fill the three audit sheets (1.8) |
 | Wed 28 Oct | Approve the merge to `main` and the E2 + E3 tasks (1.11, 1.12) |
 | Thu 29 Oct | Subscribe to Tiingo Power, auto-renewal off (2.1); fill the D45 sheet (1.13) |
-| Mon 2 – Tue 3 Nov | Golden-set and delisting audits (2.6, 2.8); answer the review; approve D45 and D47 (L.2) |
-| Wed 4 Nov | Tag `prereg-v1`, push, email the hash (L.3) |
+| Mon 2 – Tue 3 Nov | Golden-set and delisting audits (2.6, 2.8); approve the decision entries (L.2) |
+| Wed 4 Nov | Tag `prereg-v1`, push it, publish the GitHub Release (L.3) |
 | Thu 5 Nov | Recompute 10 labels by hand (4.2) |
 | Mon 9 Nov | Approve the event-study write-up (5.2) |
 | Wed 11 Nov | Approve the model selection (6.4) |

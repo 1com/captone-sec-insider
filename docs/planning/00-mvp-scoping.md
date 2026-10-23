@@ -4,7 +4,7 @@
 
 | Item | Detail |
 |---|---|
-| Team | The researcher (owner: decisions, audits, emails, approvals, report) and Claude Code as coding agent (builds each feature through spec-kit) |
+| Team | The researcher (owner: decisions, audits, approvals, report) and Claude Code as coding agent (builds each feature through spec-kit) |
 | Time | 4 weeks, 22 October – 18 November 2026. 18 weekdays remain from 26 October; weekend days are used when the schedule needs them |
 | Core skills | Data engineering (DuckDB, point-in-time pipelines), ML (scikit-learn, LightGBM, SHAP), empirical finance (event studies, factor models), a small web product (FastAPI) |
 | Budget | Free data, plus one month of Tiingo Power ($30) for delisted-stock prices (D39) |
