@@ -43,6 +43,17 @@ def connect(paths: Paths, read_only: bool = False) -> duckdb.DuckDBPyConnection:
     return con
 
 
+def explore_connection(paths: Paths) -> duckdb.DuckDBPyConnection:
+    """For browsing: a connection to `data/explore.duckdb` (where the DuckDB UI keeps its
+    notebooks) with the warehouse attached read-only as `warehouse`."""
+    con = duckdb.connect(
+        str(paths.warehouse.with_name("explore.duckdb")), config={"memory_limit": MEMORY_LIMIT}
+    )
+    target = str(paths.warehouse).replace("'", "''")
+    con.execute(f"attach '{target}' as warehouse (read_only)")
+    return con
+
+
 def table_exists(con: duckdb.DuckDBPyConnection, name: str) -> bool:
     schema, table = name.split(".")
     return bool(
