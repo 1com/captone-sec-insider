@@ -5,6 +5,8 @@ Contract: specs/001-skeleton-sec-ingest/contracts/cli.md
 """
 
 import logging
+import time
+from datetime import datetime
 
 import typer
 
@@ -104,6 +106,141 @@ def _sec_net(params: dict, secrets: Secrets):
     client = make_client(secrets.sec_user_agent, ops["http_timeout_seconds"])
     limiter = RateLimiter(ops["sec_target_requests_per_second"], ops["sec_max_requests_per_second"])
     return client, limiter, RetryPolicy.from_ops(ops)
+
+
+# --- Warehouse steps (feature 002) --------------------------------------------------------------
+
+
+def _step_stage(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel.core import stage
+
+    archives = stage.stored_archives(paths)
+    if not archives:
+        _fail("no stored archives: run `sentinel fetch-sec` first", FAILED)
+    done = []
+
+    def progress(quarter):
+        done.append(quarter)
+        if len(done) % 10 == 0 or len(done) == len(archives):
+            typer.echo(f"  staged {len(done)}/{len(archives)} quarters (last {quarter})")
+
+    report = stage.stage_all(con, archives, on_progress=progress)
+    typer.echo(
+        f"stage: {report.total_rows:,} rows, {len(stage.TABLE_SPECS)} tables × "
+        f"{len(archives)} quarters"
+    )
+    for (table, column), n in list(report.issues_by_column.items())[:10]:
+        typer.echo(f"  conversion issues {table}.{column}: {n:,}")
+    for table, quarter, expected, loaded in report.mismatches:
+        typer.echo(f"  MISMATCH {table} {quarter}: file {expected:,}, loaded {loaded:,}")
+    return report.total_rows, not report.mismatches
+
+
+def _step_entities(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel import warehouse
+    from sentinel.core import entities
+
+    warehouse.require_tables(con, ["stg.submission", "stg.reportingowner"], "stage")
+    r = entities.build(con, params)
+    typer.echo(
+        f"entities: {r.filings:,} filings, {r.owners:,} owners, {r.entities:,} entities "
+        f"({r.multi_member:,} with several owners), {r.role_intervals:,} role intervals"
+    )
+    problems = 0
+    for name, found in (
+        ("W7 membership not monotonic", entities.check_monotonic(con)),
+        ("W8 filing owners in several entities", entities.check_filings_map_to_one_entity(con)),
+    ):
+        if found:
+            problems += 1
+            typer.echo(f"  {name}: {len(found):,} (first {found[0]})")
+    return r.rows_written, not problems
+
+
+def _step_gates(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel import warehouse
+    from sentinel.core import gates
+
+    warehouse.require_tables(
+        con, ["stg.nonderiv_trans", "stg.footnotes", "stg.nonderiv_holding"], "stage"
+    )
+    warehouse.require_tables(
+        con, ["core.filing", "core.entity_member", "core.owner_role"], "entities"
+    )
+    r = gates.build(con, params)
+    for gate, unit, rows_in, rows_out in gates.funnel_totals(con):
+        typer.echo(f"  {gate:<18} {rows_in:>12,} → {rows_out:>12,} {unit}")
+    typer.echo(
+        f"gates: {r.lines:,} lines, {r.clean_purchases:,} clean purchases; holdings not "
+        f"computable: before {r.null_before:,}, after {r.null_after:,}"
+    )
+    problems = 0
+    for name, found in (
+        ("W5 funnel does not reconcile", gates.check_funnel(con)),
+        ("W6 clean purchases below the G6 minimum", gates.check_min_value(con, params)),
+    ):
+        if found:
+            problems += 1
+            typer.echo(f"  {name}: {len(found):,} (first {found[0]})")
+    return r.rows_written, not problems
+
+
+def _step_prelim(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel import warehouse
+    from sentinel.events import prelim
+
+    warehouse.require_tables(con, ["core.entity_member", "core.owner_role"], "entities")
+    warehouse.require_tables(con, ["core.transaction", "core.clean_purchase"], "gates")
+    by_group = prelim.detect_prelim(con, params)
+    labelled = dict(
+        con.execute(
+            'select "group", count(*) from evt.prelim_event where in_labelled_window group by 1'
+        ).fetchall()
+    )
+    for group in ("A", "B1", "B2"):
+        typer.echo(
+            f"  {group:<3} {by_group.get(group, 0):>7,} events, "
+            f"{labelled.get(group, 0):>7,} in the labelled window"
+        )
+    events = sum(by_group.values())
+    members = warehouse.row_count(con, "evt.prelim_event_member")
+    typer.echo(f"detect-prelim: {events:,} events with {members:,} member purchases")
+    return events + members, True
+
+
+STEPS: dict = {
+    "stage": _step_stage,
+    "entities": _step_entities,
+    "gates": _step_gates,
+    "prelim": _step_prelim,
+}
+
+
+def _run_steps(names: list[str]) -> int:
+    """Run warehouse steps in order on one connection, logging each; stop at the first failure."""
+    import duckdb
+
+    from sentinel import warehouse
+
+    paths, params = _context()
+    fingerprint = warehouse.input_fingerprint(paths)
+    try:
+        con = warehouse.connect(paths)
+    except duckdb.IOException as e:
+        _fail(f"cannot open {paths.warehouse.name}: {e}", FAILED)
+    with con:
+        for name in names:
+            started, t0 = datetime.now(), time.monotonic()
+            try:
+                rows, ok = STEPS[name](paths, params, con)
+            except warehouse.MissingInput as e:
+                typer.echo(str(e), err=True)
+                return FAILED
+            warehouse.log_build(con, name, started, fingerprint, rows)
+            typer.echo(f"{name}: {rows:,} rows written in {time.monotonic() - t0:.0f} s")
+            if not ok:
+                return FAILED
+    return OK
 
 
 # --- Phase 0 -----------------------------------------------------------------------------------
@@ -241,10 +378,128 @@ def verify_sec():
     raise typer.Exit(OK if clean else FAILED)
 
 
-_stub("stage", "2", P1, "Load the data sets into typed staging tables")
-_stub("entities", "3", P1, "Build point-in-time insider entities and roles")
-_stub("gates", "4", P1, "Apply purchase gates G1–G6 and record the funnel")
-_stub("detect-prelim", "5", P1, "Preliminary event detection (A, B1, B2)")
+@app.command("stage", rich_help_panel=P1)
+def stage_cmd():
+    """[Step 2] Load the data sets into typed staging tables."""
+    raise typer.Exit(_run_steps(["stage"]))
+
+
+@app.command("entities", rich_help_panel=P1)
+def entities_cmd():
+    """[Step 3] Build point-in-time insider entities and roles."""
+    raise typer.Exit(_run_steps(["entities"]))
+
+
+@app.command("gates", rich_help_panel=P1)
+def gates_cmd():
+    """[Step 4] Apply purchase gates G1–G6 and record the funnel."""
+    raise typer.Exit(_run_steps(["gates"]))
+
+
+audit_app = typer.Typer(no_args_is_help=True)
+app.add_typer(
+    audit_app, name="audit", rich_help_panel=P1, help="[QA] Hand-audit sheets for steps 3–4."
+)
+
+
+@audit_app.command("sheets")
+def audit_sheets(
+    force: bool = typer.Option(False, "--force", help="Replace existing sheets and verdicts."),
+):
+    """Write 50-row samples of entities, excluded and kept purchases to check by hand."""
+    import duckdb
+
+    from sentinel import warehouse
+    from sentinel.core import audit
+
+    paths = _paths()
+    try:
+        con = warehouse.connect(paths, read_only=True)
+    except duckdb.IOException as e:
+        _fail(f"cannot open {paths.warehouse.name}: {e}", FAILED)
+    with con:
+        try:
+            warehouse.require_tables(con, ["core.entity_member", "core.owner_role"], "entities")
+            warehouse.require_tables(con, ["core.transaction", "core.clean_purchase"], "gates")
+            counts = audit.make_sheets(con, paths.audits, force=force)
+        except (warehouse.MissingInput, audit.SheetsExist) as e:
+            _fail(str(e), FAILED)
+    for sheet, n in counts.items():
+        typer.echo(f"  {sheet}.csv: {n} rows")
+    typer.echo(f"written to {paths.audits}/: fill in `verdict` (correct/wrong/unclear) and `notes`")
+
+
+@audit_app.command("summary")
+def audit_summary():
+    """Count the verdicts per sheet; exit 1 while any verdict is blank or invalid."""
+    from sentinel.core import audit
+
+    paths = _paths()
+    try:
+        summary = audit.summarize(paths.audits)
+    except FileNotFoundError as e:
+        _fail(f"{e.filename} not found: run `sentinel audit sheets` first", FAILED)
+    typer.echo(
+        f"{'sheet':<16} {'rows':>4} {'correct':>7} {'wrong':>5} {'unclear':>7} {'blank':>5} "
+        f"{'invalid':>7} {'agreement':>9}"
+    )
+    incomplete = False
+    for sheet, s in summary.items():
+        rate = "—" if s.agreement is None else f"{100 * s.agreement:.1f}%"
+        typer.echo(
+            f"{sheet:<16} {s.rows:>4} {s.correct:>7} {s.wrong:>5} {s.unclear:>7} {s.blank:>5} "
+            f"{s.invalid:>7} {rate:>9}"
+        )
+        incomplete |= bool(s.blank or s.invalid)
+    if incomplete:
+        typer.echo("some verdicts are blank or not one of: correct, wrong, unclear", err=True)
+    raise typer.Exit(FAILED if incomplete else OK)
+
+
+@app.command("detect-prelim", rich_help_panel=P1)
+def detect_prelim_cmd():
+    """[Step 5] Preliminary event detection (A, B1, B2), to choose which symbols to price."""
+    raise typer.Exit(_run_steps(["prelim"]))
+
+
+@app.command("compare-provisional", rich_help_panel=P1)
+def compare_provisional():
+    """[QA] Compare the preliminary events with feature 001's provisional events."""
+    import duckdb
+
+    from sentinel import warehouse
+    from sentinel.events import compare
+
+    paths, params = _context()
+    parquet = paths.provisional / "events_PROVISIONAL.parquet"
+    if not parquet.is_file():
+        _fail(f"{parquet} not found: run `sentinel candidates-provisional` first", FAILED)
+    try:
+        con = warehouse.connect(paths, read_only=True)
+    except duckdb.IOException as e:
+        _fail(f"cannot open {paths.warehouse.name}: {e}", FAILED)
+    with con:
+        try:
+            warehouse.require_tables(con, ["evt.prelim_event"], "detect-prelim")
+        except warehouse.MissingInput as e:
+            _fail(str(e), FAILED)
+        table = compare.tabulate(con, parquet, params)
+    out = paths.audits.parent / "comparison.md"
+    compare.write_report(out, compare.render(table, params, parquet.name))
+    for group, rows in table.items():
+        totals = [sum(r.variants[i] for r in rows) for i in range(4)]
+        prov = "—" if group == "B2" else f"{sum(r.provisional for r in rows):,}"
+        flagged = [str(r.year) for r in rows if r.flagged]
+        typer.echo(
+            f"  {group:<3} feature 001 {prov:>7}; production / + $2 / − O/D / pilot G6: "
+            f"{' / '.join(f'{n:,}' for n in totals)}; flagged years: {', '.join(flagged) or '—'}"
+        )
+    a_total = sum(r.variants[1] for r in table["A"])
+    a_feature001 = sum(r.provisional for r in table["A"])
+    ok = a_total <= a_feature001
+    typer.echo(f"SC-005: A under production + $2 {a_total:,} ≤ {a_feature001:,}: {ok}")
+    typer.echo(f"written to {out}")
+    raise typer.Exit(OK if ok else FAILED)
 
 
 @app.command("candidates-provisional", rich_help_panel=P1)

@@ -13,7 +13,7 @@ from pathlib import Path
 import yaml
 from dotenv import dotenv_values
 
-SECTIONS = ("registered", "ops", "provisional")
+SECTIONS = ("registered", "ops", "rules", "provisional")
 EMAIL_RE = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 SEC_RPS_CEILING = 10  # SEC fair-access policy
 
@@ -41,6 +41,9 @@ class Paths:
     manifest: Path
     lock: Path
     provisional: Path
+    warehouse: Path
+    sec_headers: Path
+    audits: Path
     params_file: Path
     env_file: Path
     plan_file: Path
@@ -56,6 +59,9 @@ class Paths:
             manifest=raw / "manifest.jsonl",
             lock=raw / ".lock",
             provisional=root / "data" / "provisional",
+            warehouse=root / "data" / "warehouse.duckdb",
+            sec_headers=raw / "sec" / "headers",
+            audits=root / "specs" / "002-insider-warehouse" / "audits",
             params_file=root / "config" / "params.yaml",
             env_file=root / ".env",
             plan_file=root / "docs" / "initialplan.md",
@@ -84,14 +90,21 @@ def load_params(path: Path) -> dict:
                 )
             seen[key] = section
 
-    if params["ops"].get("sec_max_requests_per_second", 0) > SEC_RPS_CEILING:
+    ops = params["ops"]
+    ceiling = ops.get("sec_max_requests_per_second", 0)
+    if ceiling > SEC_RPS_CEILING:
         raise ConfigError(f"ops.sec_max_requests_per_second must be <= {SEC_RPS_CEILING}")
-    for key, pattern in params["provisional"].items():
-        if key.endswith("_regex"):
-            try:
-                re.compile(pattern, re.IGNORECASE)
-            except re.error as e:
-                raise ConfigError(f"provisional.{key} does not compile: {e}") from e
+    if ops.get("sec_header_target_requests_per_second", 0) > ceiling:
+        raise ConfigError(
+            "ops.sec_header_target_requests_per_second must be <= ops.sec_max_requests_per_second"
+        )
+    for section in ("rules", "provisional"):
+        for key, pattern in params[section].items():
+            if key.endswith("_regex"):
+                try:
+                    re.compile(pattern, re.IGNORECASE)
+                except re.error as e:
+                    raise ConfigError(f"{section}.{key} does not compile: {e}") from e
     return params
 
 
@@ -138,7 +151,7 @@ def check_register(params: dict, plan_path: Path) -> list[str]:
                 )
     for name in sorted(set(by_name) - plan_names):
         problems.append(f"registered entry '{name}' has no Appendix E row")
-    for section in ("ops", "provisional"):
+    for section in ("ops", "rules", "provisional"):
         for key, value in params[section].items():
             if isinstance(value, dict) and "register" in value:
                 problems.append(f"{section}.{key} must not carry a register block")

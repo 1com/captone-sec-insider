@@ -33,14 +33,14 @@ def test_drift_is_detected(params):
 
 
 def test_unregistered_sections_carry_no_register_block(params):
-    for section in ("ops", "provisional"):
+    for section in ("ops", "rules", "provisional"):
         for key, value in params[section].items():
             assert not (isinstance(value, dict) and "register" in value), f"{section}.{key}"
 
 
 def test_values_this_feature_uses(params):
     reg = params["registered"]
-    assert reg["g6_min_value"]["value"] == 10000
+    assert reg["g6_min_value"]["value"] == 25000  # D46
     assert reg["g6_timeliness"]["value"] == 30
     assert reg["cluster_window"]["value"] == 14
     assert reg["cluster_min_value"]["value"] == 100000
@@ -54,3 +54,8 @@ def test_provisional_regexes_compile(params):
     for key, pattern in params["provisional"].items():
         if key.endswith("_regex"):
             re.compile(pattern, re.IGNORECASE)
+
+
+def test_register_block_in_rules_is_rejected(params):
+    params["rules"]["gate_plan_footnote_regex_x"] = {"value": "x", "register": {"parameter": "X"}}
+    assert any("rules.gate_plan_footnote_regex_x" in p for p in check_register(params, PLAN))

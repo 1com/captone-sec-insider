@@ -40,4 +40,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
-markers = ["network: needs internet; run with --run-network"]
+markers = [
+    "network: needs internet; run with --run-network",
+    "slow: needs the real data/warehouse.duckdb; skipped when absent",
+]
