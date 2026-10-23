@@ -29,7 +29,7 @@ This folder applies the course's six planning steps (neue fische / SPICED AI PM 
 | — | MVP prototype (feature 003): pilot 2006–2011, survivors only, public demo | ✅ 22 Oct |
 | 2–5 | Staging (37.9 M rows), entities, gates (161,059 clean purchases at the $25k minimum, D46), preliminary events (39,498) and the comparison with feature 001 (feature 002) | ✅ 23 Oct, pushed |
 | 3–4 audits | Three 50-row audit sheets | Waiting for the researcher |
-| 6 | Symbol map and filing headers | Next |
+| 6 | Symbol map (98.1% of event companies mapped) and filing headers (download waits for EDGAR maintenance) | In progress |
 | 7–21 | Prices to report | Not started |
 
 ## Decisions taken on 23 October

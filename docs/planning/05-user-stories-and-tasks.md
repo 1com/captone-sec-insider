@@ -32,12 +32,12 @@ From [01](01-outcome-goals.md):
 | 1.3 | Gates G1–G6, clean purchases, holdings, funnel | `core/gates.py` | Funnel reconciles; W5, W6 | 1.2 | C | ✅ 23 Oct |
 | 1.4 | Preliminary events A, B1, B2; comparison with feature 001 | `events/prelim.py`, `compare.py` | SC-005 holds; no year flagged | 1.3 | C | ✅ 23 Oct |
 | 1.5 | Send the spec and `params.yaml` (version 7) to the supervisor for pre-registration review | Email | Sent | — | R | Mon 26 Oct (earlier is better) |
-| 1.6 | Symbol map for all three groups; Tiingo coverage counted in memory only | `core/symbols.py`, `sentinel symbols` | At least 95% mapped; W10, W11 | 1.4 | C | Mon 26 Oct |
-| 1.7 | Fetch about 27,300 signal-filing headers in the background (about 1 h); parse SIC and acceptance time; D45 report and a 30-row no-SIC sheet | `ingest/sec_headers.py`, `fetch-headers` | At least 99% parsed; no-SIC events counted per year and group | 1.4 | C | Mon 26 Oct |
+| 1.6 | Symbol map for all three groups; Tiingo coverage counted in memory only | `core/symbols.py`, `sentinel symbols` | At least 95% mapped (98.1%); W10, W11 | 1.4 | C | ✅ 23 Oct |
+| 1.7 | Fetch about 27,300 signal-filing headers in the background (a few hours); parse SIC and acceptance time; D45 report and a 30-row no-SIC sheet (`audit no-sic`) | `ingest/sec_headers.py`, `fetch-headers` | At least 99% parsed; no-SIC events counted per year and group | 1.4 | C | Code ✅ 23 Oct; the download waits for EDGAR maintenance |
 | 1.8 | Fill the three audit sheets (about 2 h) | `specs/002-…/audits/` | No blank verdicts | ✅ sheets | R | Tue 27 Oct |
 | 1.9 | Invariant check, real-data truncation test (20 pairs), full rebuild timing, docs | `warehouse.py`, `tests/integration/` | All pass; timings in the run notes | 1.6, 1.7 | C | Tue 27 Oct |
 | 1.10 | Audit summary; fix or document each error pattern | `sentinel audit summary`, run notes | At least 90% per sheet, or fixes recorded | 1.8 | C | Tue 27 Oct |
-| 1.11 | Merge features 001–003 into `main` | git | Tests green on `main` | 1.9, 1.10 | C (R approves) | Wed 28 Oct |
+| 1.11 | Merge features 001–003 into `main`; delete the feature branches | git | Tests green on `main` | — | R, C | ✅ 23 Oct |
 | 1.12 | Specify, plan and break down E2 + E3 (one spec-kit feature) | `specs/…` | Tasks reviewed by R | 1.11 | C, R | Wed 28 Oct |
 | 1.13 | Fill the D45 sheet: 30 no-SIC events, fund or operating company (45 min) | Audit sheet | Verdicts recorded | 1.7 | R | Thu 29 Oct |
 
