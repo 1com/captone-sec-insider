@@ -120,7 +120,7 @@ def build_symbol_map(
     issuers = con.execute(
         f"""
         select issuer_cik, min(filing_date),
-               list(issuer_name order by filing_date desc, accession desc)[1]
+               arg_max(issuer_name, strftime(filing_date, '%Y-%m-%d') || accession)
         from core.filing f
         where issuer_cik is not null and filing_date is not null and {where}
         group by 1
