@@ -99,3 +99,21 @@ Seen while checking the sheets, before any verdicts:
 | History check (W9) | events up to each cutoff are identical between cutoff and full builds | ✅ |
 
 `sentinel compare-provisional` writes `comparison.md`, with the per-year tables and the explanations of what each rule changes. Feature 001's provisional events were built at the pilot's G6 of $10k, now `provisional.filing_min_value`. The comparison isolates D46 with its own column.
+
+## T037 (part 1): Symbol map (2026-10-23)
+
+| Check | Result | Criterion |
+|---|---|---|
+| `sentinel symbols --tiingo-report` | 28,521 ticker rows and 2,016 unmatched issuers, from the SEC snapshot of 22 Oct; 1 s | — |
+| Event companies mapped | **8,361 of 8,527 (98.1%)**: Yahoo 3,824, Tiingo 4,537; unmatched 166 (fund_like 73, no_ticker 93) | SC-006 ≥ 95% ✅ |
+| Every event company mapped or listed; SEC tickers only | 0 problems | W10, W11 ✅ |
+| Tiingo's public list (Last-Modified 23 Oct 10:05 GMT), held in memory | all delisted event companies: 2,790 of 4,537 matched (135 via a `Q` ticker), 631 ticker only, 1,116 unmatched | — |
+| … delisted companies with A or B1 events from 2012 | **1,748 of 2,073 matched (84%)**, 115 ticker only, 210 unmatched; feature 001 found 83% for a 2016 start | — |
+
+A and B1 events from 2012: 15,003, of which 9,710 are at companies listed today (Yahoo) and 5,077 at delisted ones. If the matched delisted companies price, coverage is about 93% before G7, which removes many of the unmatched funds (target ≥ 90%, Step 7).
+
+The first run ran out of memory: `list(issuer_name order by …)[1]` built one list per issuer over 4.5 M filings. `arg_max` keyed on date and accession gives the same name.
+
+## T037 (part 2): Filing headers (pending)
+
+On 23 Oct EDGAR answered uncached pages with HTTP 503, "SEC.gov is undergoing maintenance". A 20-header smoke test stored 9, which parse correctly (e.g. CIK 2488 SIC 3674; CIK 2230 no SIC). A background job retries every 10 minutes and then runs the full fetch of about 27,300 headers, one request at a time (about 0.6 s each when EDGAR is healthy).
