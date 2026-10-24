@@ -124,11 +124,11 @@ During the paid month only: Tiingo's list rows (ticker, exchange, asset type, st
 | `reason` | `ok` / `outside_range` / `no_session` |
 | `price_source` | |
 
-- **Rows**: one per line passing G1–G6a at an issuer with a chosen series. Lines at unpriced issuers have no row (G8 skipped).
+- **Rows**: one per line passing G1–G6a at an issuer with a chosen series, traded on or after `rules.price_history_start`. Lines at unpriced issuers, and earlier lines (no prices are fetched for them), have no row (G8 skipped).
 
 ### `core.priced_purchase`
 
-Same columns as `core.clean_purchase`, plus `g8_status` (`checked` / `skipped_unpriced`). It is rebuilt from lines passing G1–G6a, and G8 where checked, with the G6 minimum applied again.
+Same columns as `core.clean_purchase`, plus `g8_status` (`checked` / `skipped_unpriced` / `skipped_before_prices`). It is rebuilt from lines passing G1–G6a, and G8 where checked, with the G6 minimum applied again.
 
 ### `evt.event_candidate`
 

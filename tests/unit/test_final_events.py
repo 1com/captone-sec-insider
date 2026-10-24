@@ -122,6 +122,32 @@ def test_g7_uses_the_signal_filings_header(market_events, params, sic, expected)
     assert con.execute("select count(*) from evt.event").fetchone()[0] == 0
 
 
+def test_a_header_known_to_fail_is_not_requested_again(market_events, params):
+    from sentinel.ingest import sec_headers
+
+    con = market_events(*cluster("a", T1), prices={"100": path()}, headers={"a2": "missing"},
+                        sessions=CAL)  # fmt: skip
+    sec_headers.record_failures(con, [("a2", "HTTP 404")])
+    report = final.detect(con, params)
+    assert outcomes(con) == {(T1, "A"): "needs_header"}
+    assert report.needs_header == []
+
+
+def test_headers_are_requested_for_every_later_candidate_of_a_waiting_issuer(
+    market_events, params, tmp_data
+):
+    """The 14 Mar cluster waits for its header, so 5 Apr becomes an event and 10 May is cooled
+    down. Once 14 Mar is decided, the cooldowns move and 10 May may need a header too: both are
+    requested in one round."""
+    from sentinel.ingest import sec_headers
+
+    t2, t3 = date(2019, 4, 5), date(2019, 5, 10)
+    con = detect(market_events, params, *cluster("a", T1), *cluster("b", t2), *cluster("c", t3),
+                 headers={"a2": "missing", "c2": "missing"})  # fmt: skip
+    assert outcomes(con) == {(T1, "A"): "needs_header", (t2, "A"): "event", (t3, "A"): "cooldown"}
+    assert [t.accession for t in sec_headers.final_targets(con, tmp_data)] == ["a2", "c2"]
+
+
 @pytest.mark.parametrize(
     ("current", "expected", "source"),
     [("3674", "event", "current"), (None, "g7_no_sic", None), ("6770", "g7_issuer_type", None)],

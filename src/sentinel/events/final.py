@@ -3,7 +3,7 @@
 G8 checks each purchase line's reported price against the as-traded range of the last session on
 or before its trade date, widened by `registered.g8_tolerance`; purchases are then rebuilt from the
 lines that pass, with the G6 minimum applied again (`core.priced_purchase`). Issuers without prices
-skip G8.
+skip G8, and so do lines traded before `rules.price_history_start`, for which no prices are fetched.
 
 Candidates are feature 002's (issuer, group, T) windows on those purchases, with entities and roles
 as of T, from `rules.final_detection_start`. Per issuer and group, in date order, each candidate
@@ -81,9 +81,10 @@ def _series(con: duckdb.DuckDBPyConnection) -> None:
 
 
 def build_price_check(con, params: dict, cutoff=None, issuers=None) -> tuple[int, int]:
-    """`core.price_check` (one row per line passing G1–G6a at a priced issuer) and
-    `audit.g8_rate`. Returns (lines checked, lines passed)."""
+    """`core.price_check` (one row per line passing G1–G6a at a priced issuer, traded on or after
+    `rules.price_history_start`) and `audit.g8_rate`. Returns (lines checked, lines passed)."""
     where, args = scope(cutoff, issuers, alias="t")
+    args["price_start"] = str(params["rules"]["price_history_start"])
     prices = _prices(con, cutoff, issuers)
     _series(con)
     tol = registered_value(params, "g8_tolerance")
@@ -98,6 +99,7 @@ def build_price_check(con, params: dict, cutoff=None, issuers=None) -> tuple[int
             select t.accession, t.line_sk, t.issuer_cik, t.trans_date as trade_date, t.price
             from core.transaction t
             where t.passes_lines and {where}
+              and t.trans_date >= cast($price_start as DATE)
               and t.issuer_cik in (select issuer_cik from _series)
         ),
         matched as (
@@ -140,9 +142,11 @@ def build_priced_purchase(con, params: dict, cutoff=None, issuers=None) -> int:
         con, params, cutoff, issuers, target="core.priced_purchase", line_filter=G8_FAILS
     )
     con.execute(
-        "create or replace table core.priced_purchase as select *, case when issuer_cik in "
-        "(select issuer_cik from core.price_series where chosen) then 'checked' "
-        "else 'skipped_unpriced' end as g8_status from core.priced_purchase"
+        "create or replace table core.priced_purchase as select *, case when issuer_cik not in "
+        "(select issuer_cik from core.price_series where chosen) then 'skipped_unpriced' "
+        "when max_trade_date < cast(? as DATE) then 'skipped_before_prices' else 'checked' end "
+        "as g8_status from core.priced_purchase",
+        [str(params["rules"]["price_history_start"])],
     )
     return n
 
@@ -159,7 +163,7 @@ def _inputs(con, params: dict, prices: str) -> list[dict]:
         "left join core.issuer i on i.issuer_cik = c.issuer_cik" if "i.sic" in issuer else ""
     )
     failed = (
-        "e.signal_accession in (select accession from core.header_failure)"
+        "c.signal_accession in (select accession from core.header_failure)"
         if table_exists(con, "core.header_failure")
         else "false"
     )

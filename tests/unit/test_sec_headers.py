@@ -16,10 +16,12 @@ from sentinel.ingest.manifest import read_all
 FIXTURE = (Path(__file__).parent.parent / "fixtures" / "edgar_header_form4.txt").read_text()
 ACC = "0001225208-19-010527"
 URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{nodash}/{acc}-index-headers.html"
+SGML_URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{nodash}/{acc}.hdr.sgml"
+SGML = FIXTURE[FIXTURE.index("<SEC-HEADER>") : FIXTURE.index("-->")]  # the bare .hdr.sgml
 
 
-def url(cik, acc):
-    return URL.format(cik=cik, nodash=acc.replace("-", ""), acc=acc)
+def url(cik, acc, pattern=URL):
+    return pattern.format(cik=cik, nodash=acc.replace("-", ""), acc=acc)
 
 
 def without_sic(text):
@@ -38,6 +40,12 @@ def test_parse_header():
 def test_a_header_without_sic_parses_with_sic_null():
     h = sec_headers.parse_header(without_sic(FIXTURE))
     assert (h.sic, h.sic_label) == (None, None)
+    assert h.accepted_at_et == datetime(2019, 7, 26, 11, 48, 41)
+
+
+def test_a_bare_sgml_header_parses_without_the_industry_name():
+    h = sec_headers.parse_header(SGML, expect_accession=ACC)
+    assert (h.sic, h.sic_label, h.issuer_cik) == ("2810", None, "2969")
     assert h.accepted_at_et == datetime(2019, 7, 26, 11, 48, 41)
 
 
@@ -110,6 +118,7 @@ def fetch(tmp_data, params, net, targets, **kw):
 def test_fetch_stores_read_only_files_and_records_failures(events, params, tmp_data, net):
     good = respx.get(url("2969", ACC)).mock(return_value=httpx.Response(200, text=FIXTURE))
     missing = respx.get(url("200", "ev-2012")).mock(return_value=httpx.Response(404))
+    respx.get(url("200", "ev-2012", SGML_URL)).mock(return_value=httpx.Response(404))
     targets = sec_headers.signal_accessions(events, params, tmp_data)
 
     report = fetch(tmp_data, params, net, targets)
@@ -129,6 +138,20 @@ def test_fetch_stores_read_only_files_and_records_failures(events, params, tmp_d
     assert [t.accession for t in retry] == ["ev-2012"]
     fetch(tmp_data, params, net, retry)
     assert (good.call_count, missing.call_count) == (1, 2)  # the stored header is never refetched
+
+
+@respx.mock
+def test_a_missing_index_page_falls_back_to_the_sgml_header(events, params, tmp_data, net):
+    respx.get(url("2969", ACC)).mock(return_value=httpx.Response(404))
+    sgml = respx.get(url("2969", ACC, SGML_URL)).mock(return_value=httpx.Response(200, text=SGML))
+    respx.get(url("200", "ev-2012")).mock(return_value=httpx.Response(500))
+
+    report = fetch(tmp_data, params, net, sec_headers.signal_accessions(events, params, tmp_data))
+    assert report.stored == 1 and sgml.call_count == 1
+    assert [acc for acc, _ in report.failed] == ["ev-2012"]  # only a 404 falls back
+    assert (tmp_data.sec_headers / "2019" / f"{ACC}.txt").read_text() == SGML
+    [entry] = [e for e in read_all(tmp_data.manifest) if e.source == sec_headers.SOURCE]
+    assert entry.url == url("2969", ACC, SGML_URL)
 
 
 @respx.mock

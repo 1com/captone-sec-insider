@@ -56,6 +56,17 @@ LISTING_COLUMNS = (
 )
 SHADOW = "_new_"
 CHUNK = 250  # raw files per transaction
+SIGNIFICANT_DIGITS = 10
+
+
+def _significant(expr: str) -> str:
+    """SQL that rounds `expr` to SIGNIFICANT_DIGITS significant digits (0 and null unchanged).
+    Rounding to fixed decimals would zero the tiny split factors and early prices of stocks with
+    stacked reverse splits (cum_split_after down to 1e-12)."""
+    return (
+        f"case when coalesce({expr}, 0) = 0 then {expr} else round({expr}, "
+        f"{SIGNIFICANT_DIGITS - 1} - cast(floor(log10(abs({expr}))) as integer)) end"
+    )
 
 
 @dataclass
@@ -436,12 +447,13 @@ def _daily(con, cutoff=None) -> None:
         ),
         traded as (
             select issuer_cik, session, price_source, ticker,
-                   case when split_adjusted then round(open * cum, 6) else open end as open,
-                   case when split_adjusted then round(high * cum, 6) else high end as high,
-                   case when split_adjusted then round(low * cum, 6) else low end as low,
-                   case when split_adjusted then round(close * cum, 6) else close end as close,
+                   case when split_adjusted then {_significant("open * cum")} else open end as open,
+                   case when split_adjusted then {_significant("high * cum")} else high end as high,
+                   case when split_adjusted then {_significant("low * cum")} else low end as low,
+                   case when split_adjusted then {_significant("close * cum")} else close end
+                       as close,
                    case when split_adjusted then round(volume / cum, 2) else volume end as volume,
-                   adj_close, round(cum, 10) as cum_split_after, split_ratio, dividend
+                   adj_close, {_significant("cum")} as cum_split_after, split_ratio, dividend
             from valid
         )
         select *, close * volume as dollar_volume from traded

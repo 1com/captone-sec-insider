@@ -78,6 +78,17 @@ def _copy(con, table: str, where: str, args=None) -> None:
     con.execute(f"create table {table} as select * from src.{table} where {where}", args or [])
 
 
+def _in_source(con, table: str) -> bool:
+    schema, name = table.split(".")
+    return bool(
+        con.execute(
+            "select count(*) from information_schema.tables "
+            "where table_catalog = 'src' and table_schema = ? and table_name = ?",
+            [schema, name],
+        ).fetchone()[0]
+    )
+
+
 def _rebuild_and_compare(con, params, cik, t):
     con.execute(f"attach '{WAREHOUSE}' as src (read_only)")
     for schema in warehouse.SCHEMAS:
@@ -94,7 +105,7 @@ def _rebuild_and_compare(con, params, cik, t):
         _copy(con, table, "issuer_cik = ?", [cik])
     _copy(con, "core.filing_header", "issuer_cik = ?", [cik])
     for table in ("core.issuer", "core.xbrl_fact", "core.header_failure"):
-        if warehouse.table_exists(con, f"src.{table}"):
+        if _in_source(con, table):
             key = "true" if table == "core.header_failure" else "issuer_cik = ?"
             _copy(con, table, key, [] if key == "true" else [cik])
     final.detect(con, params, cutoff=t, issuers=[cik])

@@ -97,6 +97,18 @@ def test_unpriced_issuers_skip_g8(market_events, params):
     assert priced(con) == {"b1": "skipped_unpriced"}
 
 
+def test_trades_before_the_price_history_start_skip_g8(market_events, params):
+    """No prices are fetched before `rules.price_history_start` (2010-01-01), so these lines are
+    not checked and do not count in the G8 rate."""
+    con = run(
+        market_events,
+        params,
+        purchase("a1", "17-DEC-2009", "100", [("1", "15-DEC-2009", 20_000, 200)]),
+    )
+    assert checks(con) == {}
+    assert priced(con) == {"a1": "skipped_before_prices"}
+
+
 def test_the_g6_minimum_is_applied_again_after_g8(market_events, params):
     """A $30k filing loses its $10k line to G8 and falls below the $25k minimum."""
     con = run(

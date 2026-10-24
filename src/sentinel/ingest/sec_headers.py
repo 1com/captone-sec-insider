@@ -5,6 +5,8 @@ One header per preliminary-event signal filing dated from the labelled-window st
 stored raw and read-only at `data/raw/sec/headers/{year}/{accession}.txt`, one manifest line each,
 and re-parsed into `core.filing_header` by `load_headers`. A page has two copies of the header: an
 SGML block inside an HTML comment, and a readable one, the only place with the industry's name.
+EDGAR has no such page for many filings from 2012 to 2014 (HTTP 404); for those the bare SGML
+header (`{accession}.hdr.sgml`) is stored instead, with the same fields but no industry name.
 A missing SIC is null, not a failure: some filers have none (G7 and D45 decide what that means).
 """
 
@@ -125,8 +127,11 @@ def signal_accessions(
 def final_targets(
     con: duckdb.DuckDBPyConnection, paths: Paths, include_failed: bool = False
 ) -> list[Target]:
-    """Signal filings of final-event candidates whose G7 waits for a header (`needs_header`,
-    feature 004), without a stored header; earlier failures are left out unless asked."""
+    """Signal filings of final-event candidates that may need a header (feature 004): at each
+    issuer with a candidate whose G7 waits for one (`needs_header`), that candidate and every later
+    one. Fetching only the waiting ones settles one event per round, because each new outcome moves
+    the cooldowns and exposes the next date (OPKO Health would have taken dozens of rounds). Without
+    a stored header; earlier failures are left out unless asked."""
     skip_failed = (
         "and c.signal_accession not in (select accession from core.header_failure)"
         if not include_failed and table_exists(con, "core.header_failure")
@@ -134,9 +139,15 @@ def final_targets(
     )
     rows = con.execute(
         f"""
+        with waiting as (
+            select issuer_cik, min(signal_date) as first_date from evt.event_candidate
+            where outcome = 'needs_header' group by 1
+        )
         select distinct c.signal_accession, c.issuer_cik, f.filing_date
-        from evt.event_candidate c join core.filing f on f.accession = c.signal_accession
-        where c.outcome = 'needs_header' {skip_failed}
+        from evt.event_candidate c join waiting w using (issuer_cik)
+        join core.filing f on f.accession = c.signal_accession
+        where c.signal_date >= w.first_date
+          and c.signal_accession not in (select accession from core.filing_header) {skip_failed}
         order by 1
         """
     ).fetchall()
@@ -172,15 +183,23 @@ def _store(paths: Paths, target: Target, book: manifest.Manifest, result) -> Non
 
 
 def _fetch_one(paths, params, client, limiter, policy, target, book) -> str | None:
-    """Store one header; returns the failure reason, or None. A 403 raises SecForbidden."""
+    """Store one header, falling back to the bare SGML header when the index page is missing;
+    returns the failure reason, or None. A 403 raises SecForbidden."""
     final = paths.data_raw / target.relpath
     final.parent.mkdir(parents=True, exist_ok=True)
     part = final.with_name(final.name + ".part")
-    url = params["ops"]["sec_headers_url_pattern"].format(
-        cik=target.issuer_cik, acc_nodash=target.accession.replace("-", ""), acc=target.accession
-    )
+    ops = params["ops"]
+    fields = {"cik": target.issuer_cik, "acc_nodash": target.accession.replace("-", ""),
+              "acc": target.accession}  # fmt: skip
+    page = ops["sec_headers_url_pattern"].format(**fields)
+    sgml = ops["sec_headers_fallback_url_pattern"].format(**fields)
     try:
-        result = stream_to_file(client, url, part, limiter, policy)
+        try:
+            result = stream_to_file(client, page, part, limiter, policy)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code != 404:
+                raise
+            result = stream_to_file(client, sgml, part, limiter, policy)
     except httpx.HTTPStatusError as e:
         return f"HTTP {e.response.status_code}"
     except RetryExhausted as e:

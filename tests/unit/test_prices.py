@@ -53,6 +53,20 @@ def test_reverse_split_is_undone_for_as_traded_prices(con, tmp_data, params):
     assert {r[5] for r in got} == {"yahoo"}
 
 
+def test_stacked_reverse_splits_keep_full_precision(con, tmp_data, params):
+    """Three 1-for-10,000 splits: the first session's factor is 1e-12 and its as-traded close
+    5e-8. Rounding to fixed decimals stored both as 0 (W15 as-traded mismatch, feature 004 runs)."""
+    issuer(con, "1", "AAA", "yahoo", "Aaa Inc")
+    rows = [{"session": d, "close": 50_000.0, "volume": 1e9, "split": 1e-4 if 1 <= i <= 3 else 1.0}
+            for i, d in enumerate(DAYS)]  # fmt: skip
+    store_yahoo(tmp_data, params, {"SPY": spy(), "AAA": rows})
+    prices.build(con, tmp_data, params)
+    first = daily(con, "1")[0]
+    assert first[4] == pytest.approx(1e-12, rel=1e-9)
+    assert first[1] == pytest.approx(5e-8, rel=1e-9)
+    assert prices.check_valid_prices(con) == []
+
+
 def test_session_calendar_is_spy_numbered(con, tmp_data, params):
     store_yahoo(tmp_data, params, {"SPY": spy()})
     prices.build(con, tmp_data, params)

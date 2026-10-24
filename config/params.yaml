@@ -287,6 +287,8 @@ ops:
   required_archive_tables: [SUBMISSION, REPORTINGOWNER, NONDERIV_TRANS, FOOTNOTES]
   sec_header_target_requests_per_second: 8
   sec_headers_url_pattern: "https://www.sec.gov/Archives/edgar/data/{cik}/{acc_nodash}/{acc}-index-headers.html"
+  # Used when the page above is HTTP 404, as it is for many 2012–2014 filings (feature 004 run notes)
+  sec_headers_fallback_url_pattern: "https://www.sec.gov/Archives/edgar/data/{cik}/{acc_nodash}/{acc}.hdr.sgml"
   # Market data (feature 004; contracts/params-rules.md)
   reference_symbols: [SPY, IWM]
   yahoo_batch_size: 50

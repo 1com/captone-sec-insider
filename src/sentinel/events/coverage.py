@@ -146,28 +146,27 @@ def _financials(con, params: dict) -> list[str]:
     if not table_exists(con, "core.xbrl_fact"):
         return ["## Company financials", "", "Not built yet (`sentinel company-facts`).", ""]
     start = str(registered_value(params, "labelled_window_start"))
+    concepts = ["shares_outstanding", "equity", "assets", "liabilities", "cash", "net_income"]
+    with_value = ", ".join(
+        f"count(*) filter (where list_contains(h.concepts, '{c}'))" for c in concepts
+    )
     rows = con.execute(
-        """
+        f"""
         with ev as (select event_id, issuer_cik, signal_date, year(signal_date) as year
                     from evt.event where signal_date >= cast(? as DATE)),
         has as (
-            select e.event_id, e.year, f.concept from ev e
+            select e.event_id, list(distinct f.concept) as concepts from ev e
             join core.xbrl_fact f on f.issuer_cik = e.issuer_cik and f.filed <= e.signal_date
-            group by all
+            group by 1
         )
-        select ev.year, count(distinct ev.event_id) as events, h.concept,
-               count(distinct h.event_id) as with_value
-        from ev left join has h on h.event_id = ev.event_id and h.year = ev.year
-        group by all order by all
+        select ev.year, count(*) as events, {with_value}
+        from ev left join has h using (event_id)
+        group by 1 order by 1
         """,
         [start],
     ).fetchall()
-    concepts = ["shares_outstanding", "equity", "assets", "liabilities", "cash", "net_income"]
-    years: dict[int, dict] = {}
-    for year, events, concept, n in rows:
-        years.setdefault(year, {"events": events})[concept] = n
-    table = [[y, f"{v['events']:,}", *(_pct(v.get(c, 0), v["events"]) for c in concepts)]
-             for y, v in sorted(years.items())]  # fmt: skip
+    table = [[year, f"{events:,}", *(_pct(n, events) for n in counts)]
+             for year, events, *counts in rows]  # fmt: skip
     caps = con.execute(
         "select count(*), count(market_cap) from evt.event "
         "where priced and signal_date >= cast(? as DATE)",
