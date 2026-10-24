@@ -8,8 +8,10 @@ SGML block inside an HTML comment, and a readable one, the only place with the i
 EDGAR has no such page for many filings from 2012 to 2014 (HTTP 404); for those the bare SGML
 header (`{accession}.hdr.sgml`) is stored instead, with the same fields but no industry name.
 A missing SIC is null, not a failure: some filers have none (G7 and D45 decide what that means).
+Fetch failures are kept beside the headers in `failures.csv`, so an offline rebuild knows them.
 """
 
+import csv
 import html
 import os
 import re
@@ -28,6 +30,7 @@ from sentinel.ingest.sec_bulk import tool_version
 from sentinel.warehouse import table_exists
 
 SOURCE = "sec_filing_header"
+FAILURES_FILE = "failures.csv"
 
 
 class HeaderParseError(Exception):
@@ -223,19 +226,53 @@ def fetch_headers(
     limit: int | None = None,
     on_progress: Callable[[int], None] | None = None,
 ) -> FetchReport:
-    """Fetch the headers of `targets` (at most `limit`); stored ones are never fetched again."""
+    """Fetch the headers of `targets` (at most `limit`); stored ones are never fetched again.
+    `failures.csv` gains this run's failures and loses the accessions now stored."""
     book = manifest.Manifest(paths.manifest)
     report = FetchReport()
-    todo = [t for t in targets if not book.has_path(t.relpath)]
-    for done, target in enumerate(todo[:limit], start=1):
+    todo = [t for t in targets if not book.has_path(t.relpath)][:limit]
+    stored = []
+    for done, target in enumerate(todo, start=1):
         reason = _fetch_one(paths, params, client, limiter, policy, target, book)
         if reason:
             report.failed.append((target.accession, reason))
         else:
             report.stored += 1
+            stored.append(target.accession)
         if on_progress:
             on_progress(done)
+    if todo:
+        failures = read_failures(paths)
+        for accession in stored:
+            failures.pop(accession, None)
+        now = datetime.now(UTC).replace(tzinfo=None, microsecond=0)
+        failures.update({accession: (reason, now) for accession, reason in report.failed})
+        _write_failures(paths, failures)
     return report
+
+
+def read_failures(paths: Paths) -> dict[str, tuple[str, datetime]]:
+    """accession → (reason, last attempt in UTC) from `failures.csv`."""
+    path = paths.sec_headers / FAILURES_FILE
+    if not path.exists():
+        return {}
+    with open(path, newline="") as f:
+        return {
+            r["accession"]: (r["reason"], datetime.fromisoformat(r["last_attempt"]))
+            for r in csv.DictReader(f)
+        }
+
+
+def _write_failures(paths: Paths, failures: dict[str, tuple[str, datetime]]) -> None:
+    path = paths.sec_headers / FAILURES_FILE
+    if not failures:
+        path.unlink(missing_ok=True)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["accession", "reason", "last_attempt"])
+        writer.writerows((a, why, at.isoformat()) for a, (why, at) in sorted(failures.items()))
 
 
 def _ensure_failure_table(con: duckdb.DuckDBPyConnection) -> None:
@@ -255,7 +292,8 @@ def record_failures(con: duckdb.DuckDBPyConnection, failed: list[tuple[str, str]
 
 
 def load_headers(con: duckdb.DuckDBPyConnection, paths: Paths) -> int:
-    """Re-parse every stored header into `core.filing_header`; parse failures are recorded."""
+    """Re-parse every stored header into `core.filing_header`; parse failures, and the fetch
+    failures in `failures.csv`, go to `core.header_failure`."""
     rows, failed = [], []
     for entry in manifest.read_all(paths.manifest):
         if entry.source != SOURCE or entry.role != "original":
@@ -284,6 +322,11 @@ def load_headers(con: duckdb.DuckDBPyConnection, paths: Paths) -> int:
         try:
             con.execute("create or replace table core.filing_header as select * from _headers")
             _ensure_failure_table(con)
+            for accession, (reason, at) in read_failures(paths).items():
+                con.execute("delete from core.header_failure where accession = ?", [accession])
+                con.execute(
+                    "insert into core.header_failure values (?, ?, ?)", [accession, reason, at]
+                )
             record_failures(con, failed)
             con.execute(
                 "delete from core.header_failure "

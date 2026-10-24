@@ -438,9 +438,14 @@ def _daily(con, cutoff=None) -> None:
         f"""
         create or replace table core.{SHADOW}price_daily as
         with valid as (
-            select *, coalesce(product(case when split_ratio > 0 then split_ratio else 1.0 end)
+            -- exp of an exact DECIMAL sum of logs: a window product() multiplies in an order that
+            -- varies between runs, and the last bit then decides some 10-digit roundings
+            select *, coalesce(exp(cast(sum(cast(ln(
+                           case when split_ratio > 0 then split_ratio else 1.0 end
+                       ) as DECIMAL(38, 18)))
                            over (partition by issuer_cik, price_source, ticker order by session
-                                 rows between 1 following and unbounded following), 1.0) as cum
+                                 rows between 1 following and unbounded following) as DOUBLE)),
+                       1.0) as cum
             from _rows
             where close > 0 and not coalesce(high < low, false)
               and session in (select session from core.session)

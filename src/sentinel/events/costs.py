@@ -21,7 +21,7 @@ from pathlib import Path
 import duckdb
 
 from sentinel.config import registered_value
-from sentinel.warehouse import require_tables, table_exists
+from sentinel.warehouse import exact_sum, require_tables, table_exists
 
 K_CS = 3 - 2 * math.sqrt(2)
 BUCKETS = [(None, 2.0, "below $2"), (2.0, 3.0, "$2–3"), (3.0, 5.0, "$3–5"), (5.0, 10.0, "$5–10"),
@@ -137,18 +137,25 @@ def _estimates(con, params: dict, source: str) -> None:
                    ln(greatest(h, h1s) / least(l, l1s)) ^ 2 as gamma
             from cs
         ),
-        spreads as (
-            select id, sqrt(greatest(avg(ar2), 0)) as spread_ar,
-                   avg(greatest(2 * (exp(a) - 1) / (1 + exp(a)), 0)) as spread_cs
-            from (select *, (sqrt(2 * beta) - sqrt(beta)) / {K_CS} - sqrt(gamma / {K_CS}) as a
-                  from cs2)
+        spreads as (  -- means and the standard deviation below use order-free exact sums
+            select id, sqrt(greatest({exact_sum("ar2", 18)} / count(ar2), 0)) as spread_ar,
+                   {exact_sum("cs2", 18)} / count(cs2) as spread_cs
+            from (select id, ar2, greatest(2 * (exp(a) - 1) / (1 + exp(a)), 0) as cs2
+                  from (select *, (sqrt(2 * beta) - sqrt(beta)) / {K_CS}
+                                  - sqrt(gamma / {K_CS}) as a from cs2))
             group by 1
         ),
         rets as (
             select id, ln(adj_close / lag(adj_close) over (partition by id order by session)) as r
             from _w where adj_close > 0
         ),
-        vol as (select id, stddev_samp(r) as sigma, count(r) as n from rets group by 1),
+        mean as (select id, {exact_sum("r", 18)} / count(r) as mu, count(r) as n
+                 from rets group by 1),
+        vol as (
+            select m.id, sqrt({exact_sum("(r.r - m.mu) ^ 2", 18)} / nullif(m.n - 1, 0)) as sigma,
+                   m.n
+            from rets r join mean m using (id) group by m.id, m.n
+        ),
         pilot as ({pilot})
         select x.id, sp.spread_ar, sp.spread_cs,
                cast(case when x.id in (select id from pilot) then {rules["tick_size_pilot_usd"]}

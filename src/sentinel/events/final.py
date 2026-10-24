@@ -27,7 +27,7 @@ import pyarrow as pa
 from sentinel.config import registered_value
 from sentinel.core import gates
 from sentinel.events import prelim
-from sentinel.warehouse import MissingInput, require_tables, scope, table_exists
+from sentinel.warehouse import MissingInput, exact_sum, require_tables, scope, table_exists
 
 KEPT = ("event", "unpriced")
 NO_SIC = {"", "0000"}  # EDGAR's "0000" means no industry code assigned (D45)
@@ -176,7 +176,7 @@ def _inputs(con, params: dict, prices: str) -> list[dict]:
         ),
         win as (
             select c.event_id, count(p.session) as n_rows,
-                   sum(coalesce(p.dollar_volume, 0)) / {window} as addv20,
+                   {exact_sum("coalesce(p.dollar_volume, 0)")} / {window} as addv20,
                    count(*) filter (where p.volume > 0) as active,
                    arg_max(p.close, p.session) as close_t
             from placed c

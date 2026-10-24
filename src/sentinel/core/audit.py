@@ -323,8 +323,11 @@ COMPANY_LINK = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={
 
 
 def _no_sic_events(start: str) -> str:
+    """Preliminary events from `start` with their header SIC; `no_sic` as G7 reads it (D45, D51:
+    EDGAR's "0000" means no code assigned)."""
     return f"""
-        select e.*, h.sic from evt.prelim_event e
+        select e.*, h.sic, coalesce(trim(h.sic), '') in ('', '0000') as no_sic
+        from evt.prelim_event e
         join core.filing_header h on h.accession = e.signal_accession
         where e.signal_date >= DATE '{start}'
     """
@@ -334,7 +337,7 @@ def no_sic_counts(con: duckdb.DuckDBPyConnection, start: str) -> list[tuple[int,
     """(year, group, events with a header, of which without SIC) from the labelled start."""
     return con.execute(
         f"""
-        select year(signal_date), "group", count(*), count(*) filter (where sic is null)
+        select year(signal_date), "group", count(*), count(*) filter (where no_sic)
         from ({_no_sic_events(start)}) group by all order by all
         """
     ).fetchall()
@@ -350,8 +353,7 @@ def make_no_sic_sheet(
     keys = [
         r[0]
         for r in con.execute(
-            f"select distinct issuer_cik from ({_no_sic_events(start)}) "
-            "where sic is null order by 1"
+            f"select distinct issuer_cik from ({_no_sic_events(start)}) where no_sic order by 1"
         ).fetchall()
     ]
     picked = _sample(random.Random(seed), keys, NO_SIC_SIZE)
@@ -359,7 +361,7 @@ def make_no_sic_sheet(
     try:
         rows = con.execute(
             f"""
-            with ev as (select * from ({_no_sic_events(start)}) where sic is null),
+            with ev as (select * from ({_no_sic_events(start)}) where no_sic),
             names as (
                 select issuer_cik,
                        list(issuer_name order by filing_date desc, accession desc)[1] as name

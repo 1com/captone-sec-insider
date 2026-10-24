@@ -98,10 +98,11 @@ def scope(cutoff, issuers: list[str] | None, alias: str = "f") -> tuple[str, dic
     return " and ".join(clauses), args
 
 
-def exact_sum(expr: str) -> str:
+def exact_sum(expr: str, scale: int = 8) -> str:
     """SQL for a sum that does not depend on row order. Floating-point addition does, so each
-    term is rounded to 1e-8 and added as DECIMAL; a rebuild then gives identical values."""
-    return f"cast(sum(cast({expr} as DECIMAL(38, 8))) as DOUBLE)"
+    term is rounded to 10^-scale and added as DECIMAL; a rebuild then gives identical values.
+    The default suits dollars and shares; returns and spreads need `scale=18`."""
+    return f"cast(sum(cast({expr} as DECIMAL(38, {scale}))) as DOUBLE)"
 
 
 def row_count(con: duckdb.DuckDBPyConnection, name: str) -> int:

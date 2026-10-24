@@ -141,6 +141,28 @@ def test_fetch_stores_read_only_files_and_records_failures(events, params, tmp_d
 
 
 @respx.mock
+def test_fetch_failures_survive_a_rebuild_from_raw_files(events, params, tmp_data, net):
+    """An offline rebuild has only data/raw: the failures are kept in failures.csv beside the
+    headers, and a later success removes them."""
+    respx.get(url("2969", ACC)).mock(return_value=httpx.Response(200, text=FIXTURE))
+    missing = respx.get(url("200", "ev-2012")).mock(return_value=httpx.Response(404))
+    respx.get(url("200", "ev-2012", SGML_URL)).mock(return_value=httpx.Response(404))
+    fetch(tmp_data, params, net, sec_headers.signal_accessions(events, params, tmp_data))
+    events.execute("drop table if exists core.header_failure")
+    sec_headers.load_headers(events, tmp_data)
+    assert events.execute("select accession, reason from core.header_failure").fetchall() == [
+        ("ev-2012", "HTTP 404")
+    ]
+
+    missing.mock(return_value=httpx.Response(200, text=FIXTURE.replace(ACC, "ev-2012")))
+    retry = sec_headers.signal_accessions(events, params, tmp_data, include_failed=True)
+    fetch(tmp_data, params, net, retry)
+    assert sec_headers.read_failures(tmp_data) == {}
+    sec_headers.load_headers(events, tmp_data)
+    assert events.execute("select count(*) from core.header_failure").fetchone()[0] == 0
+
+
+@respx.mock
 def test_a_missing_index_page_falls_back_to_the_sgml_header(events, params, tmp_data, net):
     respx.get(url("2969", ACC)).mock(return_value=httpx.Response(404))
     sgml = respx.get(url("2969", ACC, SGML_URL)).mock(return_value=httpx.Response(200, text=SGML))
@@ -216,15 +238,19 @@ def test_load_headers_builds_the_table_and_lists_parse_failures(events, params, 
     assert events.execute("select count(*) from core.header_failure").fetchone()[0] == 0
 
 
+@pytest.mark.parametrize(
+    "uncoded", [without_sic, lambda text: text.replace("2810", "0000")], ids=["none", "0000"]
+)
 @respx.mock
-def test_d45_report_and_sheet_list_companies_without_sic(events, params, tmp_data, net):
+def test_d45_report_and_sheet_list_companies_without_sic(events, params, tmp_data, net, uncoded):
+    """A header without SIC, or with EDGAR's "0000" (no code assigned, D51), counts as no SIC."""
     import csv
 
     from sentinel.core import audit
 
     respx.get(url("2969", ACC)).mock(return_value=httpx.Response(200, text=FIXTURE))
     respx.get(url("200", "ev-2012")).mock(
-        return_value=httpx.Response(200, text=without_sic(FIXTURE).replace(ACC, "ev-2012"))
+        return_value=httpx.Response(200, text=uncoded(FIXTURE).replace(ACC, "ev-2012"))
     )
     fetch(tmp_data, params, net, sec_headers.signal_accessions(events, params, tmp_data))
     sec_headers.load_headers(events, tmp_data)
