@@ -56,7 +56,7 @@ Each candidate's first applicable outcome: cooldown → G7 → priced → floors
 
 | Group | cooldown | event | floor_activity | floor_liquidity | floor_price | g7_issuer_type | g7_no_sic | needs_header | unpriced |
 |---|---|---|---|---|---|---|---|---|---|
-| A | 7,349 | 4,738 | 278 | 211 | 662 | 61 | 1,620 | 2 | 3,533 |
+| A | 7,350 | 4,738 | 278 | 211 | 662 | 61 | 1,620 | 1 | 3,533 |
 | B1 | 2,438 | 2,469 | 33 | 133 | 442 | 57 | 365 | 0 | 1,366 |
 | B2 | 5,160 | 6,977 | 103 | 313 | 583 | 28 | 1,302 | 0 | 3,490 |
 
@@ -82,9 +82,12 @@ Kept and counted; their results are bounded at −100% and zero net abnormal ret
 | 2025 | 24 | 11 | 36 |
 | 2026 | 7 | 6 | 14 |
 
-## Delistings
+## Delistings (FR-017 – FR-019)
 
-Not built yet (`sentinel delistings`).
+| Class | Venue | Issuers | Delisting return |
+|---|---|---|---|
+| acquired | nasdaq | 1 | 0% |
+| acquired | nyse | 1 | 0% |
 
 ## Company financials (FR-021, FR-022)
 

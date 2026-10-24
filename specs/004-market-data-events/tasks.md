@@ -378,7 +378,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
   - compare with this pipeline's value at the latest session;
   - write `audits/market_caps.csv` per the contract, rounded to $1 million, with no prices.
 - [X] T053 [US4] Add W22 to `src/sentinel/warehouse.py`. `coverage.md` gains XBRL coverage per item: the share of events from 2012 with a value first filed on or before T, by year.
-- [ ] T054 [US4] **Real run**:
+- [X] T054 [US4] **Real run**:
   - `cap uv run sentinel company-facts`, then `cap uv run sentinel detect`;
   - `uv run sentinel audit market-caps`, with a target of 10 of 10 within 5%, or each miss explained (SC-005);
   - `sentinel coverage`.

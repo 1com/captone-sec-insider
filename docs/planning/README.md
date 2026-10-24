@@ -1,6 +1,6 @@
 # EDGAR-SENTINEL: capstone plan (course format)
 
-Status: Friday 23 October 2026, day 2 of 28. Hand-in: Wednesday 18 November 2026.
+Status: Saturday 24 October 2026, day 3 of 28. Hand-in: Wednesday 18 November 2026.
 
 This folder applies the course's six planning steps (neue fische / SPICED AI PM bootcamp, repository `1com/aipm-product-discovery-planning`, used only as a template) to this project. It adds a seventh file that responds to the synthetic user research of 23 October. **It does not change the project's scope.** Everything here is drawn from the specification, and where the user research justifies a change, the change is listed separately and marked for approval.
 
@@ -29,8 +29,19 @@ This folder applies the course's six planning steps (neue fische / SPICED AI PM 
 | — | MVP prototype (feature 003): pilot 2006–2011, survivors only, public demo | ✅ 22 Oct |
 | 2–5 | Staging (37.9 M rows), entities, gates (161,059 clean purchases at the $25k minimum, D46), preliminary events (39,498) and the comparison with feature 001 (feature 002) | ✅ 23 Oct, pushed |
 | 3–4 audits | Three 50-row audit sheets | Waiting for the researcher |
-| 6 | Symbol map (98.1% of event companies mapped) and filing headers (download waits for EDGAR maintenance) | In progress |
-| 7–21 | Prices to report | Not started |
+| 6 | Symbol map (98.1% of event companies mapped); filing headers for 27,288 of 27,290 signal filings (SGML fallback for 2012–2014) | ✅ 24 Oct |
+| D45 | 30-company no-SIC sheet (`specs/002-insider-warehouse/audits/d45_no_sic.csv`) | Waiting for the researcher (due 29 Oct) |
+| 7 | Yahoo prices (11.3 M rows, 3,649 companies), reference data, final events (A 4,926 · B1 2,542 · B2 7,171; 9,088 unpriced), G8 93.8%, coverage 97.5% of listed / 61.1% of all (feature 004) | ✅ 24 Oct for listed companies, merged; Tiingo prices from 29 Oct |
+| 8 | Delisting classes and returns | After Tiingo (29–30 Oct) |
+| 9–10 | XBRL facts (market cap for 92% of priced events; 8 of 10 within 5% of Yahoo, both misses explained) and costs (median round trip 0.73%) | ✅ 24 Oct for listed companies |
+| 11–21 | Labels, features, models, product, report | Not started (after `prereg-v1`) |
+
+## Decisions taken on 24 October
+
+| Decision | Detail |
+|---|---|
+| **G8 scope** | G8 checks only purchases traded from 1 January 2010, when prices start. Share-class and ADR mismatches are accepted and documented (mapping share classes would add at most 0.3 points); SC-002 is re-measured after Tiingo |
+| **Feature 004 merged early** | Merged into `main` before the Tiingo month; the Tiingo-month tasks continue on `main` |
 
 ## Decisions taken on 23 October
 

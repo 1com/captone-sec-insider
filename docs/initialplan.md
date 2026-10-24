@@ -624,24 +624,32 @@ Each layer is rebuilt deterministically from the one above by an idempotent comm
 
 | Table | One row per | Key columns |
 |---|---|---|
-| `core.issuer` | Company (CIK) | Name, current SIC, symbol history |
+| `core.issuer` | Company (CIK) | Name, current SIC, exchanges and tickers (today's values: reporting and the D45 fallback only) |
 | `core.filing` | Filing (accession), first quarter that lists it | Issuer, filing date, form type, reported ticker |
 | `core.filing_header` | Event signal filing | Accession, SIC at filing and its label, acceptance time (ET) |
 | `core.entity_member` | Issuer × reporting owner × valid-from date | Entity id |
 | `core.owner_role` | Issuer × reporting owner × valid-from date | Role, seniority, relationship flags, title |
 | `core.transaction` | Form 4 transaction line (all codes) | Accession, issuer, entity, trade date, filing date, code, shares, price, holdings after, gate flags |
 | `core.clean_purchase` | Entity × filing | Value, shares, holdings change, role |
-| `core.price_daily` | Symbol × session | Unadjusted and adjusted OHLC, volume, split factor, source |
+| `core.price_series` | Issuer × price source × ticker | Role, first and last session, identity check, chosen, reason |
+| `core.price_daily` | Issuer × session (the chosen series) | As-traded OHLC and volume, adjusted close, split factor after the session, source, ticker |
+| `core.session` | Trading session (SPY's calendar from 2010) | Session number |
 | `core.symbol_map` | Issuer × symbol × date range | Price source, match quality |
 | `core.symbol_unmatched` | Issuer without a usable ticker | Reason (`no_ticker`, `fund_like`) |
+| `core.company_filing` | Issuer × non-insider filing | Form, filing date, report date, 8-K items (delisting evidence, F15) |
 | `core.delisting` | Delisted issuer | Last session, class, venue, delisting return |
 | `core.xbrl_fact` | Issuer × concept × period end (first-filed value only) | Concept (shares outstanding, equity, assets, liabilities, cash, net income), value, period end, filed date |
+| `core.ff_factor_daily`, `core.ff_industry_daily`, `core.sic_industry`, `core.me_breakpoint`, `core.tick_pilot` | Date × factor; date × industry × weighting; SIC range; month × percentile; ticker × pilot interval | French library and FINRA reference data |
+| `core.price_check` / `core.priced_purchase` | Purchase line checked by G8 / entity × filing after G8 | Reference session, range, pass and reason / as `core.clean_purchase`, plus G8 status |
 | `evt.prelim_event` / `evt.prelim_event_member` | Preliminary event (Step 5) / its purchases | Group, issuer, T, signal filing, entities, value; entity and role as of T |
-| `evt.event` | Event | Group, issuer, T, entry session, window statistics, floor results |
+| `evt.event_candidate` | Candidate (issuer, group, T) | Outcome (event, unpriced, cooldown, G7, floors), floor inputs |
+| `evt.event` / `evt.event_member` | Kept event (priced or unpriced) / its purchases | Group, issuer, T, acceptance time, entry session, G7 SIC and source, floor values, market cap at T |
+| `evt.event_cost` | Priced event | Spreads (Abdi–Ranaldo, Corwin–Schultz), tick floor, volatility, ADDV20, impact, round-trip cost |
 | `feat.event_features` | Event | F1–F29, feature version |
 | `lab.event_label` / `hold.event_label` | Event × horizon × measure | Gross abnormal return, cost, net abnormal return, delisting class |
 | `ml.prediction` | Event × run | Split (out-of-fold / holdout / live), probability |
 | `audit.funnel` | Quarter × gate | Rows in, rows out |
+| `audit.event_funnel`, `audit.price_coverage`, `audit.g8_rate`, `audit.price_issue` | Year × group × outcome; year × group × delisting status; year; provider row | Final-event outcomes, price coverage (SC-001), G8 pass rate (SC-002), price problems |
 
 ### 8.3 Tech stack
 

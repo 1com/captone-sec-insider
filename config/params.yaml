@@ -312,7 +312,9 @@ ops:
     - Siccodes12.zip
     - ME_Breakpoints_CSV.zip
   finra_tick_pilot_url: "https://tsp.finra.org/finra_org/ticksizepilot/TSPilotChanges.txt"
-  market_cap_examples: []
+  # SC-005: single-class, Yahoo-priced event companies with shares filed since 2026-04-01, two
+  # per market-cap quintile, drawn with seed 20261024 (feature 004 run notes, T054)
+  market_cap_examples: [JELD, NSPR, LYTS, RMBI, INVA, PRCH, PENG, CVCO, VTR, PFE]
 
 rules:
   # Production gates (plan §6.2), applied case-insensitively. Initial values = provisional.*
