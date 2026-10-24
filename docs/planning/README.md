@@ -40,7 +40,7 @@ This folder applies the course's six planning steps (neue fische / SPICED AI PM 
 
 | Decision | Detail |
 |---|---|
-| **G8 scope** | G8 checks only purchases traded from 1 January 2010, when prices start. Share-class and ADR mismatches are accepted and documented (mapping share classes would add at most 0.3 points); SC-002 is re-measured after Tiingo |
+| **G8 scope** | G8 checks only purchases traded from 1 January 2010, when prices start. Share-class and ADR mismatches are accepted and documented (mapping share classes would add at most 0.3 points); SC-002 is re-measured after Tiingo. Logged as D52 in plan §12, for approval with the other entries (L.2) |
 | **Feature 004 merged early** | Merged into `main` before the Tiingo month; the Tiingo-month tasks continue on `main` |
 
 ## Decisions taken on 23 October

@@ -87,7 +87,7 @@ From [01](01-outcome-goals.md):
 | # | Task | Component | Done when | Depends on | Who | Day |
 |---|---|---|---|---|---|---|
 | L.1 | Decision log: add the D45 check's result (D45 and D47 are logged); check Appendix E against `params.yaml`; prepare the tag | `docs/initialplan.md` §12, `sentinel check` | `check` passes | 1.13, 2.5 | C | Tue 3 Nov |
-| L.2 | Approve the decision entries (D45 with its check result, D46–D48) | — | Approved | L.1 | R | Tue 3 Nov |
+| L.2 | Approve the decision entries (D45 with its check result, D46–D52) | — | Approved | L.1 | R | Tue 3 Nov |
 | L.3 | Tag `prereg-v1`, push it, publish it as a GitHub Release (D48) | git, GitHub | Tag and release on GitHub | L.2 | R | Wed 4 Nov |
 
 ---

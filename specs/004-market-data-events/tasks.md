@@ -465,7 +465,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
 - [X] T065 [P] Add `tests/guards/test_no_tiingo_data.py`: no file under `tests/` holds the Tiingo CSV header unless it is marked `# synthetic`, and no file name under `tests/` contains `tiingo` except test modules.
 - [ ] T066 **Offline rebuild (SC-008, before the paid month ends)**: write `tests/integration/test_rebuild_identical.py` (`@slow`). It rebuilds into a scratch warehouse with the network unavailable and compares every feature-004 table, as sorted sets, with `data/warehouse.duckdb`. Run `time cap unshare -rn uv run sentinel build` (under 30 minutes) and log the result in the run notes.
 - [ ] T067 [P] Record the peak memory of every new step (cgroup `memory.peak` of each `systemd-run` unit) in the run notes; all must be under 5 GB (SC-009).
-- [ ] T068 [P] Update the docs:
+- [X] T068 [P] Update the docs:
   - `docs/initialplan.md`: the §8.2 data model rows for the new tables; Steps 7–10 status;
   - `README.md`: the new commands;
   - `docs/explore.md`: the new tables to browse;
