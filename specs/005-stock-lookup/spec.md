@@ -147,7 +147,7 @@ A technically minded user or the later screener asks the app for matching compan
 - **Derivative transactions** (options, warrants: Table II of Form 4) are not listed in this feature; option exercises still appear on the share side (code M). Listing Table II is a later addition.
 - **Roles** are those of the insider at the filing date, as already built for the study (point-in-time roles); entities (merged co-filers) are used only inside the events section.
 - **Data freshness** is that of the quarterly SEC data sets (currently through 30 September 2026); daily ingestion is a separate *Should* item.
-- **Local use only**: one user on this machine, no sign-in, no public deployment (licensing review comes before any launch, plan §8.6). Port 8765 is assumed free, as for the MVP.
+- **Local use only**: one user on this machine, no sign-in, no public deployment (licensing review comes before any launch, plan §8.6). The default port is 8766: 8000 belongs to another local app and the MVP uses 8765 (research R10).
 - **Performance targets** assume the warehouse on this machine's local disk and the memory limits already used for the project.
 - **No testing with real people** (researcher's decision, 23 Oct): the presentation rules are checked by automated tests.
 - **Dependency**: the warehouse tables built by features 002 and 004 (filings, transactions, roles, entities, preliminary events, footnotes, issuer profiles); the web stack named in the constitution (server-rendered pages, read-only).
