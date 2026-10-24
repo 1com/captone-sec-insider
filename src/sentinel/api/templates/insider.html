@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}{{ insider.name }} · {{ company.name }}{% endblock %}
+{% block content %}
+{% include "_company_header.html" %}
+<p><a href="/company/{{ company.issuer_cik }}">Back to the company page</a></p>
+{% include "_holdings.html" %}
+{% endblock %}

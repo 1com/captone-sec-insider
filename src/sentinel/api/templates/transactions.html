@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}{{ company.name }} · transactions page {{ page }}{% endblock %}
+{% block content %}
+{% include "_company_header.html" %}
+<p><a href="/company/{{ company.issuer_cik }}">Back to the company page</a></p>
+<h2>Insider transactions, page {{ page }}</h2>
+<div id="transactions">{% include "_transactions.html" %}</div>
+{% endblock %}

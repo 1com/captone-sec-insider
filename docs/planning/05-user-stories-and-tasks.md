@@ -166,7 +166,7 @@ From [01](01-outcome-goals.md):
 
 | # | Task | Component | Done when | Depends on | Who | Day |
 |---|---|---|---|---|---|---|
-| 8.1 | Stock lookup: API endpoints and page | `api/` | Endpoint tests pass | 1.11 | C | Wed 4 Nov |
+| 8.1 | Stock lookup: API endpoints and page | `api/` | Endpoint tests pass | 1.11 | C | ✅ 24 Oct (feature 005) |
 | 8.2 | Model card and glossary pages (P7) | `api/`, templates | Pages render with the holdout results; all terms covered | 6.3, 7.2 | C | Fri 13 Nov |
 | 8.3 | Screener and event page: bands, caveat, fact line, size, liquidity, freshness, filters, H4 rule (P1–P3, P5, P6, P8); drivers in words if not cut (P4) | `api/`, templates | Endpoint tests pass, plus one test per presentation rule | 7.3 | C | Mon 16 Nov |
 

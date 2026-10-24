@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Glossary{% endblock %}
+{% block content %}
+<h1>Glossary</h1>
+<p class="muted">The words and codes these pages use. The data is as of {{ fmt_date(meta.date) }} (SEC data set {{ dataset_label(meta.dataset) }}).</p>
+<p><a href="#terms">Terms</a> · <a href="#codes">Transaction codes</a> · <a href="#forms">Forms</a> · <a href="#roles">Roles</a> · <a href="#holdings">Holdings</a> · <a href="#events">Insider-buying events</a></p>
+
+<h2 id="terms">Terms</h2>
+<dl class="glossary">
+  {% for term, meaning in glossary.TERMS.items() %}<dt>{{ term }}</dt><dd>{{ meaning }}</dd>
+  {% endfor %}
+</dl>
+
+<h2 id="codes">Transaction codes</h2>
+<p class="muted">Every line of a Form 4 carries a one-letter code saying what kind of transaction it was.</p>
+<dl class="glossary">
+  {% for code, (short, long) in glossary.CODES.items() %}<dt id="code-{{ code }}"><b>{{ code }}</b> · {{ short }}</dt><dd>{{ long }}</dd>
+  {% endfor %}<dt id="code-blank">No letter · {{ glossary.BLANK_CODE }}</dt><dd>The filing left the code empty.</dd>
+</dl>
+<p class="muted">Each line also says whether shares were {% for key, word in glossary.ACQ_DISP.items() %}{{ word | lower }} ({{ key }}){% if not loop.last %} or {% endif %}{% endfor %}.</p>
+
+<h2 id="forms">Forms</h2>
+<dl class="glossary">
+  {% for form, (short, long) in glossary.FORMS.items() %}<dt id="form-{{ form }}">Form {{ form }} · {{ short }}</dt><dd>{{ long }}</dd>
+  {% endfor %}
+</dl>
+
+<h2 id="roles">Roles</h2>
+<p class="muted">An insider’s role is the one on the filing, at its filing date.</p>
+<dl class="glossary">
+  {% for role, (short, long) in glossary.ROLES.items() %}<dt id="role-{{ role }}">{{ short }}</dt><dd>{{ long }}</dd>
+  {% endfor %}
+</dl>
+
+<h2 id="holdings">Holdings</h2>
+<dl class="glossary">
+  {% for key, (short, long) in glossary.HOLDINGS.items() %}<dt id="holding-{{ key }}">{{ short }}</dt><dd>{{ long }}</dd>
+  {% endfor %}
+</dl>
+
+<h2 id="events">Insider-buying events</h2>
+<p>{{ glossary.EVENT_RULES }}</p>
+<dl class="glossary">
+  {% for kind, (short, long) in glossary.EVENT_KINDS.items() %}<dt id="event-{{ kind }}">{{ short }}</dt><dd>{{ long }}</dd>
+  {% endfor %}
+</dl>
+{% endblock %}

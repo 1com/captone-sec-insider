@@ -157,3 +157,4 @@ def test_paths_for_market_data(tmp_path):
     assert paths.finra == tmp_path / "data" / "raw" / "finra"
     assert paths.sec_company == tmp_path / "data" / "raw" / "sec" / "company"
     assert paths.audits_004 == tmp_path / "specs" / "004-market-data-events" / "audits"
+    assert paths.lookup == tmp_path / "data" / "lookup.duckdb"

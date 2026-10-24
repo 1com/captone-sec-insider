@@ -1,0 +1,7 @@
+{% if notes %}
+<dl class="footnotes">
+  {% for id, text in notes %}<dt>{{ id }}</dt><dd>{{ text }}</dd>{% endfor %}
+</dl>
+{% else %}
+<p class="muted">No footnote text in the SEC data for this line.</p>
+{% endif %}

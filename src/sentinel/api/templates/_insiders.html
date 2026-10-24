@@ -1,0 +1,25 @@
+<h2 id="insiders">Insiders</h2>
+{% if not insiders %}
+<p>No insiders have filed for this company in the SEC data.</p>
+{% else %}
+<p class="muted">Everyone who filed a Form 3, 4 or 5 for this company, newest filer first, with their role on their latest filing. Open a name to see the shares they held after each filing.</p>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Insider</th><th>Latest role</th><th class="num">Filings</th><th>First filing</th><th>Latest filing</th></tr></thead>
+  <tbody>
+  {% for i in insiders %}
+    <tr>
+      <td><a href="/company/{{ company.issuer_cik }}/insider/{{ i.owner_cik }}"
+             hx-get="/company/{{ company.issuer_cik }}/insider/{{ i.owner_cik }}" hx-target="#holdings"
+             hx-push-url="true">{{ i.name or "Name not reported" }}</a></td>
+      <td>{{ label(glossary.ROLES, i.role, "Other insider") }}{% if i.title %} ({{ i.title }}){% endif %}</td>
+      <td class="num">{{ fmt_number(i.n_filings) }}</td>
+      <td class="nowrap">{{ fmt_date(i.first_filing) }}</td>
+      <td class="nowrap">{{ fmt_date(i.last_filing) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+<div id="holdings" aria-live="polite"></div>

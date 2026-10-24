@@ -1,0 +1,25 @@
+<h2 id="events">Insider-buying events</h2>
+<p class="muted">Times when insiders bought this company’s shares with their own money, by the definitions in the <a href="/glossary#events">glossary</a>. {{ glossary.EVENT_RULES }}
+  The research applies further checks (prices, company type) before an event enters the study.</p>
+{% if not events %}
+<p>No insider-buying events in the filings for this company.</p>
+{% else %}
+<div class="cards">
+  {% for e in events %}
+  <article class="card event" data-event="{{ e.event_id }}">
+    <div class="kind">{{ label(glossary.EVENT_KINDS, e.group) }}</div>
+    <p class="muted">{{ glossary.EVENT_KINDS.get(e.group, ("", ""))[1] }}</p>
+    <p>Signal date {{ fmt_date(e.signal_date) }}<br>
+      {{ e.n_entities }} buyer{{ "" if e.n_entities == 1 else "s" }} · {{ fmt_money(e.total_value_usd) }} bought<br>
+      Most senior buyer: {{ label(glossary.ROLES, e.top_role, "Other insider") }}</p>
+    <ul class="members">
+      {% for m in e.members %}
+      <li>{{ fmt_date(m.filing_date) }} · {{ m.owner_names | join(" and ") or "Name not reported" }}
+        ({{ label(glossary.ROLES, m.role, "Other insider") }}) · {{ fmt_money(m.value_usd) }}
+        · <a href="{{ edgar_url(company.issuer_cik, m.accession) }}" target="_blank" rel="noopener">EDGAR</a></li>
+      {% endfor %}
+    </ul>
+  </article>
+  {% endfor %}
+</div>
+{% endif %}
