@@ -165,7 +165,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
 - [X] T020 [US1] `tests/integration/test_prices_real.py` (`@slow`):
   - a real Yahoo ticker with a reverse split in `stg.price_yahoo` satisfies the as-traded relation and equal dollar volume;
   - SPY's 2024 sessions number 252 and exclude 2024-03-29 and 2024-07-04.
-- [ ] T021 [US1] **Real run, free part**:
+- [X] T021 [US1] **Real run, free part**:
   - run `uv run sentinel fetch-prices --source yahoo --limit 20`, then the full pull, then `cap uv run sentinel prices`;
   - run T020;
   - record in `specs/004-market-data-events/run-notes.md` the tickers stored and failed, rows, chosen series, `audit.price_issue` counts, time and peak memory.
@@ -257,7 +257,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
 - [X] T033 [US2] Implement `make_golden_sheet` and `summarize_golden` in `src/sentinel/core/audit.py`, and add `sentinel audit golden [--force]` and `audit golden-summary`, writing to `Paths.audits_004`.
 - [X] T034 [US2] In `src/sentinel/warehouse.py`, add W16–W21 to `check_invariants`, and add `evt.event`, `evt.event_candidate` and `core.price_check` to `PRIMARY_KEYS`.
 - [X] T035 [US2] `tests/integration/test_truncation_events_real.py` (`@slow`, W25): 20 random (issuer, T) pairs with seed 20261023. For each pair, a scratch DuckDB (`memory_limit = warehouse.MEMORY_LIMIT`, `threads = 4`, each result fetched immediately) runs `detect(cutoff=T, issuers=[issuer])` and compares with the full warehouse.
-- [ ] T036 [US2] **Real run, free part**:
+- [X] T036 [US2] **Real run, free part**:
   - `uv run sentinel fetch-headers --final`, then `cap uv run sentinel detect`;
   - `uv run sentinel coverage`;
   - `cap uv run pytest -m slow tests/integration/test_truncation_events_real.py`.
@@ -424,7 +424,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
   
   Add `costs` (`_step_costs`) to `src/sentinel/cli.py`.
 - [X] T059 [US5] Add W24 and the `evt.event_cost` key to `src/sentinel/warehouse.py`.
-- [ ] T060 [US5] **Real run**: `uv run sentinel fetch-reference`, `sentinel reference`, then `cap uv run sentinel costs`. Record the bucket table, any flagged jump and the Corwin–Schultz agreement in the run notes.
+- [X] T060 [US5] **Real run**: `uv run sentinel fetch-reference`, `sentinel reference`, then `cap uv run sentinel costs`. Record the bucket table, any flagged jump and the Corwin–Schultz agreement in the run notes.
 
 **Checkpoint**: every priced event has a cost estimate.
 
@@ -450,7 +450,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
 ### Implementation
 
 - [X] T062 [US6] Implement `src/sentinel/ingest/french.py` (fetch `ops.french_files` from `ops.french_base_url` into `data/raw/french/`, with manifest lines, and parse them). Extend `src/sentinel/core/reference.py` to build `core.ff_factor_daily`, `core.ff_industry_daily`, `core.sic_industry` and `core.me_breakpoint`. `fetch-reference` and `reference` now cover French and FINRA. `reference` prints the last date and the header SICs that map to no 49-industry portfolio.
-- [ ] T063 [US6] **Real run**: `uv run sentinel fetch-reference`, then `sentinel reference`. Record the last date (expected 2026-08-31) and the unmapped SIC list in the run notes.
+- [X] T063 [US6] **Real run**: `uv run sentinel fetch-reference`, then `sentinel reference`. Record the last date (expected 2026-08-31) and the unmapped SIC list in the run notes.
 
 **Checkpoint**: all six stories are complete.
 
@@ -462,7 +462,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
   - after feature 002's steps, run `prices` → `reference` → `company-facts` → `detect` → `delistings` → `costs` → `invariants`;
   - skip, with a note, any step whose raw inputs are absent;
   - never fetch: missing headers are an error.
-- [ ] T065 [P] Add `tests/guards/test_no_tiingo_data.py`: no file under `tests/` holds the Tiingo CSV header unless it is marked `# synthetic`, and no file name under `tests/` contains `tiingo` except test modules.
+- [X] T065 [P] Add `tests/guards/test_no_tiingo_data.py`: no file under `tests/` holds the Tiingo CSV header unless it is marked `# synthetic`, and no file name under `tests/` contains `tiingo` except test modules.
 - [ ] T066 **Offline rebuild (SC-008, before the paid month ends)**: write `tests/integration/test_rebuild_identical.py` (`@slow`). It rebuilds into a scratch warehouse with the network unavailable and compares every feature-004 table, as sorted sets, with `data/warehouse.duckdb`. Run `time cap unshare -rn uv run sentinel build` (under 30 minutes) and log the result in the run notes.
 - [ ] T067 [P] Record the peak memory of every new step (cgroup `memory.peak` of each `systemd-run` unit) in the run notes; all must be under 5 GB (SC-009).
 - [ ] T068 [P] Update the docs:

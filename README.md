@@ -37,8 +37,20 @@ uv run sentinel check
 | `sentinel compare-provisional` | QA | Compares the events with feature 001's; writes `specs/002-insider-warehouse/comparison.md` |
 | `sentinel symbols [--tiingo-report]` | 6 | Maps every company to price tickers from SEC data; optionally counts matches in Tiingo's public list, in memory |
 | `sentinel fetch-headers` | 6 | Downloads each signal filing's EDGAR header (industry code, acceptance time). Resumable; a few hours |
-| `sentinel build` | 2–6 | Rebuilds the whole warehouse from `data/raw/` and checks its invariants (about 6 min) |
+| `sentinel fetch-prices --source yahoo\|tiingo` | 7 | Daily prices: Yahoo for listed companies, SPY and IWM (from 2010); Tiingo for delisted ones, **only during the paid month** (exit 6 otherwise). Raw files under `data/raw/yahoo/` and `data/raw/tiingo/` |
+| `sentinel fetch-reference` | 7 | Kenneth French factors, industries, SIC definitions and size breakpoints; FINRA's tick-size pilot file |
+| `sentinel fetch-company` | 8–9 | The SEC's bulk `companyfacts.zip` and `submissions.zip` (about 3 GB, two requests) |
+| `sentinel prices` | 7 | One as-traded price series per company, and the market calendar |
+| `sentinel reference` | 7 | Loads the French and FINRA files |
+| `sentinel company-facts` | 8–9 | Company profiles, filing histories and first-filed XBRL facts |
+| `sentinel detect [--fetch-missing-headers]` | 7 | Final events: price check G8, issuer-type rule G7, the $2 / liquidity / activity floors, 63-session cooldown, market cap at T |
+| `sentinel delistings` | 8 | Classifies early-ending price series (acquired / performance / unknown) and assigns delisting returns |
+| `sentinel costs` | 10 | Spread and round-trip cost per event; writes `specs/004-market-data-events/costs.md` |
+| `sentinel coverage` | QA | Writes `specs/004-market-data-events/coverage.md` (price coverage, G8 rate, outcomes) |
+| `sentinel tiingo-status`, `sentinel tiingo-delete [--yes]` | 7 | The Tiingo deletion register; deletion when the paid month ends |
+| `sentinel build` | 2–10 | Rebuilds the whole warehouse from `data/raw/` (no network) and checks its invariants |
 | `sentinel audit sheets\|summary\|no-sic` | QA | Hand-audit sheets and their scores; `no-sic` is the D45 check |
+| `sentinel audit golden\|delistings\|market-caps` (+ `-summary`) | QA | Feature 004 audits: 30 events against EDGAR, 30 delisting classes, 10 market caps |
 | `sentinel explore` | — | Opens the warehouse read-only in the DuckDB UI at http://localhost:4213 ([docs/explore.md](docs/explore.md)) |
 
 `uv run sentinel --help` lists every pipeline step. Steps not built yet exit with code 4.
@@ -62,6 +74,7 @@ Everything under `data/` is git-ignored and can be regenerated:
 - `data/raw/`: downloads exactly as received, read-only, recorded in `manifest.jsonl`.
 - `data/provisional/`: the provisional candidate list and its summary against the pilot.
 - `data/mvp/`: the MVP's own downloads (Yahoo prices, SEC company records), work tables and the built dashboard.
+- `data/raw/tiingo/`: delisted-stock prices, stored **only while the paid Tiingo plan is active** and deleted when it ends (`sentinel tiingo-delete`; constitution VI).
 - `data/warehouse.duckdb`: the analysis database (schemas `stg`, `core`, `evt`, `audit`), rebuilt from `data/raw/` by `sentinel build`. Browse it with `sentinel explore` or DBeaver (read-only); see [docs/explore.md](docs/explore.md).
 
 ## Development
