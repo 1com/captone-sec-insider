@@ -28,6 +28,7 @@ COMMANDS = [
     "prereg-status",
     "labels",
     "features",
+    "lookup",
     "serve",
     "event-study",
     "ml-dataset",

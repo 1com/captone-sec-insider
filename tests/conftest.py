@@ -676,3 +676,92 @@ def market_events(archives, pipeline):
 def flat(sessions, close=10.0, volume=50_000, **extra) -> list[dict]:
     """A flat price path over `sessions` (dollar volume close × volume each day)."""
     return [{"session": d, "close": close, "volume": volume, **extra} for d in sessions]
+
+
+# --- Feature 005: stock lookup -------------------------------------------------------------------
+
+
+def lookup_filings() -> dict[str, dict[str, list[dict]]]:
+    """A PayPal-like company (CIK 100, ticker ABC, earlier ABCD) with every lookup case: a
+    director's $100k purchase with a price footnote (a B2 event on 11 Mar), a second director
+    buying through five trusts with an untraded direct holding (a cluster on 15 Mar), a sale, an
+    award, an option exercise, a 4/A amendment, a joint fund filing, and an officer promoted to CEO
+    (COO in 2018 and on 20 Mar, CEO on 25 Mar). CIK 200 has a Form 3 and no transactions; CIK 300's
+    name contains CIK 100's."""
+    trusts = [("21", "495"), ("22", "605"), ("23", "150"), ("24", "72"), ("25", "225")]
+    return {
+        "2018q4": {
+            "SUBMISSION": [sub("f8", date="10-DEC-2018", symbol="ABCD")],
+            "REPORTINGOWNER": [owner("f8", ocik="9003", rel="Officer",
+                                     title="Chief Operating Officer", name="LEE ANN")],
+            "NONDERIV_TRANS": [line("f8", "81", code="A", tdate="07-DEC-2018", shares="1000",
+                                    price="0", after="9000")],
+        },
+        "2019q1": {
+            "SUBMISSION": [
+                sub("f1", date="11-MAR-2019"), sub("f2", date="15-MAR-2019"),
+                sub("f3", date="20-MAR-2019"), sub("f4", date="20-MAR-2019"),
+                sub("f6", date="22-MAR-2019", doc="4/A"), sub("f7", date="22-MAR-2019"),
+                sub("f9", date="25-MAR-2019"),
+                sub("g1", date="12-MAR-2019", doc="3", cik="200", symbol="EMPT", name="Empty Co"),
+                sub("h1", date="13-MAR-2019", cik="300", symbol="ABCH", name="Abc Corp Holdings"),
+            ],
+            "REPORTINGOWNER": [
+                owner("f1", ocik="9001", name="SMITH JOHN"),
+                owner("f2", ocik="9002", name="JONES MARY"),
+                owner("f3", ocik="9003", rel="Officer", title="Chief Operating Officer",
+                      name="LEE ANN"),
+                owner("f4", ocik="9004", rel="Officer", title="VP Finance", name="KIM DAN"),
+                owner("f6", ocik="9001", name="SMITH JOHN"),
+                owner("f7", ocik="9005", rel="TenPercentOwner", name="FUND LP"),
+                owner("f7", ocik="9006", rel="TenPercentOwner", name="FUND GP LLC"),
+                owner("f9", ocik="9003", rel="Officer", title="Chief Executive Officer",
+                      name="LEE ANN"),
+                owner("g1", ocik="9100", name="NEW DIRECTOR"),
+                owner("h1", ocik="9200", name="OTHER PERSON"),
+            ],
+            "NONDERIV_TRANS": [
+                line("f1", "11", tdate="08-MAR-2019", shares="2000", price="50", after="11000",
+                     TRANS_PRICEPERSHARE_FN="F1"),
+                *[line("f2", sk, tdate="15-MAR-2019", shares=n, price="20", after=n, di="I",
+                       nature=f"Trust {i}") for i, (sk, n) in enumerate(trusts, start=1)],
+                line("f3", "31", code="S", ad="D", tdate="18-MAR-2019", shares="500", price="55",
+                     after="8500"),
+                line("f4", "41", code="M", tdate="19-MAR-2019", shares="1000", price="10",
+                     after="1000"),
+                line("f6", "61", tdate="08-MAR-2019", shares="2000", price="50", after="11000"),
+                line("f7", "71", shares="100", price="30", after="50000", di="I", nature="By Fund"),
+                line("f9", "91", code="A", tdate="25-MAR-2019", shares="2000", price="0",
+                     after="10500"),
+                line("h1", "101", code="S", ad="D", shares="100", price="12", after="900"),
+            ],
+            "NONDERIV_HOLDING": [holding("f2", "h21", shares="44890", di="D", nature="")],
+            "FOOTNOTES": [note("f1", "F1", "Weighted average price; bought at $49.80 to $50.20.")],
+        },
+    }  # fmt: skip
+
+
+@pytest.fixture
+def lookup_paths(archives, pipeline, tmp_data, params) -> Paths:
+    """`data/lookup.duckdb` built from `lookup_filings()`; returns the paths."""
+    from sentinel.api import lookup
+
+    archives(lookup_filings())
+    con = pipeline(until="prelim")
+    con.execute(
+        "insert into core.build_log values ('prelim', TIMESTAMP '2026-10-24 10:00:00', "
+        "TIMESTAMP '2026-10-24 10:01:00', 'test', 1)"
+    )
+    con.close()  # the build attaches the warehouse read-only
+    lookup.build(tmp_data, params)
+    return tmp_data
+
+
+@pytest.fixture
+def lookup_client(lookup_paths):
+    from fastapi.testclient import TestClient
+
+    from sentinel.api.app import create_app
+
+    with TestClient(create_app(lookup_paths)) as client:
+        yield client

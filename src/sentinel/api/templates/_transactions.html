@@ -1,0 +1,56 @@
+{% set pages = ((total + page_size - 1) // page_size) %}
+{% macro pager() %}
+<nav class="pager" aria-label="Transaction pages">
+  <span>{{ fmt_number(total) }} transaction{{ "" if total == 1 else "s" }} · page {{ page }} of {{ pages }}</span>
+  {% if page > 1 %}<a href="/company/{{ company.issuer_cik }}/transactions?page={{ page - 1 }}"
+     hx-get="/company/{{ company.issuer_cik }}/transactions?page={{ page - 1 }}" hx-target="#transactions"
+     hx-push-url="true">Newer</a>{% endif %}
+  {% if page < pages %}<a href="/company/{{ company.issuer_cik }}/transactions?page={{ page + 1 }}"
+     hx-get="/company/{{ company.issuer_cik }}/transactions?page={{ page + 1 }}" hx-target="#transactions"
+     hx-push-url="true">Older</a>{% endif %}
+</nav>
+{% endmacro %}
+{% if total == 0 %}
+<p>No insider transactions are reported for this company in the SEC data.</p>
+{% elif not rows %}
+<p>No more transactions: this company has {{ fmt_number(total) }}, so the last page is {{ pages }}.
+  <a href="/company/{{ company.issuer_cik }}/transactions?page=1">Go to page 1</a></p>
+{% else %}
+<p class="note">Prices and values are as reported by the filer and can contain errors.</p>
+{{ pager() }}
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Filed</th><th>Traded</th><th>Insider</th><th>Form</th><th>Code</th><th>Security</th>
+      <th class="num">Shares</th><th class="num">Price</th><th class="num">Value</th>
+      <th class="num">Held afterwards</th><th>Holding</th><th>Notes</th><th>Filing</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr data-accession="{{ r.accession }}" data-line="{{ r.line_sk }}">
+      <td class="nowrap">{{ fmt_date(r.filing_date) }}</td>
+      <td class="nowrap">{{ fmt_date(r.trade_date) }}</td>
+      <td>{% for o in r.owners %}<div>{% if o.cik %}<a href="/company/{{ company.issuer_cik }}/insider/{{ o.cik }}">{{ o.name or "Name not reported" }}</a>{% else %}{{ o.name }}{% endif %}
+        <span class="muted">· {{ label(glossary.ROLES, o.role, "Other insider") }}{% if o.title %} ({{ o.title }}){% endif %}</span></div>{% else %}<span class="muted">Not reported</span>{% endfor %}</td>
+      <td><a href="/glossary#{{ 'form-' ~ r.form if r.form in glossary.FORMS else 'forms' }}">{{ r.form }}</a><span class="muted"> · {{ r.form_description }}</span></td>
+      <td class="code"><a href="/glossary#{{ ('code-' ~ r.code) if r.code in glossary.CODES else ('code-blank' if not r.code else 'codes') }}"><b>{{ r.code }}</b></a><span class="desc">{{ r.code_description }}</span></td>
+      <td>{{ r.security_title or "Not reported" }}<span class="muted"> · {{ label(glossary.ACQ_DISP, r.acquired_disposed) }}</span></td>
+      <td class="num">{{ fmt_number(r.shares) }}</td>
+      <td class="num">{{ fmt_money(r.price) }}</td>
+      <td class="num">{{ fmt_money(r.value_usd) }}</td>
+      <td class="num">{{ fmt_number(r.shares_after) }}</td>
+      <td>{{ holding_label(r.holding) }}{% if r.holder %}<span class="muted"> · {{ r.holder }}</span>{% endif %}</td>
+      <td>{% if r.footnote_ids %}{% set fid = "fn-" ~ r.accession ~ "-" ~ r.line_sk %}
+        <a href="/filing/{{ r.accession }}/footnotes?ids={{ r.footnote_ids|join(',') }}"
+           hx-get="/filing/{{ r.accession }}/footnotes?ids={{ r.footnote_ids|join(',') }}"
+           hx-target="#{{ fid }}">{{ r.footnote_ids|join(", ") }}</a><div id="{{ fid }}"></div>{% endif %}</td>
+      <td><a href="{{ r.edgar_url }}" target="_blank" rel="noopener">EDGAR</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ pager() }}
+{% endif %}

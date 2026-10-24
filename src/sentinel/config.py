@@ -42,6 +42,7 @@ class Paths:
     lock: Path
     provisional: Path
     warehouse: Path
+    lookup: Path
     sec_headers: Path
     audits: Path
     yahoo: Path
@@ -67,6 +68,7 @@ class Paths:
             lock=raw / ".lock",
             provisional=root / "data" / "provisional",
             warehouse=root / "data" / "warehouse.duckdb",
+            lookup=root / "data" / "lookup.duckdb",
             sec_headers=raw / "sec" / "headers",
             audits=root / "specs" / "002-insider-warehouse" / "audits",
             yahoo=raw / "yahoo",

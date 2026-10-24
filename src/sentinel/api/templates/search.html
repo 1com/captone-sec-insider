@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Search{% endblock %}
+{% block content %}
+<h1>Look up a company’s insiders</h1>
+<p class="muted">Search by ticker (current or past), company name or SEC CIK number.</p>
+<form class="search" action="/search" method="get" role="search">
+  <input type="search" name="q" value="{{ q }}" placeholder="e.g. PYPL, paypal or 1633917"
+         aria-label="Ticker, company name or CIK" autocomplete="off"
+         hx-get="/search" hx-trigger="input changed delay:300ms, search" hx-target="#results">
+  <button type="submit">Search</button>
+</form>
+<div id="results" aria-live="polite">{% if results is defined %}{% include "_results.html" %}{% endif %}</div>
+{% endblock %}

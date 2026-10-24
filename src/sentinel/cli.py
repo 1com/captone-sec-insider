@@ -1337,7 +1337,70 @@ def costs_cmd():
 _stub("prereg-status", "10a", P2, "Check the prereg-v1 pre-registration tag")
 _stub("labels", "11", P2, "Compute development labels (windows ending by 2022-12-31)")
 _stub("features", "12", P2, "Compute features F1–F24 as of T")
-_stub("serve", "P", P2, "Run the stock lookup page and API")
+
+
+@app.command("lookup", rich_help_panel=P2)
+def lookup_cmd():
+    """[Step P] Build data/lookup.duckdb for the stock lookup, from SEC tables only (offline)."""
+    import duckdb
+
+    from sentinel import warehouse
+    from sentinel.api import lookup
+
+    paths, params = _context()
+    if not paths.warehouse.exists():
+        _fail(f"{paths.warehouse} not found: run `sentinel stage` first", CONFIG)
+    started = time.monotonic()
+    try:
+        report = lookup.build(paths, params)
+    except warehouse.MissingInput as e:
+        _fail(str(e), CONFIG)
+    except duckdb.IOException as e:
+        _fail(f"cannot open {paths.warehouse.name}; is a build step running? {e}", FAILED)
+    rows = ", ".join(f"{table} {n:,}" for table, n in report.rows.items())
+    typer.echo(f"lookup: {rows}")
+    typer.echo(
+        f"  data as of {report.data_as_of} (SEC data set {report.dataset}); "
+        f"wrote {paths.lookup.relative_to(paths.root)} in {time.monotonic() - started:.0f} s"
+    )
+
+
+@app.command("serve", rich_help_panel=P2)
+def serve_cmd(
+    port: int = typer.Option(8766, "--port", help="Local port (8000 and 8765 are taken)."),
+    host: str = typer.Option("127.0.0.1", "--host", help="Interface to listen on."),
+):
+    """[Step P] Run the stock lookup page and API on data/lookup.duckdb (read-only)."""
+    import socket
+
+    import duckdb
+    import uvicorn
+
+    from sentinel import warehouse
+    from sentinel.api import queries
+    from sentinel.api.app import create_app
+
+    paths = _paths()
+    if not paths.lookup.exists():
+        _fail(f"{paths.lookup} not found: run `sentinel lookup` first", CONFIG)
+    with socket.socket() as probe:
+        try:
+            probe.bind((host, port))
+        except OSError:
+            _fail(f"port {port} is in use: choose another with --port", FAILED)
+    con = queries.open_lookup(paths)
+    meta = queries.meta(con)
+    con.close()
+    try:
+        with warehouse.connect(paths, read_only=True) as wh:
+            latest = wh.execute("select max(finished_at) from core.build_log").fetchone()[0]
+        if latest and meta["warehouse_built_at"] and latest > meta["warehouse_built_at"]:
+            typer.echo("warning: the warehouse was rebuilt after the lookup: run `sentinel lookup`")
+    except duckdb.Error:
+        pass  # the warehouse may be busy or absent; the lookup still serves
+    typer.echo(f"Stock lookup: http://{host}:{port}  (data as of {meta['date']}; Ctrl-C to stop)")
+    uvicorn.run(create_app(paths), host=host, port=port, log_level="warning")
+
 
 # --- Phase 3 -----------------------------------------------------------------------------------
 

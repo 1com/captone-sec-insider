@@ -1,0 +1,6 @@
+<h1>{{ company.name or "Name not reported" }}</h1>
+<p class="muted">
+  CIK {{ company.issuer_cik }}
+  {% if company.tickers %} · Tickers: {{ tickers_label(company.tickers) }}{% endif %}
+  · Filings {{ fmt_date(company.first_filing) }} to {{ fmt_date(company.last_filing) }}
+</p>

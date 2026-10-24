@@ -52,6 +52,8 @@ uv run sentinel check
 | `sentinel audit sheets\|summary\|no-sic` | QA | Hand-audit sheets and their scores; `no-sic` is the D45 check |
 | `sentinel audit golden\|delistings\|market-caps` (+ `-summary`) | QA | Feature 004 audits: 30 events against EDGAR, 30 delisting classes, 10 market caps |
 | `sentinel explore` | — | Opens the warehouse read-only in the DuckDB UI at http://localhost:4213 ([docs/explore.md](docs/explore.md)) |
+| `sentinel lookup` | 19 (product v1) | Builds `data/lookup.duckdb` for the stock lookup from SEC tables only (no prices; about 35 s). Rerun after every warehouse rebuild |
+| `sentinel serve [--port 8766]` | 19 (product v1) | Stock lookup at http://127.0.0.1:8766: search by ticker, name or CIK; every insider transaction with plain-English codes, holdings over time, insider-buying events, glossary; JSON at `/api/issuers/search` and `/api/issuers/{cik}/transactions` ([specs/005-stock-lookup/quickstart.md](specs/005-stock-lookup/quickstart.md)) |
 
 `uv run sentinel --help` lists every pipeline step. Steps not built yet exit with code 4.
 

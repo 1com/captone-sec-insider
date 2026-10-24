@@ -1,0 +1,19 @@
+{% if results is none %}
+  {% if q.strip() %}<p class="muted">Type at least 2 characters.</p>{% endif %}
+{% elif not results %}
+  <p>No company matches “{{ q }}” in the SEC data. Try a ticker, part of the name, or the CIK.</p>
+{% else %}
+<ul class="results">
+  {% for r in results %}
+  <li>
+    <a class="name" href="/company/{{ r.issuer_cik }}">{{ r.name or "Name not reported" }}</a>
+    <div class="muted">
+      CIK {{ r.issuer_cik }}{% if r.tickers %} · {{ tickers_label(r.tickers) }}{% endif %}
+      · {{ fmt_number(r.n_transactions) }} transaction{{ "" if r.n_transactions == 1 else "s" }}
+      · filings {{ fmt_date(r.first_filing) }} to {{ fmt_date(r.last_filing) }}
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% if results|length == 25 %}<p class="muted">Showing the first 25 matches; type more to narrow the search.</p>{% endif %}
+{% endif %}

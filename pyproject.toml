@@ -12,6 +12,10 @@ dependencies = [
     "python-dotenv>=1.2.4,<2",
     "typer>=0.27.3,<0.28",
     "yfinance>=1.7,<1.8",
+    # product v1 (plan §8.3; constitution "Serving"), moved from the mvp group in feature 005
+    "fastapi>=0.156,<0.160",
+    "uvicorn>=0.54,<0.55",
+    "jinja2>=3.1.6,<4",
 ]
 
 [project.scripts]
@@ -23,11 +27,8 @@ dev = [
     "ruff>=0.17.1,<0.18",
     "respx>=0.23.1,<0.24",
 ]
-# MVP prototype (feature 003, constitution "Prototype Exception"); also the product stack (plan §8.3)
+# MVP prototype (feature 003, constitution "Prototype Exception"); the web stack is a main dependency
 mvp = [
-    "fastapi>=0.156,<0.160",
-    "uvicorn>=0.54,<0.55",
-    "jinja2>=3.1.6,<4",
     "scikit-learn>=1.9,<1.10",
     "lightgbm>=4.7,<4.8",
 ]
@@ -52,6 +53,8 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.pytest.ini_options]
 testpaths = ["tests", "mvp/tests"]
 addopts = "-ra -m 'not slow'"
+# Starlette 1.9 prefers httpx2 for its TestClient; the locked httpx works (feature 005 tests)
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient` is deprecated"]
 markers = [
     "network: needs internet; run with --run-network",
     "slow: needs the real data/warehouse.duckdb; skipped when absent",

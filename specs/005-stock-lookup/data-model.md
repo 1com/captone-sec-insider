@@ -51,13 +51,14 @@ One row per non-derivative transaction line, sorted by `issuer_cik`, then `filin
 | `shares`, `price`, `value_usd` | As reported (`value_usd` = shares × reported price, null if either is missing) |
 | `shares_after`, `direct_indirect`, `nature_of_ownership` | The holding after the line |
 | `fn_ids` | VARCHAR[]: footnotes the line cites |
-| `owners` | STRUCT(cik, name, role, title)[]: the filing's owners and roles at the filing date, for display |
 
 **Validation**: `(accession, line_sk)` unique; row count equals `core.transaction`; `trans_code` is in the glossary or null.
 
+The owners shown on each line (name, role and title at the filing date) are read from `lookup.filing_owner` for the 100 lines of the page being served. Storing them on every line was the first design; on the real data (7.4 million lines) building those owner lists ran out of memory at the 3 GB limit, because DuckDB keeps list aggregates in memory (run-notes.md).
+
 ## `lookup.footnote`
 
-One row per footnote cited by at least one transaction: `accession`, `footnote_id` (key), `text`.
+One row per footnote cited by at least one transaction: `accession`, `footnote_id` (key), `text`. Taken from the filing's own quarter (`core.filing.quarter`); on the real data `(accession, footnote_id)` never repeats across quarters.
 
 ## `lookup.holding`
 

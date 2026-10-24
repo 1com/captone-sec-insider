@@ -10,7 +10,7 @@ Validation guide for feature 005. Contracts: [http.md](contracts/http.md), [cli.
 ## Build and run
 
 ```bash
-# build the lookup file (a few minutes; under the memory ceiling like other data steps)
+# build the lookup file (about 35 s; under the memory ceiling like other data steps)
 systemd-run --user --wait --pipe -p MemoryMax=5G -p MemorySwapMax=1G --working-directory="$PWD" \
     uv run sentinel lookup
 

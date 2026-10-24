@@ -1,0 +1,32 @@
+<h2>{{ insider.name or "Name not reported" }}: shares held over time</h2>
+<p class="muted">CIK {{ insider.owner_cik }} · {{ label(glossary.ROLES, insider.role, "Other insider") }}{% if insider.title %} ({{ insider.title }}){% endif %} on the latest filing · {{ fmt_number(insider.n_filings) }} filing{{ "" if insider.n_filings == 1 else "s" }}</p>
+{% set joint = rows | selectattr("filed_with") | list %}
+{% if joint %}
+<p class="note">{% for r in joint | unique(attribute="filing_date") %}{{ fmt_date(r.filing_date) }}: filed jointly with {{ r.filed_with | join(", ") }}.{% if not loop.last %} {% endif %}{% endfor %}
+  The holdings belong to the filing, so every co-filer shows the same figures.</p>
+{% endif %}
+{% if not rows %}
+<p>No share holdings are reported on this insider’s filings.</p>
+{% else %}
+<p class="muted">Each row adds up the holdings reported on that day’s filings. A holding that a filing does not mention is not counted in that row.</p>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Filed</th><th>Security</th><th class="num">Held directly</th><th class="num">Held indirectly</th><th class="num">Total</th><th>By holding</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr data-date="{{ r.filing_date.isoformat() }}" data-security="{{ r.security_title or '' }}">
+      <td class="nowrap">{{ fmt_date(r.filing_date) }}</td>
+      <td>{{ r.security_title or "Not reported" }}</td>
+      <td class="num">{{ fmt_number(r.direct) if r.direct is not none else "none" }}</td>
+      <td class="num">{{ fmt_number(r.indirect) if r.indirect is not none else "none" }}</td>
+      <td class="num">{{ fmt_number(r.total) }}{% if r.incomplete %}<span class="desc">some holdings not reported</span>{% endif %}</td>
+      <td><details><summary>{{ r.split | length }} holding{{ "" if r.split | length == 1 else "s" }}</summary>
+        <ul>{% for h in r.split %}<li>{{ holding_label({"D": "direct", "I": "indirect"}.get(h.holding)) }}{% if h.holder %} · {{ h.holder }}{% endif %}: {{ fmt_number(h.shares) }}</li>{% endfor %}</ul>
+        {% for a in r.accessions %}<a href="{{ edgar_url(company.issuer_cik, a) }}" target="_blank" rel="noopener">EDGAR</a>{% if not loop.last %} · {% endif %}{% endfor %}
+      </details></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}

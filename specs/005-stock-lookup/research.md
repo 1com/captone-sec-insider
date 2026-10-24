@@ -38,7 +38,8 @@ Nothing else is read. A test fails if the builder's SQL names a table outside th
 - **Finding**: installed and locked: FastAPI 0.159.1, Starlette 1.9.0, Jinja2 3.1.6, uvicorn 0.54.0, httpx 0.28.1 (for the test client). The constitution names FastAPI, Jinja2 and HTMX (D36).
 - **Decision**:
   - FastAPI app in `src/sentinel/api/`, pages rendered with Jinja2, served by uvicorn.
-  - **HTMX 2.0.4**, one minified file vendored under `src/sentinel/api/static/` (BSD-2 licence, released December 2024), for search-as-you-type and paging without full reloads. Pages also work without JavaScript: the search is a plain GET form and paging uses links.
+  - **HTMX 2.0.4**, one minified file vendored as `src/sentinel/api/static/htmx.min.js` (released December 2024; Zero-Clause BSD licence, which needs no attribution), for search-as-you-type and paging without full reloads. Source `https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js`, 50,917 bytes, SHA-256 `e209dda5c8235479f3166defc7750e1dbcd5a5c1808b7792fc2e6733768fb447` (downloaded 2026-10-24). Pages also work without JavaScript: the search is a plain GET form and paging uses links.
+  - FastAPI, uvicorn and Jinja2 move from the `mvp` dependency group to the main dependencies, as `yfinance` did in feature 004: they are already locked and named in plan §8.3, so no version changes.
   - Plain CSS in one file; no build chain, no fonts or scripts from the internet at run time.
 - **Rationale**: the smallest stack the constitution allows (VII); no new Python dependency.
 - **Alternatives rejected**: a JavaScript front end (React), Streamlit (D36).

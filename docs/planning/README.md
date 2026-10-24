@@ -34,7 +34,8 @@ This folder applies the course's six planning steps (neue fische / SPICED AI PM 
 | 7 | Yahoo prices (11.3 M rows, 3,649 companies), reference data, final events (A 4,926 · B1 2,542 · B2 7,171; 9,088 unpriced), G8 93.8%, coverage 97.5% of listed / 61.1% of all (feature 004) | ✅ 24 Oct for listed companies, merged; Tiingo prices from 29 Oct |
 | 8 | Delisting classes and returns | After Tiingo (29–30 Oct) |
 | 9–10 | XBRL facts (market cap for 92% of priced events; 8 of 10 within 5% of Yahoo, both misses explained) and costs (median round trip 0.73%) | ✅ 24 Oct for listed companies |
-| 11–21 | Labels, features, models, product, report | Not started (after `prereg-v1`) |
+| 19 (task 8.1) | Product v1 stock lookup: search, every insider transaction with plain-English codes, holdings, events, glossary, JSON API; SEC data only (feature 005) | ✅ 24 Oct |
+| 11–21 | Labels, features, models, the rest of the product, report | Not started (after `prereg-v1`) |
 
 ## Decisions taken on 24 October
 

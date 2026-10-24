@@ -651,6 +651,8 @@ Each layer is rebuilt deterministically from the one above by an idempotent comm
 | `audit.funnel` | Quarter × gate | Rows in, rows out |
 | `audit.event_funnel`, `audit.price_coverage`, `audit.g8_rate`, `audit.price_issue` | Year × group × outcome; year × group × delisting status; year; provider row | Final-event outcomes, price coverage (SC-001), G8 pass rate (SC-002), price problems |
 
+The product reads a separate file, `data/lookup.duckdb`, built by `sentinel lookup` from an allow-list of SEC-derived tables (`core.filing`, `core.issuer`, `core.transaction`, `core.owner_role`, `core.build_log`, `stg.reportingowner`, `stg.nonderiv_holding`, `stg.footnotes`, `evt.prelim_event`, `evt.prelim_event_member`). Its `lookup.*` tables (`meta`, `issuer_search`, `filing_owner`, `transaction`, `footnote`, `holding`, `event`, `event_member`) hold no market price, so no Yahoo or Tiingo value can reach a page, and the running app never locks the warehouse (feature 005).
+
 ### 8.3 Tech stack
 
 Every Python package below was verified to install and import on Python 3.14.4 on 21 October 2026. Exact versions are pinned in `uv.lock`.

@@ -293,11 +293,14 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "duckdb" },
+    { name = "fastapi" },
     { name = "httpx" },
+    { name = "jinja2" },
     { name = "pyarrow" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
     { name = "typer" },
+    { name = "uvicorn" },
     { name = "yfinance" },
 ]
 
@@ -308,21 +311,21 @@ dev = [
     { name = "ruff" },
 ]
 mvp = [
-    { name = "fastapi" },
-    { name = "jinja2" },
     { name = "lightgbm" },
     { name = "scikit-learn" },
-    { name = "uvicorn" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "duckdb", specifier = ">=1.5.6,<2" },
+    { name = "fastapi", specifier = ">=0.156,<0.160" },
     { name = "httpx", specifier = ">=0.28.1,<0.29" },
+    { name = "jinja2", specifier = ">=3.1.6,<4" },
     { name = "pyarrow", specifier = ">=25.0.1,<26" },
     { name = "python-dotenv", specifier = ">=1.2.4,<2" },
     { name = "pyyaml", specifier = ">=6.0.3,<7" },
     { name = "typer", specifier = ">=0.27.3,<0.28" },
+    { name = "uvicorn", specifier = ">=0.54,<0.55" },
     { name = "yfinance", specifier = ">=1.7,<1.8" },
 ]
 
@@ -333,11 +336,8 @@ dev = [
     { name = "ruff", specifier = ">=0.17.1,<0.18" },
 ]
 mvp = [
-    { name = "fastapi", specifier = ">=0.156,<0.160" },
-    { name = "jinja2", specifier = ">=3.1.6,<4" },
     { name = "lightgbm", specifier = ">=4.7,<4.8" },
     { name = "scikit-learn", specifier = ">=1.9,<1.10" },
-    { name = "uvicorn", specifier = ">=0.54,<0.55" },
 ]
 
 [[package]]

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ company.name }}{% endblock %}
+{% block content %}
+{% include "_company_header.html" %}
+{% include "_events.html" %}
+{% include "_insiders.html" %}
+<h2 id="transactions-heading">Insider transactions</h2>
+<p class="muted">Every line of every Form 3, 4 and 5 filed for this company, newest filing first.
+  Codes are explained in the <a href="/glossary">glossary</a>.</p>
+<div id="transactions">{% include "_transactions.html" %}</div>
+{% endblock %}
