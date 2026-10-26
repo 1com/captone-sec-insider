@@ -169,6 +169,8 @@ From [01](01-outcome-goals.md):
 | 8.1 | Stock lookup: API endpoints and page | `api/` | Endpoint tests pass | 1.11 | C | ✅ 24 Oct (feature 005) |
 | 8.2 | Model card and glossary pages (P7) | `api/`, templates | Pages render with the holdout results; all terms covered | 6.3, 7.2 | C | Fri 13 Nov |
 | 8.3 | Screener and event page: bands, caveat, fact line, size, liquidity, freshness, filters, H4 rule (P1–P3, P5, P6, P8); drivers in words if not cut (P4) | `api/`, templates | Endpoint tests pass, plus one test per presentation rule | 7.3 | C | Mon 16 Nov |
+| 8.3b | Horizon scores: the multi-horizon model's probability per horizon (21, 63, 126, 252 sessions) beside the holdout hit rate and median net return of past events in the band, and which horizon has been best (D54) | `api/`, templates | Endpoint tests pass | 6.3, 7.3 | C | Mon 16 Nov |
+| 8.4 | Plain-English explanation of each flagged cluster by a language model from a fixed fact sheet, validated, stored, with a template fallback (D55) | `api/`, `ml.explanation` | Validator tests pass; no number outside the fact sheet | 8.3, 7.3 | C | Tue 17 Nov |
 
 ---
 

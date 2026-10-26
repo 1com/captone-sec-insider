@@ -346,6 +346,9 @@ rules:
   min_volatility_returns: 40
   # ML dataset (plan §7.2; feature 006 research R11): the four yearly walk-forward test folds
   ml_test_years: [2019, 2020, 2021, 2022]
+  # Horizons of the multi-horizon product model (D54): about 1, 3, 6 and 12 months. Not the 5-session
+  # horizon: a week's move is smaller than the median round-trip cost (0.78%).
+  ml_horizons: [21, 63, 126, 252]
 
 provisional:
   # The pilot's G6 minimum per filing (Appendix A). Production uses registered.g6_min_value,

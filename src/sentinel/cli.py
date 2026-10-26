@@ -438,6 +438,11 @@ def _step_ml_dataset(paths: Paths, params: dict, con) -> tuple[int, bool]:
             f"  {fold:<6}{part:<11}{events:>8,}{positives:>8,}{effective or 0:>11,.0f}  "
             f"{'yes' if dropped else ''}"
         )
+    typer.echo("  multi-horizon table (D54): events and y = 1 in the fit set, by test fold")
+    fits = {(f, h): (e, p) for f, h, part, e, p, *_ in r.horizon_summary if part == "fit"}
+    for fold, horizon in sorted(fits):
+        events, positives = fits[(fold, horizon)]
+        typer.echo(f"  {fold}  {horizon:>3} sessions  {events:>6,} events  {positives:>6,} y = 1")
     return r.rows, True
 
 

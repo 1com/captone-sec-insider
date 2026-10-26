@@ -27,5 +27,6 @@
 
 - [X] T010 Add the new tables to the Tiingo register and to `tests/integration/test_rebuild_identical.py`.
 - [X] T011 Decision entry D53 (research R1–R12) in `docs/initialplan.md` §12 for the researcher's approval (task L.2).
+- [X] T010a [US3] Multi-horizon tables `ml.dataset_horizon*` (research R13) with tests; exact sums for weights.
 - [ ] T012 After `prereg-v1`: real run of the three steps under the memory ceiling; counts, timings and peak memory in `run-notes.md`; post-floor counts and effective sample sizes per fold (SC-004); 10 labels for the researcher's hand check (SC-002).
 - [ ] T013 `uv run pytest`, `ruff check`, `ruff format --check`; tick tasks; commit; merge after the researcher's approval.

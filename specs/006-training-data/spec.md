@@ -56,6 +56,16 @@ One table of development clusters with features, target, folds, slices and weigh
 1. **Given** an event signalled in November 2018 whose window ends in February 2019, **Then** it is purged in folds 2019 (it crosses the test year) and 2020 (it reaches the tuning slice), and is in the fit set from fold 2021.
 2. **Given** a fit set of 499 events in fold 1, **Then** fold 1 is marked dropped.
 
+### User Story 4 - The same events at every horizon (Priority: P2)
+
+The researcher has the events stacked at 21, 63, 126 and 252 sessions, each purged and weighted by its own window, so one model can learn what happened after each period (D54).
+
+**Independent Test**: synthetic events: each horizon's purging and uniqueness match hand values, and the primary 63-session table is unchanged.
+
+**Acceptance Scenarios**:
+
+1. **Given** a cluster signalled on 15 November 2018, **Then** in the 2019 fold its 21-session window trains and its 63- and 126-session windows are purged.
+
 ### Edge Cases
 
 - No usable open at T+1: entry at that day's close, flagged.
@@ -78,6 +88,7 @@ One table of development clusters with features, target, folds, slices and weigh
 - **FR-007**: Tables holding Tiingo-derived values MUST be in the Tiingo register.
 - **FR-008**: Every step MUST be deterministic and part of the offline rebuild.
 - **FR-009**: Development code MUST NOT read or write the `hold` schema.
+- **FR-010**: The multi-horizon tables MUST follow research R13; `ml.dataset` MUST stay the pre-registered 63-session table.
 
 ### Key Entities
 

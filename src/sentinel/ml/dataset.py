@@ -17,7 +17,7 @@ from datetime import date
 import duckdb
 
 from sentinel.config import Paths, params_sha256, registered_value
-from sentinel.warehouse import require_tables
+from sentinel.warehouse import exact_sum, require_tables
 
 INPUTS = ["evt.event", "feat.event_features", "lab.event_label", "core.session",
           "stg.price_yahoo"]  # fmt: skip
@@ -31,6 +31,7 @@ class DatasetReport:
     positives: int = 0
     version: str = ""
     summary: list[tuple] = field(default_factory=list)
+    horizon_summary: list[tuple] = field(default_factory=list)
 
 
 def _months_before(day: date, months: int) -> date:
@@ -39,7 +40,10 @@ def _months_before(day: date, months: int) -> date:
 
 
 def _rows(con, params: dict) -> None:
+    """`_ds` (the primary horizon, for `ml.dataset`) and `_dh` (every horizon of the product
+    model, for `ml.dataset_horizon`): one row per cluster and horizon with a net label."""
     primary = registered_value(params, "primary_horizon")
+    horizons = ", ".join(str(h) for h in params["rules"]["ml_horizons"])
     inputs = ", ".join(
         f"ln(1 + f.{c} / spy.close) as x_{c}" if c in DOLLAR else f"f.{c} as x_{c}"
         for c in (f"f{i}" for i in range(1, 30))
@@ -57,42 +61,68 @@ def _rows(con, params: dict) -> None:
         where f."group" = 'A'
         """
     )
-
-
-def _uniqueness(con, params: dict) -> None:
-    """`_uq`: mean over the window's sessions of 1 ÷ (priced A events whose windows cover it)."""
-    primary = registered_value(params, "primary_horizon")
     con.execute(
         f"""
-        create or replace temp table _uq as
-        with windows as (
-            select e.event_id, s.session_no + 1 as a, s.session_no + {primary} as b
-            from evt.event e join core.session s on s.session = e.t_session
-            where e.priced and e."group" = 'A'
-        ),
-        crowd as (
-            select c.session_no, count(*) as n
-            from windows w join core.session c on c.session_no between w.a and w.b
-            group by 1
-        )
-        select d.event_id, avg(1.0 / c.n) as uniqueness
-        from _ds d join windows w using (event_id)
-        join crowd c on c.session_no between w.a and w.b
-        group by 1
+        create or replace temp table _dh as
+        select f.event_id, l.horizon, f.issuer_cik, f.signal_date, f.t_session,
+               l.exit_session as window_end, cast(l.net > 0 as INTEGER) as y, l.net, l.gross,
+               {inputs}, f.price_source
+        from feat.event_features f
+        join lab.event_label l on l.event_id = f.event_id and l.horizon in ({horizons})
+         and l.measure = 'ind_ew' and l.net is not null
+        join stg.price_yahoo spy on spy.ticker = 'SPY' and spy.session = f.t_session
+        where f."group" = 'A'
         """
     )
 
 
-def _folds(con, params: dict) -> list[tuple]:
-    """`ml.dataset_fold` rows: (fold, event_id, part) before weights."""
+def _uniqueness(con, params: dict) -> None:
+    """`_uq` and `_uh`: mean over a window's sessions of 1 ÷ (priced A events whose windows of the
+    same length cover it), for the primary horizon and for every horizon."""
+    horizons = sorted(
+        {registered_value(params, "primary_horizon"), *params["rules"]["ml_horizons"]}
+    )
+    con.execute(
+        f"""
+        create or replace temp table _uh as
+        with h(horizon) as (values {", ".join(f"({x})" for x in horizons)}),
+        windows as (
+            select e.event_id, h.horizon, s.session_no + 1 as a, s.session_no + h.horizon as b
+            from evt.event e join core.session s on s.session = e.t_session
+            cross join h where e.priced and e."group" = 'A'
+        ),
+        crowd as (
+            select w.horizon, c.session_no, count(*) as n
+            from windows w join core.session c on c.session_no between w.a and w.b
+            group by 1, 2
+        )
+        select w.event_id, w.horizon,
+               {exact_sum("1.0 / c.n", 18)} / count(*) as uniqueness
+        from windows w join crowd c on c.horizon = w.horizon and c.session_no between w.a and w.b
+        group by 1, 2
+        """
+    )
+    primary = registered_value(params, "primary_horizon")
+    con.execute(
+        f"create or replace temp table _uq as select event_id, uniqueness from _uh "
+        f"where horizon = {primary}"
+    )
+
+
+def _folds(con, params: dict, table: str = "_ds") -> list[tuple]:
+    """Fold rows before weights: (fold, event_id, part), or (fold, event_id, horizon, part) for
+    a table with a `horizon` column."""
     split = registered_value(params, "training_window_split")
     rows = []
-    events = con.execute("select event_id, signal_date, window_end from _ds").fetchall()
+    horizon = ", horizon" if table == "_dh" else ""
+    events = con.execute(
+        f"select event_id, signal_date, window_end{horizon} from {table}"
+    ).fetchall()
     for year in params["rules"]["ml_test_years"]:
         start = date(year, 1, 1)
         calibrate = _months_before(start, split["calibration_months"])
         tune = _months_before(calibrate, split["tuning_months"])
-        for event_id, signal, end in events:
+        for event_id, signal, end, *h in events:
             if start <= signal < date(year + 1, 1, 1):
                 part = "test"
             elif signal >= start:
@@ -105,7 +135,7 @@ def _folds(con, params: dict) -> list[tuple]:
                 part = "tune" if end < calibrate else "purged"
             else:
                 part = "fit" if end < tune else "purged"
-            rows.append((year, event_id, part))
+            rows.append((year, event_id, *h, part))
     return rows
 
 
@@ -130,10 +160,10 @@ def build(con: duckdb.DuckDBPyConnection, params: dict, paths: Paths) -> Dataset
             """
         )
         con.execute(
-            """
+            f"""
             create or replace table ml.dataset_fold as
             with train as (
-                select f.fold, avg(d.uniqueness) as mean_u from _fold f
+                select f.fold, {exact_sum("d.uniqueness", 18)} / count(*) as mean_u from _fold f
                 join ml.dataset d using (event_id)
                 where f.part in ('fit', 'tune', 'calibrate') group by 1
             )
@@ -149,8 +179,9 @@ def build(con: duckdb.DuckDBPyConnection, params: dict, paths: Paths) -> Dataset
             f"""
             create or replace table ml.dataset_summary as
             select f.fold, f.part, count(*) as events, sum(d.y) as positives,
-                   sum(f.weight) as weight_sum,
-                   sum(f.weight) ^ 2 / nullif(sum(f.weight ^ 2), 0) as effective_size,
+                   {exact_sum("f.weight", 12)} as weight_sum,
+                   {exact_sum("f.weight", 12)} ^ 2
+                       / nullif({exact_sum("f.weight * f.weight", 12)}, 0) as effective_size,
                    f.fold = {first} and (select count(*) from ml.dataset_fold x
                                         where x.fold = {first} and x.part = 'fit') < {minimum}
                        as dropped
@@ -167,16 +198,74 @@ def build(con: duckdb.DuckDBPyConnection, params: dict, paths: Paths) -> Dataset
         "select count(*), coalesce(sum(y), 0) from ml.dataset"
     ).fetchone()
     report.summary = con.execute("select * from ml.dataset_summary").fetchall()
+    _horizon_tables(con, params)
+    report.horizon_summary = con.execute("select * from ml.dataset_horizon_summary").fetchall()
     report.version = _version(con, paths)
-    for name in ("_ds", "_uq", "_fold"):
+    for name in ("_ds", "_dh", "_uq", "_uh", "_fold", "_foldh"):
         con.execute(f"drop table if exists {name}")
     return report
+
+
+def _horizon_tables(con, params: dict) -> None:
+    """`ml.dataset_horizon`, `ml.dataset_horizon_fold` and `ml.dataset_horizon_summary` (D54): the
+    same events at every product horizon, with the folds, purging and weights of each horizon's
+    own windows. The input of the one multi-horizon model; exploratory, next to the primary."""
+    folds = _folds(con, params, "_dh")
+    con.execute(
+        "create or replace temp table _foldh (fold INTEGER, event_id VARCHAR, horizon INTEGER, "
+        "part VARCHAR)"
+    )
+    if folds:
+        con.executemany("insert into _foldh values (?, ?, ?, ?)", folds)
+    con.execute("begin transaction")
+    try:
+        con.execute(
+            """
+            create or replace table ml.dataset_horizon as
+            select d.*, u.uniqueness from _dh d join _uh u using (event_id, horizon)
+            order by event_id, horizon
+            """
+        )
+        con.execute(
+            f"""
+            create or replace table ml.dataset_horizon_fold as
+            with train as (
+                select f.fold, f.horizon, {exact_sum("d.uniqueness", 18)} / count(*) as mean_u
+                from _foldh f
+                join ml.dataset_horizon d using (event_id, horizon)
+                where f.part in ('fit', 'tune', 'calibrate') group by 1, 2
+            )
+            select f.fold, f.event_id, f.horizon, f.part,
+                   case when f.part in ('fit', 'tune', 'calibrate')
+                        then d.uniqueness / t.mean_u
+                        when f.part = 'test' then 1.0 else 0.0 end as weight
+            from _foldh f join ml.dataset_horizon d using (event_id, horizon)
+            left join train t using (fold, horizon)
+            order by f.fold, f.horizon, f.event_id
+            """
+        )
+        con.execute(
+            f"""
+            create or replace table ml.dataset_horizon_summary as
+            select f.fold, f.horizon, f.part, count(*) as events, sum(d.y) as positives,
+                   {exact_sum("f.weight", 12)} as weight_sum,
+                   {exact_sum("f.weight", 12)} ^ 2
+                       / nullif({exact_sum("f.weight * f.weight", 12)}, 0) as effective_size
+            from ml.dataset_horizon_fold f join ml.dataset_horizon d using (event_id, horizon)
+            group by 1, 2, 3 order by 1, 2, 3
+            """
+        )
+    except BaseException:
+        con.execute("rollback")
+        raise
+    con.execute("commit")
 
 
 def _version(con, paths: Paths) -> str:
     """Hash the dataset and its folds, append `ml.dataset_version`, write the Parquet copies."""
     digest = hashlib.sha256()
-    for table in ("ml.dataset", "ml.dataset_fold"):
+    tables = ("ml.dataset", "ml.dataset_fold", "ml.dataset_horizon", "ml.dataset_horizon_fold")
+    for table in tables:
         rows = con.execute(f"select * from {table} order by all").fetchall()
         digest.update(json.dumps(rows, default=str).encode())
     version = digest.hexdigest()[:12]
@@ -195,7 +284,8 @@ def _version(con, paths: Paths) -> str:
     )  # fmt: skip
     out = paths.root / "data" / "ml"
     out.mkdir(parents=True, exist_ok=True)
-    for table, name in (("ml.dataset", "dataset"), ("ml.dataset_fold", "dataset_fold")):
+    for table in tables:
+        name = table.removeprefix("ml.")
         target = str(out / f"{name}-{version}.parquet").replace("'", "''")
         con.execute(f"copy (select * from {table} order by all) to '{target}' (format parquet)")
     return version

@@ -72,8 +72,9 @@ def built(tmp_path_factory, params):
     )
     for i, (k, d) in enumerate(signals.items()):
         net = None if k == "no_cost" else (0.05 if i % 2 else -0.05)
-        con.execute("insert into lab.event_label values (?, 63, 'ind_ew', ?, 0.07, ?)",
-                    [k, days[no[d] - 1 + H], net])  # fmt: skip
+        for horizon in (21, 63, 126):
+            con.execute("insert into lab.event_label values (?, ?, 'ind_ew', ?, 0.07, ?)",
+                        [k, horizon, days[no[d] - 1 + horizon], net])  # fmt: skip
     con.execute(f"create table stg.price_yahoo ({prices.YAHOO_COLUMNS})")
     con.executemany(
         "insert into stg.price_yahoo values ('SPY', ?, 1, 1, 1, 400, 1e6, 400, 0, 1, '')",
@@ -159,6 +160,42 @@ def test_dollar_features_are_scaled_by_spy_and_logged(built):
     assert x3 == 3.0
 
 
+def test_the_horizon_table_has_every_horizon_of_each_cluster(built):
+    con, _, signals, *_ = built
+    got = con.execute(
+        "select horizon, count(*) from ml.dataset_horizon group by 1 order by 1"
+    ).fetchall()
+    clusters = len(signals) - 2  # no cost, and the B1 event
+    assert got == [(21, clusters), (63, clusters), (126, clusters)]
+    primary = con.execute("select count(*) from ml.dataset").fetchone()[0]
+    assert primary == clusters  # the pre-registered 63-session table is unchanged
+
+
+def test_each_horizon_is_purged_by_its_own_window(built):
+    con, *_ = built
+    parts = dict(con.execute(
+        "select horizon, part from ml.dataset_horizon_fold "
+        "where fold = 2019 and event_id = 'cross_2018'"
+    ).fetchall())  # fmt: skip
+    # signalled 15 Nov 2018: a 21-session window ends in December and trains; 63 and 126 reach
+    # into 2019 (the test year) and are purged
+    assert parts == {21: "calibrate", 63: "purged", 126: "purged"}
+
+
+def test_horizon_weights_use_their_own_window_length(built):
+    con, *_ = built
+    u = {h: x for h, x in con.execute(
+        "select horizon, uniqueness from ml.dataset_horizon where event_id = 'overlap_a'"
+    ).fetchall()}  # fmt: skip
+    assert u[21] == pytest.approx((10 + 11 / 2) / 21)  # ten days alone, eleven shared with b
+    assert u[126] == pytest.approx((10 + 116 / 2) / 126)
+    for fold, horizon, mean in con.execute(
+        "select fold, horizon, avg(weight) from ml.dataset_horizon_fold "
+        "where part in ('fit', 'tune', 'calibrate') group by 1, 2"
+    ).fetchall():
+        assert mean == pytest.approx(1.0), (fold, horizon)
+
+
 def test_fold_one_is_dropped_below_the_minimum_fit_size(built):
     con, *_ = built
     dropped = dict(con.execute(
@@ -172,7 +209,7 @@ def test_version_row_and_parquet_copies(built):
     assert con.execute("select version, rows from ml.dataset_version").fetchall() == [
         (report.version, report.rows)
     ]
-    for name in ("dataset", "dataset_fold"):
+    for name in ("dataset", "dataset_fold", "dataset_horizon", "dataset_horizon_fold"):
         assert (paths.root / "data" / "ml" / f"{name}-{report.version}.parquet").exists()
 
 

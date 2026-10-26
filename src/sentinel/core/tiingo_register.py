@@ -34,10 +34,11 @@ TIINGO_DERIVED: list[tuple[str, str | None]] = [
     ("lab.purchase_outcome", "price_source = 'tiingo'"),
     ("feat.event_features", "price_source = 'tiingo'"),
     ("ml.dataset", "price_source = 'tiingo'"),
+    ("ml.dataset_horizon", "price_source = 'tiingo'"),
 ]
 # Files outside data/raw/ that hold per-security values derived from Tiingo prices (feature 006):
 # the Parquet copies of the ML dataset. Patterns are relative to data/.
-DERIVED_FILES = ("ml/dataset-*.parquet",)
+DERIVED_FILES = ("ml/dataset-*.parquet", "ml/dataset_horizon-*.parquet")
 # Tables whose `price_source` names the *intended* provider of SEC-derived tickers: no Tiingo data.
 NOT_TIINGO_DATA = {"core.symbol_map"}
 

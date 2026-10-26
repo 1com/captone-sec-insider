@@ -82,6 +82,22 @@ The plan fixes the method. This file records the details it leaves open, each de
 - **Weights**: each event's average uniqueness = mean over the sessions of its window of 1 ÷ (number of priced A events whose windows include that session); stored raw, and normalised to mean 1 within each fold's training window. The effective sample size (Σw)² ÷ Σw² is reported per fold.
 - **Version**: each build writes `ml.dataset_version` (git commit, parameter-file hash, row counts) and a Parquet copy under `data/ml/`.
 
+## R13. The multi-horizon table (D54)
+
+- **Decision**: `ml.dataset_horizon` holds every group A cluster at each horizon in `rules.ml_horizons` (21, 63, 126, 252) that has a net label: the same 29 inputs, `horizon`, `y`, `net`, `gross`, `window_end` and `uniqueness` of that horizon's own window (the average over the window's sessions of 1 ÷ the number of priced A events whose windows of the same length cover it). `ml.dataset_horizon_fold` gives each (fold, event, horizon) its part, purged by that horizon's `window_end`, with weights normalised to mean 1 per fold and horizon. `ml.dataset_horizon_summary` reports events, positives and effective size per fold, horizon and part.
+- **Model (Steps 15–16)**: one model per family on the stacked table with `horizon` as an input; weights as stored; selection by the registered log-loss and one-standard-error rule, with the extra trials counted.
+- **Not a confirmatory result**: `ml.dataset` and the primary tournament are unchanged; everything from this table is exploratory.
+- **Known limit**: events whose window would end after 31 December 2022 have no label at that horizon, so the 126 and 252 horizons lose the last months of 2022 (and more of the 2022 fold); the summary shows it.
+- **Rounding**: weights and summaries use exact sums, so a rebuild gives identical rows (a version hash check found the float version failing).
+
+## R14. Explanations by a language model (D55)
+
+- **Scope**: the product only (task 8.4); never the research, never the dataset.
+- **Inputs**: a fact sheet per event: company, date, buyers and roles, total value, F-values in words, score band, the top three drivers in words, the holdout hit rate and median net return by horizon for the band, caveats. No raw prices.
+- **Output rules**: 80–150 words; plain English; only numbers present in the fact sheet (checked by a validator that extracts every number and matches it); no advice, no certainty; the words "research, not investment advice" are added by the template, not the model.
+- **Storage**: `ml.explanation` (event, text, model id, prompt hash, fact sheet hash, created); regenerated only when the fact sheet changes.
+- **Failure**: API error or failed validation: the template sentence.
+
 ## R12. Tiingo-derived rows
 
 - **Decision**: every label, purchase outcome and price-based feature carries `price_source`; the tables are added to the Tiingo register (constitution VI; the researcher keeps the data, but the register stays complete).

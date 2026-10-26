@@ -71,6 +71,14 @@ One row per group A event with a target (research R11).
 | `part` | `fit`, `tune`, `calibrate`, `test` or `purged` |
 | `weight` | Uniqueness normalised to mean 1 over the fold's training window (`fit`, `tune`, `calibrate`); 1 for `test` |
 
+## `ml.dataset_horizon`, `ml.dataset_horizon_fold`, `ml.dataset_horizon_summary` (Step 14; D54)
+
+`ml.dataset_horizon`: one row per (cluster, horizon) in {21, 63, 126, 252} with a net label: `event_id`, `horizon` (key), `issuer_cik`, `signal_date`, `t_session`, `window_end`, `y`, `net`, `gross`, `x_f1` … `x_f29` (as in `ml.dataset`), `price_source`, `uniqueness` (of that horizon's window).
+
+`ml.dataset_horizon_fold`: `fold`, `event_id`, `horizon`, `part`, `weight`, purged by each horizon's own `window_end`.
+
+`ml.dataset_horizon_summary`: per `fold`, `horizon`, `part`: events, positives, weight sum, effective size.
+
 ## `ml.dataset_summary` (Step 14)
 
 Per fold and part: events, positives, sum of weights, effective sample size, and `dropped` (fold 1 below 500 fit events).
