@@ -184,6 +184,12 @@ def _estimates(con, params: dict, source: str) -> None:
     )
 
 
+def estimate(con: duckdb.DuckDBPyConnection, params: dict, source: str) -> None:
+    """`_est` for any positions, not only events: `source` needs id, issuer_cik, t_session,
+    close_t, addv20 and price_source (feature 006 uses it for past purchases, F10)."""
+    _estimates(con, params, source)
+
+
 def build(con: duckdb.DuckDBPyConnection, params: dict, cutoff=None, issuers=None) -> CostReport:
     """Rebuild `evt.event_cost` for priced events."""
     require_tables(con, ["evt.event", "core.price_daily", "core.session"], "detect")
