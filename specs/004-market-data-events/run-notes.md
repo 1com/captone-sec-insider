@@ -164,3 +164,38 @@ All are under 5 GB (SC-009). The 23 Oct downloads (`fetch-prices --source yahoo`
 | 3 | **Pass**: all 25 tables identical; 8 min 40 s; peak 5.0 GB with 359 MB swap | — |
 
 Every rebuild of the live tables after these fixes gave unchanged counts (events A 4,926, B1 2,542, B2 7,171; 14,515 costs, median 0.73%). The official T066 run follows T022, with Tiingo data, before the paid month ends. The memory peak is at the 5 GB ceiling: close the second VS Code window first, and if it still reaches the ceiling, raise WSL to 14 GB and the cap to 7 GB.
+
+
+## T022 (paid part): Tiingo prices and the Yahoo cross-check (2026-10-26)
+
+The researcher subscribed to Tiingo Power on 26 October. The paid window is 2026-10-26 to 2026-11-26 (`ops.tiingo_paid_from`, `tiingo_paid_until`). The researcher has decided not to delete the Tiingo data after the plan ends; the deletion tasks (T071) stay in the plan only as the ToS §1.6(b) reminder.
+
+**Pull 1: delisted companies and fill-ins.** `sentinel fetch-prices --source tiingo --limit 10`, then the full pull. 2,940 tickers resolved (primary 2,370, fill-in 422, fallback 148): 2,858 stored, 2 not in Tiingo, 0 failed. 48 min (2 requests per second, two requests per ticker), peak memory 556 MB.
+
+**`sentinel prices`** (peak 4.2 GB): 12,432,111 Yahoo rows and 5,643,865 Tiingo rows give 16,135,040 daily rows, in 93 s. Chosen series: yahoo_primary 3,513, tiingo_resolved 2,033, tiingo_fill_in 146, tiingo_fill_in_promoted 64, yahoo_starts_late→tiingo 120, yahoo_missing→tiingo 18, yahoo_primary_late 16. **813 of 6,577 issuers are still unpriced.** Price issues: high_below_low 376, open_outside_range 186, not_a_session 1.
+
+**`sentinel detect --fetch-missing-headers`** (peak 3.2 GB, 8 min): the first pass needed 960 more headers (960 stored, 0 failed). Final: 44,669 candidates: event 20,149, cooldown 14,902, g7_no_sic 3,337, floor_price 2,623, unpriced 1,711, floor_liquidity 1,123, floor_activity 692, g7_issuer_type 131, needs_header 1. Events: **A 7,107 · B1 3,422 · B2 9,620**. G8 passes 287,134 of 309,133 lines (92.9%; SC-002 target 95%). **Coverage from 2012: A 88.9% (7,662 of 8,620), B1 92.3% (3,701 of 4,008)**; SC-001 (90%) is met for B1 and just missed for A. The gap has not been analysed yet.
+
+### Yahoo cross-check (`audit.price_crosscheck`)
+
+Why: a ticker can belong to different companies over time, and a Yahoo series is only checked by G8. Tiingo was also fetched for the 3,529 tickers of the chosen Yahoo series (3,369 stored, 153 already held, 7 not in Tiingo, 0 failed; 57 min). Tiingo prices only check Yahoo and never replace it: `core.price_daily` is unchanged (16,135,040 rows).
+
+Rule (code constants, `core/prices.py`): a day disagrees when the two adjusted daily returns differ by more than 2 points; only days when Tiingo's as-traded close is at least the registered price floor ($2) count, because below it the vendors' closing prints differ by a few percent without any difference in identity. At least 20 such days are needed. At most 2% disagreeing days is `agree`, 10% or more is `mismatch`, between is `review`.
+
+| Verdict | Tickers |
+|---|---|
+| agree | 3,424 (97.0%) |
+| insufficient (fewer than 20 days at $2 or more) | 62 |
+| review | 24 |
+| mismatch | 12 |
+| not_in_tiingo | 7 |
+
+Without the $2 restriction there were 49 mismatches; 37 of those are no longer mismatches, among them penny stocks such as CYDY and BKYI, whose closes differ by a few percent between the vendors.
+
+**Entry-day price (prices at or before T only).** For the 4,598 priced Yahoo clusters (A, labelled window) whose ticker Tiingo also covers, Yahoo's as-traded `close_t` equals Tiingo's close on the same session within 1% for 99.63% and within 5% for 99.65%. 16 events differ by 5% or more: 3 at OSG, 10 at MCHB, 1 at FIEE (Tiingo's record under FIEE is named UBS AG London Branch), 1 at HR (Tiingo's close is exactly twice Yahoo's, a difference in split treatment; G8 at HR passes only 65%) and 1 at ASPS (6%).
+
+**Which side is wrong.** The insiders' own reported prices give an independent answer through G8 (purchase lines since 2012 whose reported price lies in the day's Yahoo range): MCHB 100% (108 lines), OSG 100% (113), AIM 100% (105), SAFE 100% (12), against 96.2% overall. At those tickers Yahoo's series matches what the insiders paid, and Tiingo's does not (its record under AIM is named Aerosonic Corp, under OSG Overseas Shipholding Group, under MCHB Mechanics Bank at $13,000–$31,500 a share). Where G8 is low, G8 already removes the purchases that fail it: LCGMF 2%, NTRP 31%, FIEE 68%, BASA 68% (causes not examined).
+
+**Events at flagged issuers** (A, labelled window, priced from Yahoo): 23 at the 12 mismatch issuers (MCHB 10, OSG 6, LAB 4, SAFE 1, FIEE 1, AIM 1), 4 at review issuers, of 4,664. Open decision: keep them, or add a rule excluding them.
+
+**No outcome was computed.** The check compares source against source, with no event window and no return after T. A per-event 63-day comparison was considered and not done, because post-event returns may not be computed before `prereg-v1`.

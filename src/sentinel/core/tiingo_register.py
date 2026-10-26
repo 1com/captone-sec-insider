@@ -24,6 +24,7 @@ TIINGO_DERIVED: list[tuple[str, str | None]] = [
     ("core.tiingo_listing", WHOLE_TABLE),
     ("core.price_series", "price_source = 'tiingo'"),
     ("core.price_daily", "price_source = 'tiingo'"),
+    ("audit.price_crosscheck", WHOLE_TABLE),
     ("core.price_check", "price_source = 'tiingo'"),
     ("evt.event_candidate", "price_source = 'tiingo'"),
     ("evt.event", "price_source = 'tiingo'"),

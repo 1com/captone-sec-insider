@@ -26,6 +26,7 @@ TABLES = [
     "core.company_filing", "core.xbrl_fact", "core.price_check", "core.priced_purchase",
     "evt.event_candidate", "evt.event", "evt.event_member", "evt.event_cost", "core.delisting",
     "audit.price_issue", "audit.g8_rate", "audit.event_funnel", "audit.price_coverage",
+    "audit.price_crosscheck",
 ]  # fmt: skip
 LIMIT_SECONDS = 30 * 60
 

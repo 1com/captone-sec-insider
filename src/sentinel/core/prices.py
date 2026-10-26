@@ -19,7 +19,7 @@ from datetime import date
 import duckdb
 import pyarrow as pa
 
-from sentinel.config import Paths
+from sentinel.config import Paths, registered_value
 from sentinel.core.tiingo_register import require_paid_window
 from sentinel.ingest import manifest, tiingo, yahoo
 from sentinel.warehouse import MissingInput
@@ -39,6 +39,7 @@ TABLES = {
     "core.price_series": SERIES_COLUMNS,
     "core.price_daily": DAILY_COLUMNS,
 }
+
 YAHOO_COLUMNS = (
     "ticker VARCHAR, session DATE, open DOUBLE, high DOUBLE, low DOUBLE, close DOUBLE, "
     "volume DOUBLE, adj_close DOUBLE, dividend DOUBLE, split_ratio DOUBLE, raw_path VARCHAR"
@@ -54,9 +55,23 @@ LISTING_COLUMNS = (
     "ticker VARCHAR, list_exchange VARCHAR, list_start DATE, list_end DATE, meta_name VARCHAR, "
     "meta_exchange VARCHAR, meta_start DATE, meta_end DATE"
 )
+CROSSCHECK_COLUMNS = (
+    "issuer_cik VARCHAR, ticker VARCHAR, overlap_days INTEGER, disagree_days INTEGER, "
+    "disagree_share DOUBLE, tiingo_name VARCHAR, tiingo_identity VARCHAR, verdict VARCHAR"
+)
 SHADOW = "_new_"
 CHUNK = 250  # raw files per transaction
 SIGNIFICANT_DIGITS = 10
+# Yahoo-versus-Tiingo check of a listed company's price series (audit.price_crosscheck): a day
+# disagrees when the two adjusted daily returns differ by more than 2 points. A right pair differs
+# only through dividend adjustment and data glitches; a reused ticker (another company) differs on
+# most days. Only days when Tiingo's as-traded close is at least the registered price floor count:
+# below it the vendors' closing prints differ by a few percent (a $0.20 stock), which says nothing
+# about identity and which no event can use. Fewer than 20 such days is too few to judge.
+CROSSCHECK_RETURN_GAP = 0.02
+CROSSCHECK_MIN_DAYS = 20
+CROSSCHECK_AGREE_MAX = 0.02  # at most 2% of shared days disagree: agree
+CROSSCHECK_MISMATCH_MIN = 0.10  # at least 10% disagree: probably different companies
 
 
 def _significant(expr: str) -> str:
@@ -393,6 +408,70 @@ def _choose(con, paths: Paths, params: dict, universe: dict[str, date]) -> list[
     return [tuple(r) for r in rows.values()]
 
 
+def crosscheck_verdict(overlap: int, share: float | None, identity: str) -> str:
+    """`not_in_tiingo`, `insufficient`, `agree`, `review` or `mismatch` (thresholds above)."""
+    if identity == "no_data":
+        return "not_in_tiingo"
+    if overlap < CROSSCHECK_MIN_DAYS or share is None:
+        return "insufficient"
+    if share <= CROSSCHECK_AGREE_MAX:
+        return "agree"
+    return "mismatch" if share >= CROSSCHECK_MISMATCH_MIN else "review"
+
+
+def _crosscheck(con, paths: Paths, params: dict, series: list[tuple]) -> None:
+    """`audit.price_crosscheck`: for each chosen Yahoo series whose ticker Tiingo was also asked
+    for, how often the two sources' adjusted daily returns disagree, and whether Tiingo's own
+    record (name, dates) fits the SEC company. Tiingo prices only check Yahoo here: they never
+    replace it. The table is Tiingo-derived, so it is registered with the other Tiingo tables."""
+    con.execute(f"create or replace table audit.{SHADOW}price_crosscheck ({CROSSCHECK_COLUMNS})")
+    tried = {k.removeprefix("meta/") for k, _ in _stored(paths, tiingo.SOURCE, "meta/")}
+    tried |= {k.removeprefix("prices/") for k, _ in _stored(paths, tiingo.SOURCE, "prices/")}
+    chosen = [r for r in series if r[1] == "yahoo" and r[8] and r[2] in tried]
+    if not chosen:
+        return
+    stats = {
+        t: (n, bad)
+        for t, n, bad in con.execute(
+            f"""
+            with y as (
+                select ticker, session, adj_close / lag(adj_close) over (
+                           partition by ticker order by session) - 1 as r
+                from stg.price_yahoo where adj_close > 0),
+            t as (
+                select ticker, session, close, adj_close / lag(adj_close) over (
+                           partition by ticker order by session) - 1 as r
+                from stg.price_tiingo where adj_close > 0)
+            select y.ticker, count(*),
+                   sum(cast(abs(y.r - t.r) > {CROSSCHECK_RETURN_GAP} as INTEGER))
+            from y join t using (ticker, session)
+            where y.r is not null and t.r is not null and t.close >= ?
+            group by 1
+            """,
+            [registered_value(params, "price_floor")],
+        ).fetchall()
+    }
+    names: dict[str, list[str]] = {}
+    for cik, name in con.execute(
+        "select distinct issuer_cik, issuer_name from core.filing where issuer_name is not null"
+    ).fetchall():
+        names.setdefault(cik, []).append(name)
+    rows = []
+    for cik, _, ticker, _, first, last, *_ in chosen:
+        meta = tiingo.read_meta(paths, ticker)
+        span = (first, last) if first and last else (date.min, date.max)
+        ident = tiingo.identity(meta, names.get(cik, []), span)
+        n, bad = stats.get(ticker, (0, 0))
+        share = bad / n if n else None
+        rows.append(
+            (cik, ticker, n, bad, share, (meta or {}).get("name"), ident,
+             crosscheck_verdict(n, share, ident))
+        )  # fmt: skip
+    con.executemany(
+        f"insert into audit.{SHADOW}price_crosscheck values (?, ?, ?, ?, ?, ?, ?, ?)", rows
+    )
+
+
 def _daily(con, cutoff=None) -> None:
     """`core._new_price_daily` and the price issues of the chosen series."""
     last = "(select max(session) from core.session where session <= cast($cutoff as DATE))"
@@ -485,7 +564,8 @@ def build(
     today: date | None = None,
 ) -> PriceReport:
     """Rebuild `stg.price_yahoo`, `stg.price_tiingo`, `core.tiingo_listing`, `core.session`,
-    `core.price_series`, `core.price_daily` and `audit.price_issue`. `cutoff` drops price rows
+    `core.price_series`, `core.price_daily`, `audit.price_crosscheck` and `audit.price_issue`.
+    `cutoff` drops price rows
     after the last session on or before it (truncation tests); the calendar is kept whole."""
     for table in ("core.symbol_map", "evt.prelim_event", "core.filing"):
         if not con.execute(
@@ -508,9 +588,11 @@ def build(
             f"insert into core.{SHADOW}price_series values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", series
         )
     _daily(con, cutoff)
+    _crosscheck(con, paths, params, series)
     with _transaction(con):
         _swap(con, "core", "price_series")
         _swap(con, "core", "price_daily")
+        _swap(con, "audit", "price_crosscheck")
         con.execute(
             "create or replace table audit.price_issue as "
             "select distinct * from _issue order by all"

@@ -217,6 +217,18 @@ def resolve(
     return targets
 
 
+def crosscheck_targets(con: duckdb.DuckDBPyConnection) -> list[Target]:
+    """Tiingo tickers to fetch only to check Yahoo: the ticker of every chosen Yahoo series, as
+    Yahoo writes it. They never become price series (`audit.price_crosscheck` compares them)."""
+    return [
+        Target(cik, ticker, "crosscheck", ticker, first, last, None, None)
+        for cik, ticker, first, last in con.execute(
+            "select issuer_cik, ticker, first_session, last_session from core.price_series "
+            "where price_source = 'yahoo' and chosen order by ticker"
+        ).fetchall()
+    ]
+
+
 def _words(name: str | None) -> set[str]:
     return {w for w in re.findall(r"[a-z0-9]+", (name or "").lower()) if len(w) > 1} - (
         NAME_STOPWORDS

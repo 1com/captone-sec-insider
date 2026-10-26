@@ -183,7 +183,7 @@ def test_price_tables_are_registered_for_deletion():
 
     registered = {t for t, _ in TIINGO_DERIVED}
     assert {"stg.price_tiingo", "core.tiingo_listing", "core.price_series",
-            "core.price_daily"} <= registered  # fmt: skip
+            "core.price_daily", "audit.price_crosscheck"} <= registered  # fmt: skip
 
 
 def test_build_needs_no_tiingo_files(con, tmp_data, params):
@@ -192,3 +192,118 @@ def test_build_needs_no_tiingo_files(con, tmp_data, params):
     report = prices.build(con, tmp_data, params)
     assert report.tiingo_rows == 0
     assert con.execute("select count(*) from stg.price_tiingo").fetchone()[0] == 0
+
+
+# --- Yahoo checked against Tiingo (audit.price_crosscheck) -------------------------------------
+
+LONG = weekdays(date(2012, 1, 3), 45)
+
+
+def path(start=10.0, wobble=0.03):
+    """A price path whose daily returns alternate between +wobble and -wobble."""
+    out, p = [], start
+    for i, d in enumerate(LONG):
+        p *= 1 + (wobble if i % 2 else -wobble)
+        out.append({"session": d, "close": round(p, 4), "volume": 1000})
+    return out
+
+
+def listed(con, tmp_data, paid, yahoo_rows, tiingo_rows, meta_name="Aaa Inc", tried=True):
+    """Listed company AAA with Yahoo prices, and Tiingo's file for the same ticker."""
+    issuer(con, "1", "AAA", "yahoo", "Aaa Inc")
+    store_yahoo(tmp_data, paid, {"SPY": [{"session": d, "close": 100.0} for d in LONG],
+                                 "AAA": yahoo_rows})  # fmt: skip
+    if tried:
+        meta = (
+            {"ticker": "aaa", "name": meta_name, "startDate": "2010-01-04"} if tiingo_rows else {}
+        )
+        store_tiingo(tmp_data, paid, [], {"AAA": tiingo_rows} if tiingo_rows else {}, {"AAA": meta})
+    prices.build(con, tmp_data, paid, today=INSIDE)
+    return con.execute("select * from audit.price_crosscheck").fetchall()
+
+
+def test_the_same_company_in_both_sources_agrees(con, tmp_data, paid):
+    rows = path()
+    [(cik, ticker, n, bad, share, name, ident, verdict)] = listed(con, tmp_data, paid, rows, rows)
+    assert (cik, ticker, n, bad, share, ident, verdict) == ("1", "AAA", 44, 0, 0.0, "ok", "agree")
+    assert name == "Aaa Inc"
+
+
+def test_another_company_under_the_same_ticker_is_a_mismatch(con, tmp_data, paid):
+    other = path(start=25.0, wobble=0.08)
+    [(*_, share, name, ident, verdict)] = listed(
+        con, tmp_data, paid, path(), other, meta_name="Zeta Biotech Inc"
+    )
+    assert share > 0.9 and verdict == "mismatch" and ident == "name"
+
+
+def test_days_below_the_price_floor_are_ignored(con, tmp_data, paid):
+    """Two sources print different closes for a $0.20 stock, which says nothing about identity."""
+    [(*_, n, bad, share, name, ident, verdict)] = listed(
+        con, tmp_data, paid, path(start=0.2, wobble=0.03), path(start=0.2, wobble=0.08)
+    )
+    assert (n, bad, share, verdict) == (0, 0, None, "insufficient")
+
+
+def test_only_days_at_or_above_the_floor_are_counted(con, tmp_data, paid):
+    """A stock that rises through the $2 floor: the days below it are left out."""
+    rows, other = path(start=1.0, wobble=0.0), path(start=1.0, wobble=0.0)
+    for r, o in zip(rows[20:], other[20:], strict=True):  # from the 21st day: $3, then wobble
+        r["close"], o["close"] = 3.0, 3.0
+    for i, o in enumerate(other[:19]):
+        o["close"] = 1.0 * (1.2 if i % 2 else 0.8)  # would disagree, but below $2
+    [(*_, n, bad, share, name, ident, verdict)] = listed(con, tmp_data, paid, rows, other)
+    assert (n, bad, verdict) == (25, 0, "agree")
+
+
+def test_a_few_glitches_are_reviewed_not_rejected(con, tmp_data, paid):
+    rows, other = path(), path()
+    for i in (5, 6, 20, 21):  # two bad prices: four return days differ (9% of 44)
+        other[i]["close"] *= 1.3
+    [(*_, n, bad, share, name, ident, verdict)] = listed(con, tmp_data, paid, rows, other)
+    assert (bad, verdict) == (4, "review") and 0.02 < share < 0.10
+
+
+def test_too_few_shared_days_is_insufficient(con, tmp_data, paid):
+    rows = path()
+    [(*_, n, bad, share, name, ident, verdict)] = listed(con, tmp_data, paid, rows, rows[:10])
+    assert n == 9 and verdict == "insufficient"
+
+
+def test_a_ticker_tiingo_does_not_have_is_not_in_tiingo(con, tmp_data, paid):
+    [(*_, n, bad, share, name, ident, verdict)] = listed(con, tmp_data, paid, path(), [])
+    assert (n, ident, verdict) == (0, "no_data", "not_in_tiingo")
+
+
+def test_tickers_never_asked_of_tiingo_are_left_out(con, tmp_data, paid):
+    assert listed(con, tmp_data, paid, path(), [], tried=False) == []
+
+
+def test_tiingo_never_replaces_the_yahoo_series_in_the_check(con, tmp_data, paid):
+    listed(con, tmp_data, paid, path(), path(start=25.0, wobble=0.08), meta_name="Zeta Inc")
+    assert {r[0] for r in daily(con, "1")} and {r[5] for r in daily(con, "1")} == {"yahoo"}
+    assert con.execute(
+        "select chosen, reason from core.price_series where issuer_cik = '1'"
+    ).fetchall() == [(True, "yahoo_primary")]
+
+
+@pytest.mark.parametrize(
+    ("n", "share", "identity", "verdict"),
+    [(44, 0.02, "ok", "agree"), (44, 0.0227, "ok", "review"), (44, 0.0999, "ok", "review"),
+     (44, 0.10, "ok", "mismatch"), (19, 0.0, "ok", "insufficient"), (20, 0.0, "ok", "agree"),
+     (0, None, "no_data", "not_in_tiingo")],
+)  # fmt: skip
+def test_the_verdict_thresholds(n, share, identity, verdict):
+    assert prices.crosscheck_verdict(n, share, identity) == verdict
+
+
+def test_crosscheck_targets_are_the_chosen_yahoo_tickers(con, tmp_data, paid):
+    from sentinel.ingest import tiingo
+
+    issuer(con, "1", "AAA", "yahoo", "Aaa Inc")
+    issuer(con, "2", "BBB", "yahoo", "Bbb Inc")
+    store_yahoo(tmp_data, paid, {"SPY": spy(), "AAA": spy(5.0)})  # BBB has no Yahoo file
+    prices.build(con, tmp_data, paid)
+    assert [(t.issuer_cik, t.ticker, t.role) for t in tiingo.crosscheck_targets(con)] == [
+        ("1", "AAA", "crosscheck")
+    ]

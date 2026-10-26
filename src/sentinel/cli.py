@@ -1086,9 +1086,15 @@ def fetch_prices_cmd(
     retry_failures: bool = typer.Option(
         False, "--retry-failures", help="Also retry Yahoo tickers that failed before."
     ),
+    crosscheck: bool = typer.Option(
+        False,
+        "--crosscheck",
+        help="With --source tiingo: fetch the tickers of the chosen Yahoo series, to check Yahoo "
+        "(audit.price_crosscheck); needs `sentinel prices` first.",
+    ),  # fmt: skip
 ):
     """[Step 7] Fetch daily prices: Yahoo for listed stocks, SPY and IWM; Tiingo for delisted
-    stocks (paid month only)."""
+    stocks (paid month only), or with --crosscheck for the listed ones, to check Yahoo."""
     import duckdb
 
     from sentinel import warehouse
@@ -1101,6 +1107,8 @@ def fetch_prices_cmd(
 
     if source not in ("yahoo", "tiingo"):
         _fail("--source must be yahoo or tiingo", USAGE)
+    if crosscheck and source != "tiingo":
+        _fail("--crosscheck needs --source tiingo", USAGE)
     paths, params = _context()
     ops = params["ops"]
     try:
@@ -1108,6 +1116,8 @@ def fetch_prices_cmd(
             require_paid_window(params)
         with warehouse.connect(paths, read_only=True) as con:
             warehouse.require_tables(con, ["core.symbol_map", "evt.prelim_event"], "symbols")
+            if crosscheck:
+                warehouse.require_tables(con, ["core.price_series"], "prices")
             if source == "yahoo":
                 tickers = yahoo.universe_tickers(con, params)
             else:
@@ -1141,7 +1151,10 @@ def fetch_prices_cmd(
                 tiingo.store_list(paths, params, payload, url)
             listing = tiingo.stored_listing(paths, params)
             with warehouse.connect(paths, read_only=True) as con:
-                targets = tiingo.resolve(con, listing, params, fallback_issuers=fallback)
+                if crosscheck:
+                    targets = tiingo.crosscheck_targets(con)
+                else:
+                    targets = tiingo.resolve(con, listing, params, fallback_issuers=fallback)
             roles = {}
             for t in targets:
                 roles[t.role] = roles.get(t.role, 0) + 1
