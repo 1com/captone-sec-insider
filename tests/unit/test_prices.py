@@ -138,6 +138,44 @@ def test_yahoo_series_starting_after_the_first_event_falls_back_to_tiingo(con, t
     assert len(daily(con, "3")) == len(DAYS)
 
 
+def test_overlapping_fill_ins_give_one_row_per_session(con, tmp_data, paid):
+    """Two share classes (XYZA, XYZB) both fill in before the main series XYZ: one row per
+    session, from the fill-in with more sessions. Both rows were kept before (feature 004
+    offline rebuild, 26 Oct: G8 then read either class at random)."""
+    issuer(con, "4", "XYZA", "tiingo", "Xyz Corp", valid=(date(2010, 2, 1), date(2012, 1, 4)))
+    for ticker, valid in (("XYZB", (date(2010, 2, 1), date(2012, 1, 4))),
+                          ("XYZ", (date(2012, 1, 5), None))):  # fmt: skip
+        con.execute("insert into core.symbol_map values ('4', ?, ?, ?, 'tiingo', 'x')",
+                    [ticker, *valid])  # fmt: skip
+    store_yahoo(tmp_data, paid, {"SPY": spy()})
+    store_tiingo(
+        tmp_data, paid,
+        [("XYZA", "NYSE", "Stock", "USD", "2009-01-02", "2012-01-09"),
+         ("XYZB", "NYSE", "Stock", "USD", "2009-01-02", "2012-01-06"),
+         ("XYZ", "NYSE", "Stock", "USD", "2012-01-05", "")],
+        {"XYZA": [{"session": d, "close": 10.0} for d in DAYS[:4]],
+         "XYZB": [{"session": d, "close": 20.0} for d in DAYS[:3]],
+         "XYZ": [{"session": d, "close": 30.0} for d in DAYS[2:]]},
+        {t: {"ticker": t.lower(), "name": "Xyz Corp", "startDate": "2009-01-02"}
+         for t in ("XYZA", "XYZB", "XYZ")},
+    )  # fmt: skip
+    prices.build(con, tmp_data, paid, today=INSIDE)
+    got = con.execute(
+        "select session, ticker, close from core.price_daily where issuer_cik = '4' order by 1"
+    ).fetchall()
+    assert got == [(DAYS[0], "XYZA", 10.0), (DAYS[1], "XYZA", 10.0),
+                   *[(d, "XYZ", 30.0) for d in DAYS[2:]]]  # fmt: skip
+    assert prices.check_one_series(con) == []
+
+
+def test_w14_reports_two_rows_for_one_session(con, tmp_data, params):
+    issuer(con, "1", "AAA", "yahoo", "Aaa Inc")
+    store_yahoo(tmp_data, params, {"SPY": spy(), "AAA": spy(5.0)})
+    prices.build(con, tmp_data, params)
+    con.execute("insert into core.price_daily select * from core.price_daily limit 1")
+    assert prices.check_one_series(con) == ["1 two price rows for one session"]
+
+
 def test_issuer_without_any_series_is_unpriced(con, tmp_data, params):
     issuer(con, "4", "NONE", "tiingo", "None Inc")
     store_yahoo(tmp_data, params, {"SPY": spy()})

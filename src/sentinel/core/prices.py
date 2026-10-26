@@ -493,7 +493,8 @@ def _daily(con, cutoff=None) -> None:
                    coalesce(dividend, 0), coalesce(split_ratio, 1.0), false
             from stg.price_tiingo
         )
-        select c.issuer_cik, r.*
+        select c.issuer_cik, cast(c.role = 'fill_in' as INTEGER) as fill_rank,
+               c.n_sessions as series_sessions, r.*
         from provider r
         join chosen c on c.price_source = r.price_source and c.ticker = r.ticker
         join main m on m.issuer_cik = c.issuer_cik
@@ -530,7 +531,7 @@ def _daily(con, cutoff=None) -> None:
               and session in (select session from core.session)
         ),
         traded as (
-            select issuer_cik, session, price_source, ticker,
+            select issuer_cik, fill_rank, series_sessions, session, price_source, ticker,
                    case when split_adjusted then {_significant("open * cum")} else open end as open,
                    case when split_adjusted then {_significant("high * cum")} else high end as high,
                    case when split_adjusted then {_significant("low * cum")} else low end as low,
@@ -540,7 +541,15 @@ def _daily(con, cutoff=None) -> None:
                    adj_close, {_significant("cum")} as cum_split_after, split_ratio, dividend
             from valid
         )
-        select *, close * volume as dollar_volume from traded
+        -- One row per issuer and session. Fill-ins of two share classes can cover the same
+        -- days (LGF-A and LGF-B): the main series wins, then the fill-in with more sessions,
+        -- then the ticker. Chosen after the split factors, so each series keeps its own splits.
+        select issuer_cik, session, price_source, ticker, open, high, low, close, volume,
+               adj_close, cum_split_after, split_ratio, dividend, close * volume as dollar_volume
+        from traded
+        qualify row_number() over (
+            partition by issuer_cik, session order by fill_rank, series_sessions desc, ticker
+        ) = 1
         """
     )
     con.execute(
@@ -620,7 +629,8 @@ def build(
 
 
 def check_one_series(con: duckdb.DuckDBPyConnection) -> list[str]:
-    """W14: issuers with more than one chosen main series, or price rows from an unchosen one."""
+    """W14: issuers with more than one chosen main series, price rows from an unchosen one, or
+    two price rows for one session."""
     several = con.execute(
         "select issuer_cik from core.price_series where chosen and role <> 'fill_in' "
         "group by 1 having count(*) > 1 order by 1"
@@ -633,9 +643,15 @@ def check_one_series(con: duckdb.DuckDBPyConnection) -> list[str]:
         where s.issuer_cik is null order by 1
         """
     ).fetchall()
-    return [f"{c} several main series" for (c,) in several] + [
-        f"{c} rows from an unchosen series" for (c,) in stray
-    ]
+    doubled = con.execute(
+        "select distinct issuer_cik from core.price_daily group by issuer_cik, session "
+        "having count(*) > 1 order by 1"
+    ).fetchall()
+    return (
+        [f"{c} several main series" for (c,) in several]
+        + [f"{c} rows from an unchosen series" for (c,) in stray]
+        + [f"{c} two price rows for one session" for (c,) in doubled]
+    )
 
 
 def check_valid_prices(con: duckdb.DuckDBPyConnection) -> list[str]:
