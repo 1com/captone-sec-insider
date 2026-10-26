@@ -199,3 +199,18 @@ Without the $2 restriction there were 49 mismatches; 37 of those are no longer m
 **Events at flagged issuers** (A, labelled window, priced from Yahoo): 23 at the 12 mismatch issuers (MCHB 10, OSG 6, LAB 4, SAFE 1, FIEE 1, AIM 1), 4 at review issuers, of 4,664. Open decision: keep them, or add a rule excluding them.
 
 **No outcome was computed.** The check compares source against source, with no event window and no return after T. A per-event 63-day comparison was considered and not done, because post-event returns may not be computed before `prereg-v1`.
+
+
+### Delistings, costs and coverage with Tiingo prices (2026-10-26)
+
+| Step | Result | Time, peak memory |
+|---|---|---|
+| `sentinel delistings` | 1,645 series end early: acquired 1,267, performance 186, remap 63, unknown 129; venues Nasdaq 898, NYSE 564, other 183 | 9 s, 1.7 GB |
+| `sentinel costs` | 20,149 priced events, 19,973 with a cost (median round trip 0.78%); 488 on tick-pilot days; no jump at a price other than $2 | 2 s, 1.1 GB |
+| `sentinel coverage` | `coverage.md` regenerated | 1 s, 0.2 GB |
+
+**SC-001 (price coverage ≥ 90%): 89.98%, missed by 3 events** (11,363 of 12,628 A and B1 events from 2012, floors off): listed 97.3%, delisted 95.9%, unpriced issuers 0% (911 events). As the plan requires, the window is not moved; the unpriced-event bounds become a headline result. **SC-002 (G8 ≥ 95%): 92.9%** (see D52).
+
+**Why 815 issuers with candidates have no price series** (first matching reason): no match for their SEC tickers in Tiingo's list 415; Tiingo series rejected because the dates do not overlap 155 or the name differs 106; fund-like without a ticker 63; no ticker anywhere in SEC data 60; Tiingo knows the ticker but has no prices 14; Yahoo series without usable rows 2. The 415 are mostly companies acquired or delisted before about 2014 that Tiingo does not carry (for example P.F. Chang's, Power-One, SonoSite, Taylor Capital); no free source has them. A looser rule for bankruptcy `Q` tickers whose listing starts after the last insider filing (Coldwater Creek's CWTRQ starts four weeks later) would add 6 issuers and 4 candidates, so the identity rule is unchanged.
+
+**Cluster events (A) after Tiingo**, counts only: development 2012–2022 **5,083 priced** (1,952 of them priced by Tiingo) and 609 unpriced; holdout 2023 to 1 June 2026 1,532 priced and 26 unpriced; warm-up (second half of 2011) 345 priced. B1 development: 2,330 priced. 5,019 development clusters have a cost. These counts still depend on D45 (`rules.g7_no_sic`, due 29 October).
