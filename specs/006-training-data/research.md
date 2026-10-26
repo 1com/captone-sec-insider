@@ -6,7 +6,7 @@ The plan fixes the method. This file records the details it leaves open, each de
 
 ## R1. The lock guard
 
-- **Decision**: `sentinel labels`, `sentinel features` and `sentinel ml-dataset` stop with exit code 7 unless the git tag `prereg-v1` exists and `config/params.yaml` is byte-identical to its version at the tag. Unit tests run the same code on synthetic warehouses through an explicit test-only switch.
+- **Decision**: `sentinel labels`, `sentinel features` and `sentinel ml-dataset` stop with exit code 7 unless the git tag `prereg-v1` exists and `config/params.yaml` is byte-identical to its version at the tag. The guard sits in the CLI steps (also used by the offline rebuild); unit tests call the build functions on synthetic warehouses.
 - **Rationale**: constitution III: no post-event return before the tag. Labels are post-event returns, and F10 uses past purchases' returns.
 - **Alternative rejected**: checking the remote tag (needs the network; the offline rebuild must work).
 
@@ -48,7 +48,7 @@ The plan fixes the method. This file records the details it leaves open, each de
 ## R8. Purchase outcomes for F10
 
 - **Decision**: `lab.purchase_outcome` holds, for every priced clean purchase (`core.priced_purchase`, G8 not failed), the 63-session BHAR against the equal-weighted industry from the open of the session after its filing date, net of the cost model evaluated at that filing date (same formula and inputs as `evt.event_cost`). Only windows ending by 31 December 2022.
-- **F10** for an event at T: for each buyer entity, n = its earlier priced clean purchases at this issuer whose windows ended before T, h = those with net > 0; the entity's rate is (h + k·p̄) ÷ (n + k), k = 5; F10 = mean over the event's buyers. p̄ = share of all purchase outcomes (any issuer) with net > 0 among windows ending in the 36 months before T; if none, 0.5.
+- **F10** for an event at T: for each buyer entity, n = its earlier priced clean purchases at this issuer whose windows ended before T and whose net is known, h = those with net > 0; the entity's rate is (h + k·p̄) ÷ (n + k), k = 5; F10 = mean over the event's buyers. p̄ = the base rate of the primary label: the share of events (any group, any issuer) whose 63-session industry-adjusted net BHAR is > 0, among windows ending in the 36 months before T; 0.5 if there are none. The benchmark of a buyer's past purchase is the event's industry at T, so no later industry code is used.
 - **Holdout events**: F10 is null here and filled by the guarded job.
 
 ## R9. Insider features
@@ -58,7 +58,7 @@ The plan fixes the method. This file records the details it leaves open, each de
 - **F4–F6**: entities whose role at T is `ceo_cfo`, `director` and `ten_pct` (one role per entity, its most senior).
 - **F7**: per buyer, log(shares after its last purchase in the window ÷ shares before its first), using the summed holdings of `core.clean_purchase`; buyers with zero or unknown holdings before are left out; null if no buyer qualifies.
 - **F8**: buyers whose first purchase in the window opens a position.
-- **F9**: each owner is classified at 1 January of T's year from their open-market purchases and sales (codes P and S, original Forms 4) in the three previous calendar years: *routine* if they traded in the same calendar month in each of the three years, *opportunistic* if they traded in each of the three years but not routinely, otherwise unclassified. An entity is opportunistic if any classified member is, routine if all classified members are; F9 = opportunistic share of classified buyers, null if none.
+- **F9**: each owner on the event's purchase filings is classified at 1 January of T's year from their open-market purchases and sales at this issuer (codes P and S, original Forms 4, by trade date) in the three previous calendar years: *routine* if they traded in the same calendar month in each of the three years, *opportunistic* if they traded in each of the three years but not routinely, otherwise unclassified. An entity is opportunistic if any classified member is, routine if all classified members are; F9 = opportunistic share of classified buyers, null if none.
 - **F11**: mean of (filing date − trade date) over the member filings' purchase lines.
 - **F12**: value of code-S lines on original Forms 4 at the issuer filed in the 90 days before T (T − 90 < filing date ≤ T), any insider.
 - **F13**: 1 if any of those sales was by an owner whose role at the sale's filing date was `ceo_cfo`.
@@ -77,7 +77,7 @@ The plan fixes the method. This file records the details it leaves open, each de
 
 - **Rows**: group A events with a target (R6, R7).
 - **Fixed preprocessing** (plan §7.2): F2, F12, F16 and F17 divided by SPY's close at T, then log(1 + x) so that zero sales stay defined.
-- **Folds**: test years 2019, 2020, 2021, 2022. For test year Y starting on date S, the training window holds events whose 63-session window ends before S. Calibration slice: signal dates in [S − 6 months, S); tuning slice: [S − 12 months, S − 6 months); fit set: before S − 12 months. **Purging**: an event of the fit set is kept only if its window ends before the tuning slice begins, and one of the tuning slice only if its window ends before the calibration slice begins; others are marked `purged`.
+- **Folds**: test years 2019, 2020, 2021, 2022 (registered as `rules.ml_test_years`). For test year Y starting on date S, the training window holds events whose 63-session window ends before S. Calibration slice: signal dates in [S − 6 months, S); tuning slice: [S − 12 months, S − 6 months); fit set: before S − 12 months. **Purging**: an event of the fit set is kept only if its window ends before the tuning slice begins, and one of the tuning slice only if its window ends before the calibration slice begins; others are marked `purged`.
 - **Fold 1** is dropped if its fit set has fewer than 500 events (registered).
 - **Weights**: each event's average uniqueness = mean over the sessions of its window of 1 ÷ (number of priced A events whose windows include that session); stored raw, and normalised to mean 1 within each fold's training window. The effective sample size (Σw)² ÷ Σw² is reported per fold.
 - **Version**: each build writes `ml.dataset_version` (git commit, parameter-file hash, row counts) and a Parquet copy under `data/ml/`.

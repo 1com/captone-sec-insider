@@ -52,6 +52,10 @@ uv run sentinel check
 | `sentinel audit sheets\|summary\|no-sic` | QA | Hand-audit sheets and their scores; `no-sic` is the D45 check |
 | `sentinel audit golden\|delistings\|market-caps` (+ `-summary`) | QA | Feature 004 audits: 30 events against EDGAR, 30 delisting classes, 10 market caps |
 | `sentinel explore` | — | Opens the warehouse read-only in the DuckDB UI at http://localhost:4213 ([docs/explore.md](docs/explore.md)) |
+| `sentinel prereg-status` | 10a | Checks the `prereg-v1` tag; the next three steps refuse to run (exit 7) until it exists and `config/params.yaml` matches it |
+| `sentinel labels` | 11 | Development labels: buy-and-hold abnormal returns against SPY, IWM and the FF49 industry (EW, VW) and the FF5 + momentum CAR, at 5–252 sessions, gross and net of cost, delistings handled; windows end by 31 Dec 2022 |
+| `sentinel features` | 12 | Features F1–F29 as of T (`feat.event_features`); F10 only for development events |
+| `sentinel ml-dataset` | 14 | The training table `ml.dataset`: clusters with features and target; four purged walk-forward folds with fit, tuning and calibration slices; uniqueness weights; versioned Parquet copy in `data/ml/` |
 | `sentinel lookup` | 19 (product v1) | Builds `data/lookup.duckdb` for the stock lookup from SEC tables only (no prices; about 35 s). Rerun after every warehouse rebuild |
 | `sentinel serve [--port 8766]` | 19 (product v1) | Stock lookup at http://127.0.0.1:8766: search by ticker, name or CIK; every insider transaction with plain-English codes, holdings over time, insider-buying events, glossary; JSON at `/api/issuers/search` and `/api/issuers/{cik}/transactions` ([specs/005-stock-lookup/quickstart.md](specs/005-stock-lookup/quickstart.md)) |
 

@@ -56,13 +56,13 @@ From [01](01-outcome-goals.md):
 
 | # | Task | Component | Done when | Depends on | Who | Day |
 |---|---|---|---|---|---|---|
-| 2.1 | Subscribe to Tiingo Power with auto-renewal off; log the start date | Tiingo account, decision log | Logged | 1.6 | R | Thu 29 Oct |
+| 2.1 | Subscribe to Tiingo Power with auto-renewal off; log the start date | Tiingo account, decision log | Logged | 1.6 | R | ✅ 26 Oct |
 | 2.2 | Yahoo fetcher: listed stocks, SPY, IWM, split histories; as-traded prices rebuilt; responses cached; run in the background | `ingest/yahoo.py`, `fetch-prices` | Price tests pass; listed coverage reported | 1.12 | C | ✅ 24 Oct (97.5% of listed) |
-| 2.3 | Tiingo fetcher for delisted final tickers (including `Q` tickers); every file tagged for deletion | `ingest/tiingo.py` | Delisted coverage reported | 2.1, 1.6 | C | Thu 29 Oct |
+| 2.3 | Tiingo fetcher for delisted final tickers (including `Q` tickers); every file tagged for deletion | `ingest/tiingo.py` | Delisted coverage reported | 2.1, 1.6 | C | ✅ 26 Oct |
 | 2.4 | French data library (factors, 49 industries, SIC definitions, breakpoints) and FINRA tick-size lists | `fetch-reference` | Tables load; dates cover 2006–Aug 2026 | 1.12 | C | ✅ 23 Oct |
 | 2.5 | G8, G7 (SIC at filing, with D45 and its fallback), floors and cooldown → final events; coverage report by year and delisting status | `events/`, `sentinel detect` | G8 ≥ 95%; coverage ≥ 90% | 2.2–2.4, 1.13 | C | Listed ✅ 24 Oct (G8 93.8%); again after 2.3, Fri 30 Oct |
 | 2.6 | Golden set: 30 events checked against EDGAR (about 2 h) | Audit sheet | 30 of 30, or explained | 2.5 | R | Mon 2 Nov |
-| 2.7 | Delisting classification and delisting returns | `core/delisting.py`, `sentinel delistings` | Every early-ending series classified | 2.5 | C | Mon 2 Nov |
+| 2.7 | Delisting classification and delisting returns | `core/delisting.py`, `sentinel delistings` | Every early-ending series classified | 2.5 | C | ✅ 26 Oct |
 | 2.8 | Delisting audit: 30 companies across the three classes (about 1.5 h) | Audit sheet | Verdicts recorded | 2.7 | R | Tue 3 Nov |
 
 ---

@@ -13,12 +13,16 @@ import duckdb
 import pytest
 from conftest import REPO
 
-from sentinel import cli, warehouse
+from sentinel import cli, lock, warehouse
 from sentinel.config import Paths, load_params
 
 pytestmark = pytest.mark.slow
 FEATURE_002 = ["stage", "entities", "gates", "prelim", "symbols", "headers"]
 FEATURE_004 = ["prices", "reference", "company", "detect", "delistings", "costs"]
+# Feature 006 computes returns: rebuilt and compared only once prereg-v1 exists (constitution III)
+FEATURE_006 = ["labels", "features", "ml-dataset"]
+TABLES_006 = ["lab.event_label", "lab.purchase_outcome", "feat.event_features", "ml.dataset",
+              "ml.dataset_fold", "ml.dataset_summary"]  # fmt: skip
 TABLES = [
     "stg.price_yahoo", "stg.price_tiingo", "core.session", "core.price_series",
     "core.price_daily", "core.tiingo_listing", "core.tick_pilot", "core.ff_factor_daily",
@@ -41,13 +45,14 @@ def test_offline_rebuild_is_identical_and_fast(tmp_path):
         con.close()
     paths = dataclasses.replace(real, warehouse=tmp_path / "rebuild.duckdb")
     params = load_params(real.params_file)
+    locked = lock.problem(REPO, real.params_file) is None
     scratch = warehouse.connect(paths)
     scratch.execute("set threads = 4")
     try:
         for step in FEATURE_002:
             assert cli.STEPS[step](paths, params, scratch)[1], step
         started = time.monotonic()
-        for step in FEATURE_004:
+        for step in FEATURE_004 + (FEATURE_006 if locked else []):
             assert cli.STEPS[step](paths, params, scratch)[1], step
         elapsed = time.monotonic() - started
     finally:
@@ -57,7 +62,7 @@ def test_offline_rebuild_is_identical_and_fast(tmp_path):
     try:
         con.execute(f"attach '{real.warehouse}' as a (read_only)")
         con.execute(f"attach '{paths.warehouse}' as b (read_only)")
-        for table in TABLES:
+        for table in TABLES + (TABLES_006 if locked else []):
             for x, y in (("a", "b"), ("b", "a")):
                 diff = con.execute(
                     f"select count(*) from (select * from {x}.{table} except all "

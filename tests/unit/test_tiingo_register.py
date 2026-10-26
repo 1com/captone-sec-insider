@@ -96,3 +96,13 @@ def test_deletion_removes_rows_tables_and_files_and_keeps_the_rest(built, paid):
     assert not list(built.warehouse.parent.glob("*.rewrite.duckdb"))
     after = tiingo_register.status(None, built, paid, date(2026, 12, 1))
     assert after.files == 0 and after.problems == []
+
+
+def test_the_ml_dataset_copies_are_registered_files(built, paid):
+    """Feature 006: the dataset's Parquet copies hold Tiingo-derived values (labels, features)."""
+    copy = built.data_raw.parent / "ml" / "dataset-abc.parquet"
+    copy.parent.mkdir(parents=True)
+    copy.write_bytes(b"x")
+    assert tiingo_register.status(None, built, paid, PAID_DAY).files == 4
+    tiingo_register.delete(built, paid, yes=True, today=PAID_DAY)
+    assert not copy.exists()

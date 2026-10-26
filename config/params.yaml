@@ -344,6 +344,8 @@ rules:
   tick_size_usd: 0.01
   tick_size_pilot_usd: 0.05
   min_volatility_returns: 40
+  # ML dataset (plan §7.2; feature 006 research R11): the four yearly walk-forward test folds
+  ml_test_years: [2019, 2020, 2021, 2022]
 
 provisional:
   # The pilot's G6 minimum per filing (Appendix A). Production uses registered.g6_min_value,

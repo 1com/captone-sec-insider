@@ -30,7 +30,14 @@ TIINGO_DERIVED: list[tuple[str, str | None]] = [
     ("evt.event", "price_source = 'tiingo'"),
     ("evt.event_cost", "price_source = 'tiingo'"),
     ("core.delisting", "price_source = 'tiingo'"),
+    ("lab.event_label", "price_source = 'tiingo'"),
+    ("lab.purchase_outcome", "price_source = 'tiingo'"),
+    ("feat.event_features", "price_source = 'tiingo'"),
+    ("ml.dataset", "price_source = 'tiingo'"),
 ]
+# Files outside data/raw/ that hold per-security values derived from Tiingo prices (feature 006):
+# the Parquet copies of the ML dataset. Patterns are relative to data/.
+DERIVED_FILES = ("ml/dataset-*.parquet",)
 # Tables whose `price_source` names the *intended* provider of SEC-derived tickers: no Tiingo data.
 NOT_TIINGO_DATA = {"core.symbol_map"}
 
@@ -131,6 +138,10 @@ def status(con, paths, params: dict, today: date | None = None) -> TiingoStatus:
                 st.bytes += path.stat().st_size
                 if not e.path.startswith("tiingo/"):
                     st.problems.append(f"Tiingo file outside data/raw/tiingo: {e.path}")
+    for pattern in DERIVED_FILES:
+        for path in paths.data_raw.parent.glob(pattern):
+            st.files += 1
+            st.bytes += path.stat().st_size
     if con is not None:
         st.rows = registered_rows(con)
         st.problems += [
@@ -211,6 +222,9 @@ def delete(paths, params: dict, yes: bool = False, today: date | None = None) ->
             book.add(replace(e, path=f"deleted:{e.path}", role="deleted", fetched_at=now))
     if paths.tiingo.exists():
         shutil.rmtree(paths.tiingo)
+    for pattern in DERIVED_FILES:
+        for path in paths.data_raw.parent.glob(pattern):
+            path.unlink()
     for stray in _stray_files(paths):
         target = paths.data_raw.parent / stray
         shutil.rmtree(target) if target.is_dir() else target.unlink(missing_ok=True)

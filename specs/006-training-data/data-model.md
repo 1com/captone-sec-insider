@@ -24,14 +24,14 @@ One row per (event, horizon, measure), for priced A, B1 and B2 events with T ≥
 
 ## `lab.purchase_outcome` (Step 11, for F10)
 
-One row per priced clean purchase (`core.priced_purchase`, `g8_status` ≠ failed) whose 63-session window ends by 2022-12-31.
+One row per (development event, buyer entity, earlier priced clean purchase of that buyer at the issuer) whose 63-session window ended before the event's T and by 2022-12-31.
 
 | Column | Meaning |
 |---|---|
-| `accession` | Key |
-| `issuer_cik`, `entity_id`, `filing_date` | From the purchase |
-| `entry_session`, `exit_session`, `window_end` | Session after the filing date; +63; its date |
-| `gross` | 63-session BHAR against the equal-weighted industry |
+| `event_id`, `accession`, `entity_id_at_t` | Key: the event, the past purchase, the buyer |
+| `issuer_cik`, `filing_date` | From the purchase |
+| `entry_session`, `exit_session` | Session after the filing date; 63 sessions later |
+| `gross` | 63-session BHAR against the equal-weighted industry of the event's SIC at T |
 | `cost`, `net` | Cost model at the filing date (formula of `evt.event_cost`); `gross − cost` |
 | `price_source` | |
 

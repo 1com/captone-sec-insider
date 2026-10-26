@@ -53,7 +53,7 @@ One table of development clusters with features, target, folds, slices and weigh
 
 **Acceptance Scenarios**:
 
-1. **Given** an event signalled in November 2018 whose window ends in February 2019, **Then** it is in no training window of fold 2019 and in the training window of later folds.
+1. **Given** an event signalled in November 2018 whose window ends in February 2019, **Then** it is purged in folds 2019 (it crosses the test year) and 2020 (it reaches the tuning slice), and is in the fit set from fold 2021.
 2. **Given** a fit set of 499 events in fold 1, **Then** fold 1 is marked dropped.
 
 ### Edge Cases
