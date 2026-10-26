@@ -859,7 +859,7 @@ The ML core is never cut.
 | # | Risk | Likelihood / impact | Mitigation |
 |---|---|---|---|
 | R1 | The free Tiingo plan cannot be used: its terms forbid storing data | **Confirmed** (ToS §1.6(a)) | One month of Tiingo Power (D39); bounds for unpriced events (§6.7) |
-| R2 | The paid month ends before the work that needs Tiingo data is finished | Low / High | Subscribe on the day of the pull (about 29 Oct, so it runs to about 28 Nov); finish labels and the offline rebuild first; a second month would need a constitution amendment |
+| R2 | The paid month ends before the work that needs Tiingo data is finished | Low / High | Subscribed on 26 Oct 2026; the plan ends on 26 Nov, so every Tiingo file and row is deleted by 25 Nov (`ops.tiingo_paid_from`/`until`); finish labels and the offline rebuild first; a second month would need a constitution amendment |
 | R3 | Wrong ticker matches (ticker changes and reuse) | Medium / High | CIK-based symbol history; date-overlap checks; G8; hand audit |
 | R4 | `yfinance` breaks or is rate-limited (unofficial API) | Medium / Medium | Cache every response; retries with back-off. The Tiingo month is reserved for delisted stocks (D39), so a long outage slips the schedule |
 | R5 | Footnote filters miss plan or offering trades (mainly before 2023), or over-exclude | Medium / Medium | Hand audit to estimate precision; results re-run with the filters off (on the default event set) |

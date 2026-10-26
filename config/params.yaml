@@ -293,10 +293,11 @@ ops:
   reference_symbols: [SPY, IWM]
   yahoo_batch_size: 50
   yahoo_pause_seconds: 2
-  # The one paid Tiingo month (D39). Tiingo data may be written only inside [from, until);
-  # set tiingo_paid_until to the day the plan ends when subscribing.
-  tiingo_paid_from: 2026-10-29
-  tiingo_paid_until: null
+  # The one paid Tiingo month (D39). Tiingo data may be written only inside [from, until).
+  # Subscribed 2026-10-26; the plan ends 2026-11-26, so every Tiingo file and row must be deleted
+  # (`sentinel tiingo-delete`) by 25 November.
+  tiingo_paid_from: 2026-10-26
+  tiingo_paid_until: 2026-11-26
   tiingo_requests_per_second: 2
   tiingo_api_base: "https://api.tiingo.com/tiingo/daily"
   sec_companyfacts_url: "https://www.sec.gov/Archives/edgar/daily-index/xbrl/companyfacts.zip"

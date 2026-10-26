@@ -136,7 +136,10 @@ def test_market_rules_defaults(params):
     assert rules["g7_excluded_sic"] == [6770, 6722, 6726]
     assert rules["final_detection_start"] == date(2011, 7, 1)
     assert rules["price_history_start"] == date(2010, 1, 1)
-    assert ops["tiingo_paid_from"] == date(2026, 10, 29)
+    assert (ops["tiingo_paid_from"], ops["tiingo_paid_until"]) == (
+        date(2026, 10, 26),
+        date(2026, 11, 26),
+    )
     assert ops["reference_symbols"] == ["SPY", "IWM"]
     other = params["registered"]["delisting_returns"]["value"]["other_venue_treated_as"]
     assert other == "performance_nasdaq"

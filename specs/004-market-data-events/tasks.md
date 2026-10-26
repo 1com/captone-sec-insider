@@ -472,7 +472,7 @@ The stories read each other's *tables* in the real run, but each is **tested ind
   - `docs/planning/`: status of epics E2 and E3.
 - [ ] T069 Complete `specs/004-market-data-events/run-notes.md`: counts, coverage, G8 rate, audits, timings and any deviations. Tick this file's tasks. Run `uv run pytest`, `uv run ruff check .` and `uv run sentinel build`; all must pass.
 - [ ] T070 Commit, merge `004-market-data-events` into `main` and delete the branch (keep `gh-pages`). Push only after the researcher approves. Target: Tuesday 3 November 2026, before `prereg-v1` on 4 November (SC-010).
-- [ ] T071 **End of the paid month** (about 28 November, after the research that needs Tiingo data):
+- [ ] T071 **End of the paid month** (by 25 November 2026, the last day before the plan ends on 26 November, after the research that needs Tiingo data):
   - `uv run sentinel tiingo-status`, then `uv run sentinel tiingo-delete`, then `uv run sentinel tiingo-delete --yes`;
   - record the printed line in `docs/initialplan.md` §12;
   - confirm no copy of `data/` exists elsewhere (SC-007).

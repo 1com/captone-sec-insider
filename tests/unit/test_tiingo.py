@@ -18,10 +18,12 @@ from sentinel.ingest.http import RateLimiter, RetryPolicy
 
 BASE = "https://api.tiingo.com/tiingo/daily"
 INSIDE = date(2026, 11, 2)
+TEST_FROM = date(2026, 10, 29)  # the tests' own paid window, not the one in params.yaml
 
 
 @pytest.fixture
 def paid(params):
+    params["ops"]["tiingo_paid_from"] = TEST_FROM
     params["ops"]["tiingo_paid_until"] = date(2026, 11, 28)
     return params
 
@@ -32,6 +34,7 @@ def paid(params):
      (date(2026, 11, 28), date(2026, 11, 28))],
 )  # fmt: skip
 def test_writes_are_refused_outside_the_paid_window(params, until, today):
+    params["ops"]["tiingo_paid_from"] = TEST_FROM
     params["ops"]["tiingo_paid_until"] = until
     with pytest.raises(OutsidePaidWindow):
         require_paid_window(params, today)
@@ -199,6 +202,7 @@ def test_meta_and_prices_are_stored_gzipped_with_manifest_lines(tmp_data, paid):
 
 @respx.mock
 def test_fetch_refuses_outside_the_window_before_any_request(tmp_data, params):
+    params["ops"]["tiingo_paid_until"] = None
     route = respx.get(f"{BASE}/XYZQ")
     client = tiingo.make_client("k" * 8, 30)
     with pytest.raises(OutsidePaidWindow):

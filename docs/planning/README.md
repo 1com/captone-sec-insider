@@ -31,8 +31,8 @@ This folder applies the course's six planning steps (neue fische / SPICED AI PM 
 | 3–4 audits | Three 50-row audit sheets | Waiting for the researcher |
 | 6 | Symbol map (98.1% of event companies mapped); filing headers for 27,288 of 27,290 signal filings (SGML fallback for 2012–2014) | ✅ 24 Oct |
 | D45 | 30-company no-SIC sheet (`specs/002-insider-warehouse/audits/d45_no_sic.csv`) | Waiting for the researcher (due 29 Oct) |
-| 7 | Yahoo prices (11.3 M rows, 3,649 companies), reference data, final events (A 4,926 · B1 2,542 · B2 7,171; 9,088 unpriced), G8 93.8%, coverage 97.5% of listed / 61.1% of all (feature 004) | ✅ 24 Oct for listed companies, merged; Tiingo prices from 29 Oct |
-| 8 | Delisting classes and returns | After Tiingo (29–30 Oct) |
+| 7 | Yahoo prices (11.3 M rows, 3,649 companies), reference data, final events (A 4,926 · B1 2,542 · B2 7,171; 9,088 unpriced), G8 93.8%, coverage 97.5% of listed / 61.1% of all (feature 004) | ✅ 24 Oct for listed companies, merged; Tiingo Power active 26 Oct – 26 Nov (all Tiingo data deleted by 25 Nov) |
+| 8 | Delisting classes and returns | After the Tiingo price pull |
 | 9–10 | XBRL facts (market cap for 92% of priced events; 8 of 10 within 5% of Yahoo, both misses explained) and costs (median round trip 0.73%) | ✅ 24 Oct for listed companies |
 | 19 (task 8.1) | Product v1 stock lookup: search, every insider transaction with plain-English codes, holdings, events, glossary, JSON API; SEC data only (feature 005) | ✅ 24 Oct |
 | 11–21 | Labels, features, models, the rest of the product, report | Not started (after `prereg-v1`) |
