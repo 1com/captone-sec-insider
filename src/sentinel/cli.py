@@ -7,6 +7,7 @@ Contract: specs/001-skeleton-sec-ingest/contracts/cli.md
 import logging
 import time
 from datetime import datetime
+from pathlib import Path
 
 import typer
 
@@ -1498,7 +1499,32 @@ def serve_cmd(
 
 # --- Phase 3 -----------------------------------------------------------------------------------
 
-_stub("event-study", "13", P3, "Event study on the development period (H1–H3)")
+@app.command("event-study", rich_help_panel=P3)
+def event_study_cmd(
+    output: Path = typer.Option(Path("reports/event_study.md"), "--output", "-o", help="Path to write the report."),
+):
+    """[Step 13] Event study on the development period (H1–H3)."""
+    import duckdb
+
+    from sentinel import warehouse
+    from sentinel.study.report import generate_event_study_report
+
+    paths = _paths()
+    if not paths.warehouse.exists():
+        _fail(f"{paths.warehouse} not found: run build first", CONFIG)
+    try:
+        with warehouse.connect(paths, read_only=True) as con:
+            warehouse.require_tables(
+                con,
+                ["evt.event", "lab.event_label", "core.price_daily", "core.ff_factor_daily"],
+                "event-study",
+            )
+            generate_event_study_report(con, output_path=str(output))
+    except warehouse.MissingInput as e:
+        _fail(str(e), CONFIG)
+    except duckdb.IOException as e:
+        _fail(f"cannot open {paths.warehouse.name}: {e}", FAILED)
+    typer.echo(f"event-study: wrote {output}")
 
 
 @app.command("ml-dataset", rich_help_panel=P3)

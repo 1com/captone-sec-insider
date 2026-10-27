@@ -55,9 +55,9 @@ def test_help_lists_every_step_and_phase():
 
 
 def test_stub_exits_4():
-    result = runner.invoke(cli.app, ["event-study"])
+    result = runner.invoke(cli.app, ["baselines"])
     assert result.exit_code == cli.NOT_IMPLEMENTED
-    assert "not yet implemented — plan Step 13" in result.output
+    assert "not yet implemented — plan Step 15" in result.output
 
 
 def test_return_steps_refuse_to_run_before_the_lock(tmp_path, monkeypatch):
