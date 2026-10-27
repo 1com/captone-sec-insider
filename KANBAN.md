@@ -21,7 +21,7 @@ Done: 21 | In Progress (Current Sprint): 6 | Backlog (Phase 4): 10
 
 | Issue | Task | Labels | Milestone | Status |
 |---|---|---|---|---|
-| [#29](https://github.com/1com/captone-sec-insider/issues/29) | **Epic E5: Event Study on Development Period (Step 13)** | `epic,research` | Phase 3: Event Study & ML Tournament | 🟡 In Progress |
+| [#29](https://github.com/1com/captone-sec-insider/issues/29) | **Epic E5: Event Study on Development Period (Step 13)** | `epic,research` | Phase 3: Event Study & ML Tournament | 🟢 Done |
 | [#30](https://github.com/1com/captone-sec-insider/issues/30) | **Task 5.1: Calculate Return Paths, BHAR Tables, and Calendar-Time Alphas** | `task,research` | Phase 3: Event Study & ML Tournament | 🟢 Done |
 | [#31](https://github.com/1com/captone-sec-insider/issues/31) | **Epic E6: Machine Learning Baselines & Model Tournament (Steps 15–17)** | `epic,ml` | Phase 3: Event Study & ML Tournament | 🟡 In Progress |
 | [#32](https://github.com/1com/captone-sec-insider/issues/32) | **Task 6.1: Fit and Score 6 Baseline Models (sentinel baselines)** | `task,ml` | Phase 3: Event Study & ML Tournament | 🟡 In Progress |
