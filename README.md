@@ -84,7 +84,9 @@ Seven tabs: new insider buying (the screener, shown first), does it work? (overv
 
 ## Data layout
 
-Everything under `data/` is git-ignored and can be regenerated:
+The raw downloads and 6.7 GB DuckDB warehouse under `data/` are git-ignored and can be regenerated. The lightweight final ML datasets are version-controlled in Git:
+
+- `data/ml/`: the final ML Parquet datasets (`dataset-*.parquet`, `dataset_fold-*.parquet`, ~3.1 MB total), tracked in Git for instant modeling and cross-validation without needing raw SEC downloads or warehouse builds.
 
 - `data/raw/`: downloads exactly as received, read-only, recorded in `manifest.jsonl`.
 - `data/provisional/`: the provisional candidate list and its summary against the pilot.
