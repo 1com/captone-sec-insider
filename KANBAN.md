@@ -2,6 +2,7 @@
 
 Last Updated: October 27, 2026  
 Repository: [1com/captone-sec-insider](https://github.com/1com/captone-sec-insider)  
+Live Kanban Board: [github.com/users/1com/projects/5](https://github.com/users/1com/projects/5)  
 Overall Progress: **68% Complete** (21 of 37 tasks finished)
 
 ---

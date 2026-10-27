@@ -2,6 +2,8 @@
 
 Do clusters of insider purchases (SEC Form 4) predict stock returns after trading costs? This is a research pipeline first and a screener second. The full design is in [docs/initialplan.md](docs/initialplan.md), and the project rules are in [.specify/memory/constitution.md](.specify/memory/constitution.md).
 
+📋 **Project Board (Kanban / Scrum):** [EDGAR-SENTINEL Kanban Board](https://github.com/users/1com/projects/5) · [In-Repo Dashboard](KANBAN.md)
+
 ## Machine Learning Dataset & Provenance Guide
 
 The final, pre-registered ML training datasets are version-controlled as Parquet files under `data/ml/`:
