@@ -38,9 +38,11 @@ Done: 21 | In Progress (Current Sprint): 6 | Backlog (Phase 4): 10
 | [#35](https://github.com/1com/captone-sec-insider/issues/35) | Epic E7: Guarded Holdout Job & Production Model Refit (Steps 18–19) | `epic,ml,research` | Phase 4: Holdout, Screener & Delivery | ⚪ Backlog |
 | [#36](https://github.com/1com/captone-sec-insider/issues/36) | Task 7.1: Execute Guarded Holdout Evaluation on 2023–2026 Data | `task,ml,audit` | Phase 4: Holdout, Screener & Delivery | ⚪ Backlog |
 | [#37](https://github.com/1com/captone-sec-insider/issues/37) | Task 7.2: Refit Final Production Model on Complete Dataset | `task,ml,product` | Phase 4: Holdout, Screener & Delivery | ⚪ Backlog |
-| [#38](https://github.com/1com/captone-sec-insider/issues/38) | Epic E8 (Part 2): Screener ML Score Integration & Model Card (Step 19) | `epic,product` | Phase 4: Holdout, Screener & Delivery | ⚪ Backlog |
+| [#38](https://github.com/1com/captone-sec-insider/issues/38) | **Epic E8: Product v1 Front-End Web Application & Screener (Step 19)** | `epic,product` | Phase 4: Holdout, Screener & Delivery | ⚪ Backlog |
 | [#39](https://github.com/1com/captone-sec-insider/issues/39) | Task 8.2: Wire Winning ML Model Predictions into Screener Dashboard | `task,product` | Phase 4: Holdout, Screener & Delivery | ⚪ Backlog |
 | [#40](https://github.com/1com/captone-sec-insider/issues/40) | Task 8.3: Author Model Card and Methodology Documentation | `task,product,research` | Phase 4: Holdout, Screener & Delivery | ⚪ Backlog |
+| [#45](https://github.com/1com/captone-sec-insider/issues/45) | Task 8.3b: Front-End Multi-Horizon Scores & Return Views | `task,product` | Phase 4: Holdout, Screener & Delivery | ⚪ Backlog |
+| [#46](https://github.com/1com/captone-sec-insider/issues/46) | Task 8.4: Front-End LLM Plain-English Cluster Explanations | `task,product` | Phase 4: Holdout, Screener & Delivery | ⚪ Backlog |
 | [#41](https://github.com/1com/captone-sec-insider/issues/41) | Epic E9: Robustness Sensitivity Checks, Offline Rebuild & Final Delivery (Steps 20–21) | `epic,audit,research` | Phase 4: Holdout, Screener & Delivery | ⚪ Backlog |
 | [#42](https://github.com/1com/captone-sec-insider/issues/42) | Task 9.1: Run Pre-Registered Robustness Sensitivity Variants | `task,research` | Phase 4: Holdout, Screener & Delivery | ⚪ Backlog |
 | [#43](https://github.com/1com/captone-sec-insider/issues/43) | Task 9.2: Offline Warehouse Rebuild & Tiingo Data Deletion Register | `task,audit` | Phase 4: Holdout, Screener & Delivery | ⚪ Backlog |
