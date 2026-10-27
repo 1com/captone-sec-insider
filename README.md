@@ -2,6 +2,15 @@
 
 Do clusters of insider purchases (SEC Form 4) predict stock returns after trading costs? This is a research pipeline first and a screener second. The full design is in [docs/initialplan.md](docs/initialplan.md), and the project rules are in [.specify/memory/constitution.md](.specify/memory/constitution.md).
 
+## Machine Learning Dataset & Provenance Guide
+
+The final, pre-registered ML training datasets are version-controlled as Parquet files under `data/ml/`:
+- **`data/ml/dataset-77b4ae549599.parquet`**: 4,904 insider purchase clusters (Group A) with SPY-normalized features F1–F29 and net 63-session benchmark returns.
+- **`data/ml/dataset_fold-77b4ae549599.parquet`**: 16,676 partition masks defining the 4 purged walk-forward cross-validation folds (2019–2022) and sample uniqueness weights.
+
+For complete mathematical definitions, data sources, cleaning gates, and starter Python code for modeling, see:
+👉 **[Data Provenance, Calculations & ML Architecture Guide](docs/DATA_PROVENANCE_AND_ML_GUIDE.md)**
+
 ## Setup
 
 ```bash

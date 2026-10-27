@@ -13,5 +13,7 @@ wheels/
 .env
 
 # Data (raw downloads, warehouse, provisional outputs)
-data/
+data/*
+!data/ml/
+!data/ml/*.parquet
 *.part
