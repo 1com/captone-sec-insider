@@ -14,7 +14,7 @@ from sentinel.config import Paths, params_sha256
 from sentinel.ingest import manifest
 from sentinel.ingest.sec_bulk import SOURCE
 
-SCHEMAS = ("stg", "core", "evt", "audit")
+SCHEMAS = ("stg", "core", "evt", "audit", "lab", "feat", "ml")  # never `hold` (Step 18 only)
 # DuckDB's default cap is 80% of RAM, which together with the editor exhausted a 10 GB WSL VM
 # while staging. Above this it spills to `warehouse.duckdb.tmp` instead. Operational only: no
 # output depends on it, so it is not in the parameter file (which feeds the input fingerprint).

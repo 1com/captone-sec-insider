@@ -23,6 +23,7 @@ from sentinel.config import (
 
 OK, FAILED, USAGE, CONFIG, NOT_IMPLEMENTED, SEC_FORBIDDEN = 0, 1, 2, 3, 4, 5
 OUTSIDE_PAID_WINDOW = 6  # Tiingo data outside the paid month (feature 004)
+NOT_LOCKED = 7  # a step that computes returns, before prereg-v1 (feature 006)
 
 P0 = "Phase 0 — Set-up"
 P1 = "Phase 1 — Insider data"
@@ -390,6 +391,61 @@ def _step_costs(paths: Paths, params: dict, con) -> tuple[int, bool]:
     return r.events, not problems
 
 
+def _step_labels(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel import lock
+    from sentinel.labels import build as labels
+
+    lock.require(paths.root, paths.params_file)
+    r = labels.build(con, params)
+    measures = ", ".join(f"{m} {n:,}" for m, n in r.by_measure.items())
+    typer.echo(
+        f"labels: {r.events:,} events, {r.rows:,} rows ({measures}); "
+        f"{r.no_entry_price:,} positions without an entry price\n"
+        f"  63-session industry labels: {r.delisted_windows:,} delisted in the window, "
+        f"{r.entry_at_close:,} entered at the close, {r.null_net:,} without a cost (no net)\n"
+        f"  purchase outcomes for F10: {r.purchase_outcomes:,}"
+    )
+    problems = labels.check_labels(con, params)
+    for problem in problems[:10]:
+        typer.echo(f"  W30: {problem}")
+    return r.rows, not problems
+
+
+def _step_features(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel import lock
+    from sentinel.features import build as features
+
+    lock.require(paths.root, paths.params_file)
+    r = features.build(con, params)
+    sparse = [f"{f} {n:,}" for f, n in r.non_null.items() if n < r.events]
+    typer.echo(
+        f"features: {r.events:,} events; features with missing values: "
+        f"{'; '.join(sparse) or 'none'}"
+    )
+    return r.events, True
+
+
+def _step_ml_dataset(paths: Paths, params: dict, con) -> tuple[int, bool]:
+    from sentinel import lock
+    from sentinel.ml import dataset
+
+    lock.require(paths.root, paths.params_file)
+    r = dataset.build(con, params, paths)
+    typer.echo(f"ml-dataset: {r.rows:,} clusters, {r.positives:,} with y = 1; version {r.version}")
+    typer.echo(f"  {'fold':<6}{'part':<11}{'events':>8}{'y = 1':>8}{'eff. size':>11}  dropped")
+    for fold, part, events, positives, _, effective, dropped in r.summary:
+        typer.echo(
+            f"  {fold:<6}{part:<11}{events:>8,}{positives:>8,}{effective or 0:>11,.0f}  "
+            f"{'yes' if dropped else ''}"
+        )
+    typer.echo("  multi-horizon table (D54): events and y = 1 in the fit set, by test fold")
+    fits = {(f, h): (e, p) for f, h, part, e, p, *_ in r.horizon_summary if part == "fit"}
+    for fold, horizon in sorted(fits):
+        events, positives = fits[(fold, horizon)]
+        typer.echo(f"  {fold}  {horizon:>3} sessions  {events:>6,} events  {positives:>6,} y = 1")
+    return r.rows, True
+
+
 STEPS: dict = {
     "stage": _step_stage,
     "entities": _step_entities,
@@ -404,6 +460,9 @@ STEPS: dict = {
     "delistings": _step_delistings,
     "costs": _step_costs,
     "invariants": _step_invariants,
+    "labels": _step_labels,
+    "features": _step_features,
+    "ml-dataset": _step_ml_dataset,
 }
 
 
@@ -411,7 +470,7 @@ def _run_steps(names: list[str]) -> int:
     """Run warehouse steps in order on one connection, logging each; stop at the first failure."""
     import duckdb
 
-    from sentinel import warehouse
+    from sentinel import lock, warehouse
     from sentinel.core.tiingo_register import OutsidePaidWindow
 
     paths, params = _context()
@@ -434,6 +493,9 @@ def _run_steps(names: list[str]) -> int:
             except OutsidePaidWindow as e:
                 typer.echo(str(e), err=True)
                 return OUTSIDE_PAID_WINDOW
+            except lock.NotLocked as e:
+                typer.echo(f"{name}: {e}", err=True)
+                return NOT_LOCKED
             warehouse.log_build(con, name, started, fingerprint, rows)
             typer.echo(f"{name}: {rows:,} rows written in {time.monotonic() - t0:.0f} s")
             if not ok:
@@ -1347,9 +1409,28 @@ def costs_cmd():
     raise typer.Exit(_run_steps(["costs"]))
 
 
-_stub("prereg-status", "10a", P2, "Check the prereg-v1 pre-registration tag")
-_stub("labels", "11", P2, "Compute development labels (windows ending by 2022-12-31)")
-_stub("features", "12", P2, "Compute features F1–F24 as of T")
+@app.command("prereg-status", rich_help_panel=P2)
+def prereg_status_cmd():
+    """[Step 10a] Check the prereg-v1 tag: labels, features and the dataset need it."""
+    from sentinel import lock
+
+    paths = _paths()
+    reason = lock.problem(paths.root, paths.params_file)
+    if reason is not None:
+        _fail(f"not locked: {reason}", NOT_LOCKED)
+    typer.echo(f"locked: {lock.TAG} exists and config/params.yaml matches it")
+
+
+@app.command("labels", rich_help_panel=P2)
+def labels_cmd():
+    """[Step 11] Development labels (windows ending by 31 December 2022); needs prereg-v1."""
+    raise typer.Exit(_run_steps(["labels"]))
+
+
+@app.command("features", rich_help_panel=P2)
+def features_cmd():
+    """[Step 12] Features F1–F29 as of T; needs prereg-v1 (F10 uses past returns)."""
+    raise typer.Exit(_run_steps(["features"]))
 
 
 @app.command("lookup", rich_help_panel=P2)
@@ -1418,7 +1499,14 @@ def serve_cmd(
 # --- Phase 3 -----------------------------------------------------------------------------------
 
 _stub("event-study", "13", P3, "Event study on the development period (H1–H3)")
-_stub("ml-dataset", "14", P3, "Build the ML dataset: folds, splits, purging, weights")
+
+
+@app.command("ml-dataset", rich_help_panel=P3)
+def ml_dataset_cmd():
+    """[Step 14] The ML dataset: folds, slices, purging, weights; needs prereg-v1."""
+    raise typer.Exit(_run_steps(["ml-dataset"]))
+
+
 _stub("baselines", "15", P3, "Fit and score the six baselines")
 _stub("tournament", "16", P3, "Run the 25-configuration model tournament")
 _stub("explain", "17", P3, "SHAP explanations and error analysis")

@@ -55,9 +55,20 @@ def test_help_lists_every_step_and_phase():
 
 
 def test_stub_exits_4():
-    result = runner.invoke(cli.app, ["labels"])
+    result = runner.invoke(cli.app, ["event-study"])
     assert result.exit_code == cli.NOT_IMPLEMENTED
-    assert "not yet implemented — plan Step 11" in result.output
+    assert "not yet implemented — plan Step 13" in result.output
+
+
+def test_return_steps_refuse_to_run_before_the_lock(tmp_path, monkeypatch):
+    real = cli.repo_root()
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "params.yaml").write_text((real / "config" / "params.yaml").read_text())
+    monkeypatch.setattr(cli, "repo_root", lambda: tmp_path)
+    for command in ("labels", "features", "ml-dataset", "prereg-status"):
+        result = runner.invoke(cli.app, [command])
+        assert result.exit_code == cli.NOT_LOCKED, command
+        assert "prereg-v1" in result.output, command
 
 
 def test_unknown_option_is_a_usage_error():

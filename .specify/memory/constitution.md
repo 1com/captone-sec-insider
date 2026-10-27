@@ -67,7 +67,7 @@ Rationale: free data sources change over time and cannot be re-downloaded identi
 
 ### VI. Lawful, Low-Cost and Respectful Data Use
 
-- **Free sources by default.** The course version MUST use free data sources, with one exception: one month of Tiingo Power for delisted-stock prices (decision D39, 2026-10-22). Any other paid source requires an amendment to this constitution.
+- **Free sources by default.** The course version MUST use free data sources, with two exceptions: (1) one month of Tiingo Power for delisted-stock prices (decision D39, 2026-10-22); (2) a paid language-model API MAY generate the product's explanatory text from a fixed fact sheet (decision D55, 2026-10-26); it MUST NOT be used in the research. Any other paid source requires an amendment to this constitution.
 - **Tiingo storage.**
   - Tiingo data MAY be stored only while a paid Tiingo plan is active (Tiingo ToS §1.6(b)).
   - When the plan ends, all Tiingo data MUST be deleted from every system the project controls: `data/raw/`, the warehouse, caches and backups. The deletion MUST be logged in the decision log.
@@ -147,4 +147,4 @@ Rationale: a working prototype is needed early for the course, but seeing study-
   - PATCH: clarifications and wording.
 - **Compliance review.** Every plan and code review MUST verify point-in-time integrity, holdout sealing and net-of-cost reporting. Any added complexity MUST be justified against Principle VII.
 
-**Version**: 3.1.0 | **Ratified**: 2026-10-21 | **Last Amended**: 2026-10-23
+**Version**: 3.2.0 | **Ratified**: 2026-10-21 | **Last Amended**: 2026-10-26

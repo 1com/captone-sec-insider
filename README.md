@@ -2,6 +2,15 @@
 
 Do clusters of insider purchases (SEC Form 4) predict stock returns after trading costs? This is a research pipeline first and a screener second. The full design is in [docs/initialplan.md](docs/initialplan.md), and the project rules are in [.specify/memory/constitution.md](.specify/memory/constitution.md).
 
+## Machine Learning Dataset & Provenance Guide
+
+The final, pre-registered ML training datasets are version-controlled as Parquet files under `data/ml/`:
+- **`data/ml/dataset-77b4ae549599.parquet`**: 4,904 insider purchase clusters (Group A) with SPY-normalized features F1–F29 and net 63-session benchmark returns.
+- **`data/ml/dataset_fold-77b4ae549599.parquet`**: 16,676 partition masks defining the 4 purged walk-forward cross-validation folds (2019–2022) and sample uniqueness weights.
+
+For complete mathematical definitions, data sources, cleaning gates, and starter Python code for modeling, see:
+👉 **[Data Provenance, Calculations & ML Architecture Guide](docs/DATA_PROVENANCE_AND_ML_GUIDE.md)**
+
 ## Setup
 
 ```bash
@@ -52,6 +61,10 @@ uv run sentinel check
 | `sentinel audit sheets\|summary\|no-sic` | QA | Hand-audit sheets and their scores; `no-sic` is the D45 check |
 | `sentinel audit golden\|delistings\|market-caps` (+ `-summary`) | QA | Feature 004 audits: 30 events against EDGAR, 30 delisting classes, 10 market caps |
 | `sentinel explore` | — | Opens the warehouse read-only in the DuckDB UI at http://localhost:4213 ([docs/explore.md](docs/explore.md)) |
+| `sentinel prereg-status` | 10a | Checks the `prereg-v1` tag; the next three steps refuse to run (exit 7) until it exists and `config/params.yaml` matches it |
+| `sentinel labels` | 11 | Development labels: buy-and-hold abnormal returns against SPY, IWM and the FF49 industry (EW, VW) and the FF5 + momentum CAR, at 5–252 sessions, gross and net of cost, delistings handled; windows end by 31 Dec 2022 |
+| `sentinel features` | 12 | Features F1–F29 as of T (`feat.event_features`); F10 only for development events |
+| `sentinel ml-dataset` | 14 | The training table `ml.dataset`: clusters with features and target; four purged walk-forward folds with fit, tuning and calibration slices; uniqueness weights; versioned Parquet copy in `data/ml/` |
 | `sentinel lookup` | 19 (product v1) | Builds `data/lookup.duckdb` for the stock lookup from SEC tables only (no prices; about 35 s). Rerun after every warehouse rebuild |
 | `sentinel serve [--port 8766]` | 19 (product v1) | Stock lookup at http://127.0.0.1:8766: search by ticker, name or CIK; every insider transaction with plain-English codes, holdings over time, insider-buying events, glossary; JSON at `/api/issuers/search` and `/api/issuers/{cik}/transactions` ([specs/005-stock-lookup/quickstart.md](specs/005-stock-lookup/quickstart.md)) |
 

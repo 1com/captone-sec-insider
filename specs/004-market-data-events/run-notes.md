@@ -214,3 +214,15 @@ Without the $2 restriction there were 49 mismatches; 37 of those are no longer m
 **Why 815 issuers with candidates have no price series** (first matching reason): no match for their SEC tickers in Tiingo's list 415; Tiingo series rejected because the dates do not overlap 155 or the name differs 106; fund-like without a ticker 63; no ticker anywhere in SEC data 60; Tiingo knows the ticker but has no prices 14; Yahoo series without usable rows 2. The 415 are mostly companies acquired or delisted before about 2014 that Tiingo does not carry (for example P.F. Chang's, Power-One, SonoSite, Taylor Capital); no free source has them. A looser rule for bankruptcy `Q` tickers whose listing starts after the last insider filing (Coldwater Creek's CWTRQ starts four weeks later) would add 6 issuers and 4 candidates, so the identity rule is unchanged.
 
 **Cluster events (A) after Tiingo**, counts only: development 2012–2022 **5,083 priced** (1,952 of them priced by Tiingo) and 609 unpriced; holdout 2023 to 1 June 2026 1,532 priced and 26 unpriced; warm-up (second half of 2011) 345 priced. B1 development: 2,330 priced. 5,019 development clusters have a cost. These counts still depend on D45 (`rules.g7_no_sic`, due 29 October).
+
+
+## T066 (official): Offline rebuild with Tiingo data (2026-10-26)
+
+`systemd-run … unshare -rn uv run --offline pytest -m slow tests/integration/test_rebuild_identical.py --basetemp=data/rebuild_tmp/run`, with the Tiingo files of both pulls in `data/raw/`.
+
+| Run | Result | Cause and fix |
+|---|---|---|
+| 1 | `core.price_check`: 84 rows differ (4 issuers, mostly Starz / Lions Gate, CIK 929351) | **Bug**: when two share classes both fill in before an issuer's main series (LGF-A and LGF-B; Liberty Media's tracking stocks; iHeartMedia; View), `core.price_daily` held two rows for one issuer and session, and G8 read either at random. 12 issuers, 11,324 sessions, 12,749 extra rows, 41 priced events. Fixed: one row per issuer and session (main series, then the fill-in with more sessions, then the ticker), chosen after each series' split factors; W14 now fails on any duplicate issuer-session. The live tables were rebuilt (`prices` → `coverage`): 16,122,291 daily rows; G8 287,179 of 309,133 (92.9%); events A 7,107 · B1 3,423 · B2 9,620 |
+| 2 | **Pass**: all 26 compared tables identical; 12 min 39 s; peak memory 5.0 GB with 547 MB swap | — |
+
+The peak is at the 5 GB ceiling. Adding the feature 006 tables to this check will need a higher ceiling (for example 7 GB with WSL raised to 14 GB) or a split run.
