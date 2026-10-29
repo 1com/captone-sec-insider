@@ -1,0 +1,14 @@
+ 1 Agric  Agriculture
+          0100-0199 Agricultural production - crops
+          0200-0299 Agricultural production - livestock
+          0700-0799 Agricultural services
+          0910-0919 Commercial fishing
+          2048-2048 Prepared feeds for animals
+
+ 2 Food   Food Products
+          2000-2009 Food and kindred products
+          2010-2019 Meat products
+          2020-2029 Dairy products
+          2030-2039 Canned & preserved fruits & vegetables
+          2040-2046 Flour and other grain mill products
+          2050-2059 Bakery products

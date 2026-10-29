@@ -1,0 +1,58 @@
+# Where each source comes from and how fast it may be asked (docs/spec.md §5). Operational
+# settings only: the research definitions are in risk_params.yaml (registered, prereg-risk-v5).
+version: 1
+
+http:
+  timeout_seconds: 60
+  max_attempts: 5
+  backoff_base_seconds: 2
+  backoff_max_seconds: 120
+
+sec:
+  # SEC fair access: at most 10 requests a second, a real contact in the User-Agent (.env)
+  target_requests_per_second: 5
+  max_requests_per_second: 10
+  form4_landing_page: "https://www.sec.gov/data-research/sec-markets-data/insider-transactions-data-sets"
+  form4_folder_patterns:
+    - "https://www.sec.gov/files/structureddata/data/insider-transactions-data-sets/{key}_form345.zip"
+    - "https://www.sec.gov/files/datastandardsinnovation/data/insider-transactions-data-sets/{key}_form345.zip"
+  form4_required_tables: [SUBMISSION, REPORTINGOWNER, NONDERIV_TRANS, FOOTNOTES]
+  company_tickers_url: "https://www.sec.gov/files/company_tickers_exchange.json"
+  companyfacts_url: "https://www.sec.gov/Archives/edgar/daily-index/xbrl/companyfacts.zip"
+  submissions_url: "https://www.sec.gov/Archives/edgar/daily-index/bulkdata/submissions.zip"
+  headers_requests_per_second: 8
+  headers_url_pattern: "https://www.sec.gov/Archives/edgar/data/{cik}/{acc_nodash}/{acc}-index-headers.html"
+  # used when the page above is HTTP 404, as for many 2012-2014 filings
+  headers_fallback_url_pattern: "https://www.sec.gov/Archives/edgar/data/{cik}/{acc_nodash}/{acc}.hdr.sgml"
+
+prices:
+  history_start: 2010-01-01
+  reference_symbols: [SPY, IWM]
+  yahoo_batch_size: 50
+  yahoo_pause_seconds: 2
+
+tiingo:
+  # The one paid month (v1 decision D39). New Tiingo files may be written only inside [from, until).
+  paid_from: 2026-10-26
+  paid_until: 2026-11-26
+  requests_per_second: 2
+  api_base: "https://api.tiingo.com/tiingo/daily"
+  supported_tickers_url: "https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip"
+  # every US venue in Tiingo's list, OTC included: a delisted company's history is often filed under
+  # its final OTC ticker
+  us_exchanges: [NYSE, NASDAQ, NYSE MKT, AMEX, NYSE ARCA, NYSE NAT, BATS, PINK, OTCMKTS, OTCGREY, EXPM, OTCBB, OTCQB, OTCQX, OTCCE, OTCD]
+
+french:
+  base_url: "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/"
+  files:
+    - F-F_Research_Data_5_Factors_2x3_daily_CSV.zip
+    - F-F_Momentum_Factor_daily_CSV.zip
+    - F-F_ST_Reversal_Factor_daily_CSV.zip
+    - 49_Industry_Portfolios_daily_CSV.zip
+    - 12_Industry_Portfolios_daily_CSV.zip
+    - Siccodes49.zip
+    - Siccodes12.zip
+    - ME_Breakpoints_CSV.zip
+
+finra:
+  tick_pilot_url: "https://tsp.finra.org/finra_org/ticksizepilot/TSPilotChanges.txt"
