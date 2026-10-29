@@ -52,3 +52,16 @@ def test_nothing_is_asked_outside_the_paid_plan(priced):
     route = respx.get("https://api.tiingo.com/tiingo/daily/GWI/prices")
     report = tiingo.fetch_new_days(p, date(2026, 11, 26), con=con, **QUIET)
     assert (report.status, report.requests, route.call_count) == ("skipped: plan ended", 0, 0)
+
+
+@respx.mock
+def test_a_dividend_in_the_new_days_brings_the_full_series_again(priced):
+    p, con = priced
+    with_dividend = CSV.replace("0.0,1.0\n", "0.42,1.0\n")
+    route = respx.get("https://api.tiingo.com/tiingo/daily/GWI/prices").mock(
+        side_effect=[httpx.Response(200, text=with_dividend), httpx.Response(200, text=CSV)]
+    )
+    report = tiingo.fetch_new_days(p, date(2026, 10, 30), con=con, **QUIET)
+    assert route.call_count == 2 and report.files_stored == 2
+    assert route.calls[1].request.url.params["startDate"] == "2010-01-01"
+    assert Manifest(p.manifest).find_original("tiingo", "history/GWI/2026-10-30") is not None

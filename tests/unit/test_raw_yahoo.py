@@ -18,12 +18,12 @@ class StandIn:
     """Answers like `yfinance.download(group_by="ticker")`: two days per symbol, none for NODATA;
     `events` maps a symbol to (dividend, split) on the last day."""
 
-    def __init__(self, events=None):
-        self.calls, self.events = [], events or {}
+    def __init__(self, events=None, days=("2026-10-28", "2026-10-29")):
+        self.calls, self.events, self.days = [], events or {}, list(days)
 
     def __call__(self, tickers, start, **kwargs):
         self.calls.append((list(tickers), start))
-        days = pd.DatetimeIndex(["2026-10-28", "2026-10-29"], name="Date")
+        days = pd.DatetimeIndex(self.days, name="Date")
         cols = {}
         for t in tickers:
             if t == "NODATA":
@@ -70,3 +70,21 @@ def test_full_histories_are_fetched_once_and_symbols_without_data_are_remembered
     assert histories == [f"history/{t}/2026-10-30" for t in ("AAPL", "BRK-B", "IWM", "SPY")]
     assert "NODATA,no_data" in (listed.raw / "yahoo/history/failures.csv").read_text()
     assert yahoo.missing_histories(listed, book, yahoo.listed_symbols(listed, book)) == []
+
+
+def test_a_split_or_dividend_after_the_newest_history_brings_the_full_history_again(listed):
+    yahoo.fetch_window(listed, TODAY, fetch=StandIn(), full_missing=True, **QUIET)  # histories
+    later = date(2026, 11, 3)
+    fetch = StandIn(events={"AAPL": (0.26, 0.0)}, days=("2026-10-30", "2026-11-02"))
+    yahoo.fetch_window(listed, later, fetch=fetch, **QUIET)  # a dividend on 2 November
+    refetched = [c for c in fetch.calls if c[1] == "2010-01-01"]
+    assert refetched == [(["AAPL"], "2010-01-01")]  # only the symbol with the event
+    book = Manifest(listed.manifest)
+    assert book.find_original("yahoo", "history/AAPL/2026-11-03") is not None
+
+
+def test_the_window_reaches_back_to_cover_days_missed(listed):
+    yahoo.fetch_window(listed, TODAY, fetch=StandIn(), **QUIET)
+    fetch = StandIn()
+    yahoo.fetch_window(listed, date(2026, 11, 20), fetch=fetch, **QUIET)  # three weeks later
+    assert fetch.calls[0][1] == "2026-10-27"  # three days before the last window, not 10 Nov

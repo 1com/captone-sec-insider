@@ -79,6 +79,28 @@ def fetch_new_days(p: Paths, today: date, echo=print, con=None, **_) -> FetchRep
             report.stored((p.raw / rel).stat().st_size)
             latest = date.fromisoformat(lines[-1][:10])
             report.latest_date = max(report.latest_date or latest, latest)
-    echo(f"  tiingo: {len(todo):,} Tiingo-priced listed companies, {report.files_stored:,} with "
-         f"new days")  # fmt: skip
+            if _has_event(lines):  # Tiingo rewrites the adjusted past: the whole series again
+                history = f"{t['api_base']}/{ticker}/prices?startDate="
+                history += f"{settings['prices']['history_start']}&format=csv&resampleFreq=daily"
+                report.requests += 1
+                resp = request_with_retry(client, "GET", history, limiter, policy)
+                if resp.status_code == 200:
+                    rel = f"tiingo/history/{today}/{ticker}.csv.gz"
+                    store_gz(p, book, SOURCE, rel, f"history/{ticker}/{today}", resp.content,
+                             history)  # fmt: skip
+                    report.stored((p.raw / rel).stat().st_size)
+                else:
+                    report.errors.append(f"{ticker} history: HTTP {resp.status_code}")
+    echo(f"  tiingo: {len(todo):,} Tiingo-priced listed companies, {report.files_stored:,} files")
     return report
+
+
+def _has_event(lines: list[str]) -> bool:
+    """Whether Tiingo's daily CSV shows a dividend (`divCash`) or a split (`splitFactor` ≠ 1)."""
+    head = lines[0].split(",")
+    div, split = head.index("divCash"), head.index("splitFactor")
+    for line in lines[1:]:
+        cells = line.split(",")
+        if float(cells[div] or 0) != 0 or float(cells[split] or 1) != 1:
+            return True
+    return False

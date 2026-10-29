@@ -107,6 +107,42 @@ def build(
     typer.echo(f"build {layer}: done in {time.monotonic() - started:,.0f}s")
 
 
+@app.command()
+def update(
+    scheduled: bool = typer.Option(False, "--scheduled", help="Started by the schedule."),
+    no_fetch: bool = typer.Option(False, "--no-fetch", help="Use the stored files only."),
+) -> None:
+    """The daily update: fetch what is new, rebuild, publish, record the run."""
+    from sentinel import config
+    from sentinel.update import run as updater
+
+    try:
+        result = updater.update(config.paths(), scheduled=scheduled, fetch=not no_fetch,
+                                echo=typer.echo)  # fmt: skip
+    except config.ConfigError as e:
+        _fail(f"update: {e}", CONFIG)
+    except (updater.UpdateLocked, updater.DiskFull) as e:
+        _fail(f"update: {e}", FAILED)
+    except Exception as e:
+        _fail(f"update failed: {type(e).__name__}: {e}", FAILED)
+    if result["status"] in ("partial", "failed"):
+        raise typer.Exit(FAILED)
+
+
+@app.command()
+def verify(keep: bool = typer.Option(False, "--keep", help="Keep data/verify.duckdb.")) -> None:
+    """Rebuild everything into a scratch database and compare it with the build database."""
+    from sentinel import config
+    from sentinel.update import verify as verifier
+
+    differ = verifier.verify(config.paths(), keep=keep, echo=typer.echo)
+    for line in differ:
+        typer.echo(f"  {line}")
+    typer.echo("verify: all tables identical" if not differ else
+               f"verify: {len(differ)} tables differ")  # fmt: skip
+    raise typer.Exit(OK if not differ else FAILED)
+
+
 def _serving(name: str, run) -> None:
     from sentinel import config, db
 

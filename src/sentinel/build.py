@@ -19,8 +19,10 @@ from sentinel.features import price as feat_price
 from sentinel.features import rows as feat_rows
 from sentinel.features import snapshot as feat_snapshot
 from sentinel.labels import risk as risk_labels
+from sentinel.raw import manifest
 from sentinel.reference import build as ref
 from sentinel.staging import market, prices, sec_filings, sec_form4, sec_headers, sec_xbrl
+from sentinel.update import record
 
 Step = Callable[[duckdb.DuckDBPyConnection, Paths, Callable[[str], None]], dict]
 
@@ -49,6 +51,18 @@ STAGING: dict[str, Step] = {
     "yahoo": prices.stage_yahoo,
     "tiingo": prices.stage_tiingo,
     "market": market.stage,
+}
+# The manifest sources each staging step reads: the update re-runs a step when one of them has a
+# stored file the step has not applied (`ops.staged_file`).
+STAGING_SOURCES: dict[str, tuple[str, ...]] = {
+    "sec_form4": ("sec_insider_bulk",),
+    "sec_filings": ("sec_company", "sec_submissions_cik", "sec_index"),
+    "sec_xbrl": ("sec_company", "sec_companyfacts_cik"),
+    "sec_headers": ("sec_filing_header",),
+    "sec_tickers": ("sec_company_tickers",),
+    "yahoo": ("yahoo",),
+    "tiingo": ("tiingo",),
+    "market": ("fred", "cboe", "finra_short", "french"),
 }
 REFERENCE: dict[str, Step] = {
     "company": ref.build_company,
@@ -98,10 +112,15 @@ def run(con, p: Paths, layer: str, only: list[str] | None = None, echo=print) ->
         raise UnknownStep(
             f"unknown {layer} step(s): {', '.join(unknown)}; known: {', '.join(steps)}"
         )
+    entries = None
     results = {}
     for name, step in steps.items():
         if only and name not in only:
             continue
         echo(f"{layer}: {name}")
         results[name] = step(con, p, echo)
+        if layer == "staging":
+            entries = entries or [e for e in manifest.read_all(p.manifest) if e.role == "original"]
+            sources = STAGING_SOURCES.get(name, ())
+            record.record_staged(con, name, [e for e in entries if e.source in sources])
     return results

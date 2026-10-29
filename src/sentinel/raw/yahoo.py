@@ -82,9 +82,33 @@ def _yfinance():
     return yfinance.download
 
 
+def _key_day(e) -> date:
+    """The day a file was fetched for: the date in its key (`daily/<date>/…`,
+    `history/<T>/<date>`), else its fetch time (v1's files)."""
+    parts = e.key.split("/")
+    if parts[0] == "daily":
+        return date.fromisoformat(parts[1])
+    if parts[0] == "history":
+        return date.fromisoformat(parts[2])
+    return date.fromisoformat(e.fetched_at[:10])
+
+
+def newest_history_day(book: Manifest) -> dict[str, date]:
+    """Each symbol's newest full-history download day (v1's files and later ones)."""
+    out: dict[str, date] = {}
+    for e in book.originals(SOURCE):
+        if not e.key.startswith("daily/"):
+            t = e.key.removeprefix("panel/").removeprefix("history/").split("/")[0]
+            out[t] = max(out.get(t, _key_day(e)), _key_day(e))
+    return out
+
+
 def fetch_window(p: Paths, today: date, echo=print, con=None, window_days=None, full_missing=False,
                  fetch=None, sleep=time.sleep, **_) -> FetchReport:  # fmt: skip
-    """Today's window for every listed symbol (and, with `full_missing`, full histories first)."""
+    """Today's window for every listed symbol (and, with `full_missing`, full histories first).
+    The window reaches back to three days before the last one, so missed days are caught up; a
+    symbol whose window shows a split or a dividend after its newest full history gets its full
+    history again (Yahoo rewrites the past after both; research R6, spec FR-019)."""
     fetch = fetch or _yfinance()
     report = FetchReport("yahoo")
     settings = sources(p)["prices"]
@@ -94,7 +118,11 @@ def fetch_window(p: Paths, today: date, echo=print, con=None, window_days=None, 
         fetch_history(p, today, missing_histories(p, book, symbols), fetch, sleep, echo, report,
                       book)  # fmt: skip
     start = today - timedelta(days=window_days or settings["yahoo_window_days"])
+    windows = [_key_day(e) for e in book.originals(SOURCE) if e.key.startswith("daily/")]
+    if windows and not window_days:
+        start = min(start, max(windows) - timedelta(days=3))
     size = settings["yahoo_daily_batch_size"]
+    events: dict[str, date] = {}
     for n, i in enumerate(range(0, len(symbols), size)):
         key = f"daily/{today}/{n:03d}"
         if book.find_original(SOURCE, key):
@@ -110,6 +138,10 @@ def fetch_window(p: Paths, today: date, echo=print, con=None, window_days=None, 
             sub = _extract(frame, t)
             if sub is not None:
                 parts.append(sub.reset_index().assign(ticker=t))
+                actions = [c for c in ("Dividends", "Stock Splits") if c in sub]
+                moved = sub[(sub[actions].fillna(0) != 0).any(axis=1)] if actions else sub[:0]
+                if len(moved):
+                    events[t] = moved.index.max().date()
         if parts:
             rows = pd.concat(parts, ignore_index=True)[["ticker", "Date", *FIELDS]]
             store_bytes(p, book, SOURCE, f"yahoo/daily/{today}/batch-{n:03d}.parquet", key,
@@ -119,7 +151,12 @@ def fetch_window(p: Paths, today: date, echo=print, con=None, window_days=None, 
             report.latest_date = max(report.latest_date or latest, latest)
         if i + size < len(symbols):
             sleep(sources(p)["prices"]["yahoo_pause_seconds"])
-    echo(f"  yahoo: {len(symbols):,} symbols in {report.files_stored:,} window files")
+    newest = newest_history_day(book)
+    stale = sorted(t for t, day in events.items() if newest.get(t, date.min) <= day)
+    if stale:
+        echo(f"  yahoo: {len(stale):,} symbols with a split or dividend: full histories again")
+        fetch_history(p, today, stale, fetch, sleep, echo, report, book)
+    echo(f"  yahoo: {len(symbols):,} symbols in {report.files_stored:,} files")
     return report
 
 
