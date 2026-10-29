@@ -131,11 +131,12 @@ def test_the_ticker_list_is_stored_once_a_day_and_checked_for_its_layout(sec_env
 @respx.mock
 def test_a_new_bulk_copy_goes_to_a_dated_folder_and_never_replaces_the_old_one(sec_env):
     p, _ = sec_env
-    for name in ("submissions", "companyfacts"):
-        respx.get(f"https://www.sec.gov/Archives/edgar/daily-index/bulkdata/{name}.zip"
-                  if name == "submissions"
-                  else "https://www.sec.gov/Archives/edgar/daily-index/xbrl/companyfacts.zip"
-                  ).mock(return_value=httpx.Response(200, content=b"PK" + name.encode()))  # fmt: skip
+    urls = {
+        "submissions": "https://www.sec.gov/Archives/edgar/daily-index/bulkdata/submissions.zip",
+        "companyfacts": "https://www.sec.gov/Archives/edgar/daily-index/xbrl/companyfacts.zip",
+    }
+    for name, url in urls.items():
+        respx.get(url).mock(return_value=httpx.Response(200, content=b"PK" + name.encode()))
     report = sec.fetch_bulk(p, date(2026, 10, 30), **QUIET)
     assert report.files_stored == 2
     assert (p.sec_company / "2026-10-30" / "companyfacts.zip").read_bytes() == b"PKcompanyfacts"
