@@ -251,8 +251,10 @@ read the two run records and the freshness overview.
   when it is published: each filing counted once, differences reported.
 - **FR-021**: The product's database and the export MUST be replaced in one step, so a reader never
   sees a partly updated version.
-- **FR-022**: The update MUST NOT compute or change any risk label: development answers stay as
-  built and the risk holdout stays sealed.
+- **FR-022**: The update MUST NOT compute any risk answer whose window ends after the development
+  cut-off, so the risk holdout stays sealed; development answers are rebuilt by the same registered
+  step as in a full rebuild, and any change to them (a provider revising past data) is reported in
+  the run's log.
 
 **Schedule and log**
 
