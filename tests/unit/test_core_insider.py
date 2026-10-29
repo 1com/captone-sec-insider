@@ -218,11 +218,15 @@ def test_clusters_need_two_buyers_or_one_senior_one_and_events_cool_down(build):
 
 def test_daily_filings_fill_in_after_the_data_sets_which_win_where_both_have_one(build):
     con = build(
-        {"2019q1": {"SUBMISSION": [sub("q"), sub("same")],
-                    "REPORTINGOWNER": [owner("q"), owner("same")],
-                    "NONDERIV_TRANS": [line("q", "1"), line("same", "1")]}},
+        {"2019q1": {"SUBMISSION": [sub("q"), sub("same"), sub("cents")],
+                    "REPORTINGOWNER": [owner("q"), owner("same"), owner("cents")],
+                    "NONDERIV_TRANS": [line("q", "1"), line("same", "1"),
+                                       line("cents", "1"), line("cents", "2", shares="10",
+                                                                price="2.01")]}},
         {"q": filing("q", date(2019, 3, 15), "20190315100000", lines=[("2000", "50")]),
          "same": filing("same", date(2019, 3, 15), "20190315100000"),
+         "cents": filing("cents", date(2019, 3, 15), "20190315100000",
+                         lines=[("1000", "50.004"), ("10", "2.005")]),
          "d": filing("d", date(2019, 3, 20), "20190320153000", owners=["9002"]),
          "late": filing("late", date(2019, 3, 20), "20190320171000", owners=["9003"])},
     )  # fmt: skip
@@ -232,6 +236,7 @@ def test_daily_filings_fill_in_after_the_data_sets_which_win_where_both_have_one
     assert got == {
         "q": ("2019q1", date(2019, 3, 15), 50_000.0, ["9001"]),  # the data set's 1,000 shares
         "same": ("2019q1", date(2019, 3, 15), 50_000.0, ["9001"]),
+        "cents": ("2019q1", date(2019, 3, 15), 50_020.1, ["9001"]),
         "d": ("2019q1", date(2019, 3, 20), 50_000.0, ["9002"]),  # accepted before the close
         "late": ("2019q1", date(2019, 3, 21), 50_000.0, ["9003"]),  # after it: the next session
     }
@@ -242,7 +247,8 @@ def test_daily_filings_fill_in_after_the_data_sets_which_win_where_both_have_one
         "select accession, owners_differ, lines_differ, value_differ, value_quarterly, value_daily "
         "from core.form4_reconciliation"
     ).fetchall()
-    assert diff == [("q", False, False, True, 50_000.0, 100_000.0)]
+    assert diff == [("q", False, False, True, 50_000.0, 100_000.0)]  # not "cents": the data set
+    # rounds 50.004 to 50.00 and 2.005 to 2.01 (half up), as the filing's values give
 
 
 def test_a_reconciliation_lists_different_owners_and_line_counts(build):

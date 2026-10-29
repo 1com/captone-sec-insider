@@ -714,15 +714,21 @@ def build_insider_cluster(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) 
 _LINE_TABLES = ("nonderiv_trans", "nonderiv_holding", "deriv_trans", "deriv_holding")
 
 
+# The quarterly data sets keep shares and prices to two decimals (half up), the filings in full:
+# values are compared at the data sets' precision.
+_CENTS = "round(cast({} as DECIMAL(38, 6)), 2)"
+
+
 def _version(schema: str, chosen: str) -> str:
     """SQL: per accession of `chosen` (accession, quarter), its owners, line count and the value of
-    its non-derivative lines (shares × price) in `schema`."""
+    its non-derivative lines (shares × price) in `schema`, in full and at two decimals."""
+    cents = _CENTS.format
     lines = " union all ".join(f"select accession_number, quarter from {schema}.{t}"
                                for t in _LINE_TABLES)  # fmt: skip
     on = "on x.accession_number = a.accession and x.quarter = a.quarter"
     return f"""
         select a.accession, a.quarter, coalesce(o.owners, []) as owners,
-               coalesce(n.lines, 0) as lines, v.value
+               coalesce(n.lines, 0) as lines, v.value, v.value_cents
         from {chosen} a
         left join (select a.accession, list_sort(list_distinct(list(x.rptownercik))) as owners
                    from {chosen} a join {schema}.reportingowner x {on} group by 1) o
@@ -730,7 +736,9 @@ def _version(schema: str, chosen: str) -> str:
         left join (select a.accession, count(*) as lines
                    from {chosen} a join ({lines}) x {on} group by 1) n using (accession)
         left join (select a.accession, {db.exact_sum("x.trans_shares * x.trans_pricepershare")}
-                          as value
+                          as value,
+                          sum({cents("x.trans_shares")} * {cents("x.trans_pricepershare")})
+                          as value_cents
                    from {chosen} a join {schema}.nonderiv_trans x {on} group by 1) v
           using (accession)
     """
@@ -738,7 +746,8 @@ def _version(schema: str, chosen: str) -> str:
 
 def build_form4_reconciliation(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
     """`core.form4_reconciliation`: the accessions in a quarterly data set (its first quarter) and
-    in the daily filings whose versions differ in owners, line count or value."""
+    in the daily filings whose versions differ in owners, line count or value (at the data sets'
+    two decimals; `value_daily` is the filing's full-precision value)."""
     db.require(con, ["stg_sec_form4.submission"], "core.form4_reconciliation")
     columns = ("accession VARCHAR, quarter VARCHAR, owners_quarterly VARCHAR[], "
                "owners_daily VARCHAR[], lines_quarterly BIGINT, lines_daily BIGINT, "
@@ -769,11 +778,11 @@ def build_form4_reconciliation(con: duckdb.DuckDBPyConnection, p: Paths, echo=pr
                    q.lines as lines_quarterly, d.lines as lines_daily,
                    q.value as value_quarterly, d.value as value_daily,
                    q.owners <> d.owners as owners_differ, q.lines <> d.lines as lines_differ,
-                   abs(coalesce(q.value, 0) - coalesce(d.value, 0)) >= 0.01 as value_differ
+                   coalesce(q.value_cents, 0) <> coalesce(d.value_cents, 0) as value_differ
             from ({_version("stg_sec_form4", "_both")}) q
             join ({_version("stg_sec_form4_daily", "_daily")}) d using (accession)
             where q.owners <> d.owners or q.lines <> d.lines
-               or abs(coalesce(q.value, 0) - coalesce(d.value, 0)) >= 0.01
+               or coalesce(q.value_cents, 0) <> coalesce(d.value_cents, 0)
             order by accession
             """
         )

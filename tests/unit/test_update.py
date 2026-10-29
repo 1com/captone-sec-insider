@@ -141,3 +141,11 @@ def test_one_update_at_a_time_and_never_on_a_nearly_full_disk(world, monkeypatch
     with pytest.raises(updater.DiskFull):
         updater.update(p, today=DAYS[1], **options)
     assert calls == []  # stopped before fetching
+
+
+def test_an_update_without_fetching_records_its_run(world):
+    p, calls, options = world
+    updater.update(p, today=DAYS[1], **options)
+    result = updater.update(p, today=DAYS[1], fetch=False, **options)
+    assert result["status"] == "nothing_new" and calls == [DAYS[:2]]
+    assert _scalar(p, "select count(*) from ops.update_run where finished_at is not null") == 2

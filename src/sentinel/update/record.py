@@ -145,6 +145,8 @@ def app_changes(prev: Path, new: Path) -> dict[str, tuple[int, int, int, int, in
 
 
 def record_sources(con, run_id: str, reports: list[FetchReport]) -> None:
+    if not reports:  # an update without fetching
+        return
     con.executemany("insert into ops.update_source values (?, ?, ?, ?, ?, ?, ?, ?)", [
         (run_id, r.source, r.status, r.requests, r.files_stored, r.bytes, r.latest_date,
          "; ".join(r.errors)[:2000] or None) for r in reports])  # fmt: skip
