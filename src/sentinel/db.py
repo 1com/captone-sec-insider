@@ -9,8 +9,9 @@ from sentinel.config import Paths
 
 MEMORY_LIMIT = "3GB"  # leaves room for pandas in the same process on a 5 GB job limit
 SCHEMAS = (
-    "stg_sec_form4", "stg_sec_filings", "stg_sec_xbrl", "stg_sec_headers", "stg_sec_tickers",
-    "stg_yahoo", "stg_tiingo", "stg_market", "ref", "core", "feature", "label", "model", "score",
+    "stg_sec_form4", "stg_sec_form4_daily", "stg_sec_filings", "stg_sec_xbrl", "stg_sec_headers",
+    "stg_sec_tickers", "stg_yahoo", "stg_tiingo", "stg_market", "ref", "core", "feature", "label",
+    "model", "score", "ops",
 )  # fmt: skip
 
 

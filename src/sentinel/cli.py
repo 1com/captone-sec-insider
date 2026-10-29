@@ -1,6 +1,7 @@
 """The `sentinel` command. Commands are added layer by layer (docs/architecture.md)."""
 
 import time
+from datetime import date
 
 import duckdb
 import typer
@@ -25,6 +26,49 @@ def _fail(message: str, code: int):
 def version() -> None:
     """Print the version."""
     typer.echo(__version__)
+
+
+def _day(value: str | None) -> date | None:
+    if value is None:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        _fail(f"not a date (YYYY-MM-DD): {value!r}", USAGE)
+
+
+@app.command()
+def fetch(
+    source: str = typer.Argument(..., help="sec-tickers, sec-daily, sec-bulk, form4, yahoo, "
+                                 "tiingo, fred, cboe, finra, or all (every daily source)."),
+    from_day: str = typer.Option(None, "--from", help="First filing or trading day, YYYY-MM-DD."),
+    to_day: str = typer.Option(None, "--to", help="Last filing or trading day, YYYY-MM-DD."),
+    full_missing: bool = typer.Option(False, "--full-missing",
+                                      help="yahoo: also full histories of symbols never asked."),
+    window_days: int = typer.Option(None, "--window-days", help="yahoo: days in the window."),
+    quarterly: bool = typer.Option(False, "--quarterly",
+                                   help="form4: the quarterly data sets instead."),
+) -> None:  # fmt: skip
+    """Download one source into data/raw/ (each file with a manifest line)."""
+    from sentinel import config, raw
+    from sentinel.raw.manifest import FetchLocked
+
+    known = raw.fetchers()
+    if source != "all" and source not in known:
+        _fail(f"unknown source {source!r}; known: {', '.join([*known, 'all'])}", USAGE)
+    options = {"from_day": _day(from_day), "to_day": _day(to_day), "full_missing": full_missing,
+               "window_days": window_days, "quarterly": quarterly}  # fmt: skip
+    options = {k: v for k, v in options.items() if v not in (None, False)}
+    try:
+        reports = raw.run(config.paths(), source, date.today(), typer.echo, **options)
+    except config.ConfigError as e:
+        _fail(f"fetch {source}: {e}", CONFIG)
+    except FetchLocked as e:
+        _fail(f"fetch {source}: {e}", FAILED)
+    for report in reports:
+        typer.echo(report.summary())
+    if any(r.status == "failed" for r in reports):
+        raise typer.Exit(FAILED)
 
 
 @app.command()

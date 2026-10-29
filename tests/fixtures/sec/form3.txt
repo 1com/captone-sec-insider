@@ -1,0 +1,186 @@
+<SEC-DOCUMENT>0001040470-26-000320.txt : 20261028
+<SEC-HEADER>0001040470-26-000320.hdr.sgml : 20261028
+<ACCEPTANCE-DATETIME>20261028170053
+ACCESSION NUMBER:		0001040470-26-000320
+CONFORMED SUBMISSION TYPE:	3
+PUBLIC DOCUMENT COUNT:		2
+CONFORMED PERIOD OF REPORT:	20261028
+FILED AS OF DATE:		20261028
+DATE AS OF CHANGE:		20261028
+
+REPORTING-OWNER:	
+
+	OWNER DATA:	
+		COMPANY CONFORMED NAME:			VIJAYRAO NARSING KRISHNA
+		CENTRAL INDEX KEY:			0002160998
+		ORGANIZATION NAME:           	
+
+	FILING VALUES:
+		FORM TYPE:		3
+		SEC ACT:		1934 Act
+		SEC FILE NUMBER:	000-22893
+		FILM NUMBER:		261496514
+
+	MAIL ADDRESS:	
+		STREET 1:		C/O AEHR TEST SYSTEMS
+		STREET 2:		400 KATO TERRACE
+		CITY:			FREMONT
+		STATE:			CA
+		ZIP:			94539
+
+ISSUER:		
+
+	COMPANY DATA:	
+		COMPANY CONFORMED NAME:			AEHR TEST SYSTEMS
+		CENTRAL INDEX KEY:			0001040470
+		STANDARD INDUSTRIAL CLASSIFICATION:	INSTRUMENTS FOR MEAS & TESTING OF ELECTRICITY & ELEC SIGNALS [3825]
+		ORGANIZATION NAME:           	08 Industrial Applications and Services
+		EIN:				942424084
+		STATE OF INCORPORATION:			CA
+		FISCAL YEAR END:			1231
+
+	BUSINESS ADDRESS:	
+		STREET 1:		400 KATO TERRACE
+		CITY:			FREMONT
+		STATE:			CA
+		ZIP:			94539
+		BUSINESS PHONE:		5106239400
+
+	MAIL ADDRESS:	
+		STREET 1:		400 KATO TERRACE
+		CITY:			FREMONT
+		STATE:			CA
+		ZIP:			94539
+</SEC-HEADER>
+<DOCUMENT>
+<TYPE>3
+<SEQUENCE>1
+<FILENAME>primary_01.xml
+<DESCRIPTION>PRIMARY DOCUMENT
+<TEXT>
+<XML>
+<?xml version="1.0"?>
+<ownershipDocument>
+
+    <schemaVersion>X0607</schemaVersion>
+
+    <documentType>3</documentType>
+
+    <periodOfReport>2026-10-28</periodOfReport>
+
+    <noSecuritiesOwned>0</noSecuritiesOwned>
+
+    <issuer>
+        <issuerCik>0001040470</issuerCik>
+        <issuerName>AEHR TEST SYSTEMS</issuerName>
+        <issuerTradingSymbol>AEHR</issuerTradingSymbol>
+        <issuerForeignTradingSymbol></issuerForeignTradingSymbol>
+    </issuer>
+
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0002160998</rptOwnerCik>
+            <rptOwnerName>VIJAYRAO NARSING KRISHNA</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerAddress>
+            <rptOwnerNonUSAddressFlag>false</rptOwnerNonUSAddressFlag>
+            <rptOwnerStreet1>C/O AEHR TEST SYSTEMS</rptOwnerStreet1>
+            <rptOwnerStreet2>400 KATO TERRACE</rptOwnerStreet2>
+            <rptOwnerCity>FREMONT</rptOwnerCity>
+            <rptOwnerState>CA</rptOwnerState>
+            <rptOwnerZipCode>94539</rptOwnerZipCode>
+            <rptOwnerStateDescription></rptOwnerStateDescription>
+        </reportingOwnerAddress>
+        <reportingOwnerRelationship>
+            <isDirector>true</isDirector>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+
+    <nonDerivativeTable>
+        <nonDerivativeHolding>
+            <securityTitle>
+                <value>Common Stock</value>
+            </securityTitle>
+            <postTransactionAmounts>
+                <sharesOwnedFollowingTransaction>
+                    <value>1000</value>
+                </sharesOwnedFollowingTransaction>
+            </postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership>
+                    <value>D</value>
+                </directOrIndirectOwnership>
+            </ownershipNature>
+        </nonDerivativeHolding>
+    </nonDerivativeTable>
+
+    <derivativeTable></derivativeTable>
+
+    <footnotes></footnotes>
+
+    <remarks></remarks>
+
+    <ownerSignature>
+        <signatureName>/s/Chris Siu, Attorney-in-Fact</signatureName>
+        <signatureDate>2026-10-28</signatureDate>
+    </ownerSignature>
+</ownershipDocument>
+</XML>
+</TEXT>
+</DOCUMENT>
+<DOCUMENT>
+<TYPE>EX-24
+<SEQUENCE>2
+<FILENAME>powerattorneynvijayrao2026.txt
+<DESCRIPTION>EX-24 DOCUMENT
+<TEXT>
+POWER OF ATTORNEY
+
+	The undersigned, as a Section 16 reporting person of Aehr
+Test Systems (the "Company"), hereby constitutes and appoints
+Gayn Erickson, Chris Siu and Vernon Rogers, and each of them,
+the undersigned's true and lawful attorney-in-fact to:
+
+      1. complete and execute Forms 3, 4 and 5 and other forms
+         and all amendments thereto as such attorney-in-fact
+         shall in his or her discretion determine to be required
+         or advisable pursuant to Section 16 of the Securities
+         and Exchange Act of 1934 (as amended) and the rules and
+         regulations promulgated thereunder, or any successor
+         laws and regulations, as a consequence of the
+         undersigned's ownership, acquisition or disposition of
+         securities of the Company; and
+
+      2. do all acts necessary in order to file such forms with
+         the Securities and Exchange Commission, any securities
+         exchange or national association, the Company and such
+         other person or agency as the attorney-in-fact shall
+         deem appropriate.
+
+	The undersigned hereby ratifies and confirms all that said
+attorney-in-fact and agents shall do or cause to be done by virtue
+hereof.  The undersigned acknowledges that the foregoing
+attorney-in-fact, in serving in such capacity at the request of the
+undersigned, are not assuming, nor is the Company assuming, any of
+the undersigned's responsibilities to comply with Section 16 of the
+Securities Exchange Act of 1934 (as amended).
+
+	This Power of Attorney shall remain in full force and effect
+until the undersigned is no longer required to file Forms 3, 4 and
+5 with respect to the undersigned's holdings and transactions in
+securities issued by the Company, unless earlier revoked by the
+undersigned in a signed writing delivered to the Company and the
+foregoing attorneys-in-fact.
+
+IN WITNESS WHEREOF, the undersigned has caused this Power of Attorney
+to be executed as of this 28th day of October, 2026.
+
+
+			Signature:	/S/ Narsing K. Vijayrao
+                                        --------------------------
+
+			Print Name:	Narsing Krishna Vijayrao
+                                        --------------------------
+</TEXT>
+</DOCUMENT>
+</SEC-DOCUMENT>

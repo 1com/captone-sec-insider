@@ -24,11 +24,12 @@ def _zip(entries: dict[str, object]) -> bytes:
     return buf.getvalue()
 
 
-def _record(paths, rel: str, key: str, source: str, url: str = "https://example.test") -> None:
+def _record(paths, rel: str, key: str, source: str, url: str = "https://example.test",
+            fetched_at: str = "2026-10-29T00:00:00Z") -> None:  # fmt: skip
     file = paths.raw / rel
     Manifest(paths.manifest).add(ManifestEntry(
         path=rel, source=source, key=key, role="original", url=url,
-        fetched_at="2026-10-29T00:00:00Z", bytes=file.stat().st_size, sha256=sha256_file(file),
+        fetched_at=fetched_at, bytes=file.stat().st_size, sha256=sha256_file(file),
         http_last_modified=None, http_etag=None, tool="test"))  # fmt: skip
 
 
@@ -95,27 +96,71 @@ def test_every_version_of_a_wanted_value_is_kept_and_other_tags_are_not(tmp_data
                    ("EntityCommonStockSharesOutstanding", 1000.0, date(2020, 5, 1))]  # fmt: skip
 
 
-def _yahoo(path: Path, closes: list[float]) -> None:
-    frame = pd.DataFrame({
-        "Open": closes, "High": closes, "Low": closes, "Close": closes, "Adj Close": closes,
-        "Volume": [100] * len(closes), "Dividends": [0.0] * len(closes),
-        "Stock Splits": [0.0] * len(closes),
-        "Date": pd.to_datetime(["2020-01-02", "2020-01-03"][: len(closes)]),
-    })  # fmt: skip
+def _bars(closes: list[float], days: list[str]) -> dict:
+    return {"Open": closes, "High": closes, "Low": closes, "Close": closes, "Adj Close": closes,
+            "Volume": [100] * len(closes), "Dividends": [0.0] * len(closes),
+            "Stock Splits": [0.0] * len(closes), "Date": pd.to_datetime(days)}  # fmt: skip
+
+
+def _yahoo(path: Path, closes: list[float], days=("2020-01-02", "2020-01-03")) -> None:
+    """A full-history file, one ticker (v1's layout)."""
     path.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(_bars(closes, list(days)[: len(closes)])).to_parquet(path, index=False)
+
+
+def _yahoo_window(path: Path, rows: list[tuple[str, str, float]]) -> None:
+    """A daily window file: (ticker, day, close) rows of many tickers, long format."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    frame = pd.DataFrame(_bars([r[2] for r in rows], [r[1] for r in rows]))
+    frame.insert(0, "ticker", [r[0] for r in rows])
     frame.to_parquet(path, index=False)
+
+
+def test_each_price_day_comes_from_the_newest_file_after_the_newest_full_history(tmp_data):
+    y = tmp_data.raw / "yahoo"
+    _yahoo(y / "AAA.parquet", [10.0, 11.0])
+    _record(tmp_data, "yahoo/AAA.parquet", "AAA", "yahoo", fetched_at="2026-10-20T20:00:00Z")
+    _yahoo_window(y / "daily/2026-10-21/batch-000.parquet",
+                  [("AAA", "2020-01-03", 11.5), ("AAA", "2020-01-06", 12.0)])  # fmt: skip
+    _record(tmp_data, "yahoo/daily/2026-10-21/batch-000.parquet", "daily/2026-10-21/000", "yahoo",
+            fetched_at="2026-10-21T22:00:00Z")  # fmt: skip
+    con = db.connect(tmp_data)
+
+    def closes():
+        prices.stage_yahoo(con, tmp_data, **QUIET)
+        return con.execute("select session, close from stg_yahoo.price order by 1").fetchall()
+
+    # a window adds a day and replaces a day the provider revised
+    assert closes() == [(date(2020, 1, 2), 10.0), (date(2020, 1, 3), 11.5),
+                        (date(2020, 1, 6), 12.0)]  # fmt: skip
+    # a 2-for-1 split: the full history fetched again supersedes everything older
+    _yahoo(y / "history/2026-10-22/AAA.parquet", [5.0, 5.75, 6.0],
+           days=("2020-01-02", "2020-01-03", "2020-01-06"))  # fmt: skip
+    _record(tmp_data, "yahoo/history/2026-10-22/AAA.parquet", "history/AAA/2026-10-22", "yahoo",
+            fetched_at="2026-10-22T22:00:00Z")  # fmt: skip
+    _yahoo_window(y / "daily/2026-10-23/batch-000.parquet", [("AAA", "2020-01-07", 6.5)])
+    _record(tmp_data, "yahoo/daily/2026-10-23/batch-000.parquet", "daily/2026-10-23/000", "yahoo",
+            fetched_at="2026-10-23T22:00:00Z")  # fmt: skip
+    assert closes() == [(date(2020, 1, 2), 5.0), (date(2020, 1, 3), 5.75), (date(2020, 1, 6), 6.0),
+                        (date(2020, 1, 7), 6.5)]  # fmt: skip
+    kinds = con.execute("select file_kind, count(*) from stg_yahoo.price group by 1 order by 1")
+    assert kinds.fetchall() == [("history", 3), ("window", 1)]
 
 
 def test_price_staging_holds_every_file_of_each_source(tmp_data):
     _yahoo(tmp_data.yahoo / "AAPL.parquet", [10.0, 11.0])
     _yahoo(tmp_data.yahoo / "panel" / "BRK-B.parquet", [300.0])
+    _record(tmp_data, "yahoo/AAPL.parquet", "AAPL", "yahoo")
+    _record(tmp_data, "yahoo/panel/BRK-B.parquet", "panel/BRK-B", "yahoo")
     t = tmp_data.tiingo
     for d, ticker in (("prices", "GONE"), ("listed_prices", "AAPL")):
         (t / d).mkdir(parents=True)
         csv = ("date,close,high,low,open,volume,adjClose,adjHigh,adjLow,adjOpen,adjVolume,"
                "divCash,splitFactor\n2020-01-02,5,5,5,5,10,5,5,5,5,10,0.0,1.0\n")  # fmt: skip
         (t / d / f"{ticker}.csv.gz").write_bytes(gzip.compress(csv.encode()))
+        _record(tmp_data, f"tiingo/{d}/{ticker}.csv.gz", f"{d}/{ticker}", "tiingo")
     (t / "prices" / "NODATA.csv.gz").write_bytes(gzip.compress(b"[]"))  # Tiingo: no prices
+    _record(tmp_data, "tiingo/prices/NODATA.csv.gz", "prices/NODATA", "tiingo")
     (t / "meta").mkdir()
     (t / "meta" / "GONE.json.gz").write_bytes(gzip.compress(json.dumps(
         {"ticker": "gone", "name": "Gone Corp", "exchangeCode": "NYSE",
@@ -143,13 +188,14 @@ def test_price_staging_holds_every_file_of_each_source(tmp_data):
         "https://api.tiingo.com/tiingo/utilities/search?query=GONE+CORP&limit=10",
     )
     con = db.connect(tmp_data)
-    assert prices.stage_yahoo(con, tmp_data, **QUIET) == {"files": 2, "price": 3}
+    assert prices.stage_yahoo(con, tmp_data, **QUIET) == {"history_files": 2, "window_files": 0,
+                                                          "price": 3}  # fmt: skip
     assert con.execute(
         "select ticker, session, close, raw_file from stg_yahoo.price order by ticker, session"
     ).fetchall()[0] == ("AAPL", date(2020, 1, 2), 10.0, "yahoo/AAPL.parquet")
     counts = prices.stage_tiingo(con, tmp_data, **QUIET)
-    assert counts == {"files": 2, "no_prices": 1, "price": 2, "meta": 2, "listing": 2,
-                      "search": 1}  # fmt: skip
+    assert counts == {"files": 2, "window_files": 0, "no_prices": 1, "price": 2, "meta": 2,
+                      "listing": 2, "search": 1}  # fmt: skip
     meta = con.execute("select ticker, name, end_date from stg_tiingo.meta order by 1").fetchall()
     assert meta == [("GONE", "Gone Corp", date(2015, 6, 30)), ("NOPE", None, None)]
     assert con.execute("select query, ticker from stg_tiingo.search").fetchone() == (

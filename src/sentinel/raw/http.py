@@ -91,7 +91,18 @@ def _retry_after(resp: httpx.Response) -> float | None:
     return float(value) if value.isdigit() else None
 
 
-def _check_status(resp: httpx.Response, url: str) -> None:
+def is_missing(resp: httpx.Response) -> bool:
+    """A file not (yet) on EDGAR's file store: 404, or a 403 whose body is the store's XML
+    `AccessDenied` error, as for a daily index not yet published. The SEC's own refusal of a client
+    is an HTML page, never this XML (checked 29 Oct 2026)."""
+    return resp.status_code == 404 or (
+        resp.status_code == 403 and "<Code>AccessDenied</Code>" in resp.text[:400]
+    )
+
+
+def _check_status(resp: httpx.Response, url: str, allow_missing: bool = False) -> None:
+    if allow_missing and is_missing(resp):
+        return
     if resp.status_code == 403:
         raise SecForbidden(f"HTTP 403 for {url}")
     if resp.status_code == 429 or resp.status_code >= 500:
@@ -117,13 +128,15 @@ def _with_retry(attempt_fn, url: str, limiter: RateLimiter, policy: RetryPolicy)
 
 
 def request_with_retry(
-    client: httpx.Client, method: str, url: str, limiter: RateLimiter, policy: RetryPolicy
-) -> httpx.Response:
-    """One request with retries on 429, 5xx and transport errors. Other statuses are returned."""
+    client: httpx.Client, method: str, url: str, limiter: RateLimiter, policy: RetryPolicy,
+    allow_missing: bool = False,
+) -> httpx.Response:  # fmt: skip
+    """One request with retries on 429, 5xx and transport errors. Other statuses are returned.
+    With `allow_missing`, a file the store lacks (`is_missing`) is returned instead of stopping."""
 
     def attempt():
         resp = client.request(method, url)
-        _check_status(resp, url)
+        _check_status(resp, url, allow_missing)
         return resp
 
     return _with_retry(attempt, url, limiter, policy)

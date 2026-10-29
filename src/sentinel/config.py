@@ -40,6 +40,10 @@ class Paths:
     sec_company: Path
     sec_headers: Path
     sec_reference: Path
+    sec_index: Path
+    sec_form4: Path
+    sec_companyfacts: Path
+    sec_submissions: Path
     yahoo: Path
     tiingo: Path
     fred: Path
@@ -48,7 +52,11 @@ class Paths:
     french: Path
     build_db: Path
     serving_db: Path
+    serving_prev: Path
+    verify_db: Path
     exports: Path
+    logs: Path
+    update_lock: Path
     mlflow_db: Path
     reports: Path
     sources_file: Path
@@ -70,6 +78,10 @@ class Paths:
             sec_company=raw / "sec" / "company",
             sec_headers=raw / "sec" / "headers",
             sec_reference=raw / "sec" / "reference",
+            sec_index=raw / "sec" / "index",
+            sec_form4=raw / "sec" / "form4",
+            sec_companyfacts=raw / "sec" / "companyfacts",
+            sec_submissions=raw / "sec" / "submissions",
             yahoo=raw / "yahoo",
             tiingo=raw / "tiingo",
             fred=raw / "fred",
@@ -78,7 +90,11 @@ class Paths:
             french=raw / "french",
             build_db=data / "sentinel.duckdb",
             serving_db=data / "serving.duckdb",
+            serving_prev=data / "serving.prev.duckdb",
+            verify_db=data / "verify.duckdb",
             exports=data / "exports",
+            logs=data / "logs",
+            update_lock=data / ".update.lock",
             mlflow_db=data / "mlflow.db",
             reports=root / "reports",
             sources_file=root / "config" / "sources.yaml",
@@ -107,11 +123,13 @@ def _yaml(path: Path) -> dict:
 def sources(p: Paths) -> dict:
     """`config/sources.yaml`, checked for the sections every fetcher relies on."""
     doc = _yaml(p.sources_file)
-    missing = [s for s in ("http", "sec", "prices", "tiingo") if not isinstance(doc.get(s), dict)]
+    sections = ("http", "sec", "prices", "tiingo", "update")
+    missing = [s for s in sections if not isinstance(doc.get(s), dict)]
     if missing:
         raise ConfigError(f"sources.yaml lacks section(s): {', '.join(missing)}")
-    if doc["sec"]["max_requests_per_second"] > 10:
-        raise ConfigError("sec.max_requests_per_second must be at most 10 (SEC fair access)")
+    sec = doc["sec"]
+    if max(sec["max_requests_per_second"], sec["document_requests_per_second"]) > 10:
+        raise ConfigError("SEC request rates must be at most 10 a second (SEC fair access)")
     return doc
 
 
