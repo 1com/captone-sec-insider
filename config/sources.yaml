@@ -43,16 +43,10 @@ tiingo:
   us_exchanges: [NYSE, NASDAQ, NYSE MKT, AMEX, NYSE ARCA, NYSE NAT, BATS, PINK, OTCMKTS, OTCGREY, EXPM, OTCBB, OTCQB, OTCQX, OTCCE, OTCD]
 
 french:
+  # Only the SIC-code ranges of the 12 and 49 industries (sectors). v1's factor and industry
+  # return files and FINRA's tick-size pilot list served the insider study's returns and costs;
+  # they were deleted from data/raw on 29 October 2026.
   base_url: "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/"
   files:
-    - F-F_Research_Data_5_Factors_2x3_daily_CSV.zip
-    - F-F_Momentum_Factor_daily_CSV.zip
-    - F-F_ST_Reversal_Factor_daily_CSV.zip
-    - 49_Industry_Portfolios_daily_CSV.zip
-    - 12_Industry_Portfolios_daily_CSV.zip
     - Siccodes49.zip
     - Siccodes12.zip
-    - ME_Breakpoints_CSV.zip
-
-finra:
-  tick_pilot_url: "https://tsp.finra.org/finra_org/ticksizepilot/TSPilotChanges.txt"
