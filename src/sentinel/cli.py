@@ -52,7 +52,7 @@ def build(
         _fail(f"build {layer}: {e}", USAGE)
     except (FileNotFoundError, db.MissingInput) as e:
         _fail(f"build {layer}: {e}", CONFIG)
-    except builder.StepFailed as e:
+    except db.StepFailed as e:
         _fail(f"build {layer}: {e}", FAILED)
     finally:
         con.close()

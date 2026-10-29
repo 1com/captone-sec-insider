@@ -18,6 +18,10 @@ class MissingInput(Exception):
     """A step's input tables are not built yet (CLI exit code 3)."""
 
 
+class StepFailed(Exception):
+    """A step finished but its own checks failed (for example row counts against the files)."""
+
+
 def connect(p: Paths, read_only: bool = False) -> duckdb.DuckDBPyConnection:
     if not read_only:
         p.data.mkdir(parents=True, exist_ok=True)
@@ -52,3 +56,9 @@ def require(con: duckdb.DuckDBPyConnection, tables: list[str], step: str) -> Non
 
 def count(con: duckdb.DuckDBPyConnection, table: str) -> int:
     return con.execute(f"select count(*) from {table}").fetchone()[0]
+
+
+def exact_sum(expr: str, scale: int = 8) -> str:
+    """SQL for a sum that does not depend on row order. Floating-point addition does, so each term
+    is rounded to 10^-scale and added as DECIMAL; a rebuild then gives identical values."""
+    return f"cast(sum(cast({expr} as DECIMAL(38, {scale}))) as DOUBLE)"

@@ -7,7 +7,10 @@ import duckdb
 
 from sentinel.config import Paths
 from sentinel.core import filings as core_filings
+from sentinel.core import insider as core_insider
+from sentinel.core import market as core_market
 from sentinel.core import prices as core_prices
+from sentinel.db import StepFailed
 from sentinel.reference import build as ref
 from sentinel.staging import market, prices, sec_filings, sec_form4, sec_headers, sec_xbrl
 
@@ -16,10 +19,6 @@ Step = Callable[[duckdb.DuckDBPyConnection, Paths, Callable[[str], None]], dict]
 
 class UnknownStep(Exception):
     """A layer or step name that does not exist (CLI exit code 2)."""
-
-
-class StepFailed(Exception):
-    """A step finished but its own checks failed (for example row counts against the files)."""
 
 
 def _sec_form4(con, p: Paths, echo) -> dict:
@@ -59,6 +58,14 @@ CORE: dict[str, Step] = {
     "financial_fact": core_filings.build_financial_fact,
     "shares": core_filings.build_shares,
     "results_release": core_filings.build_results_release,
+    "insider_filing": core_insider.build_insider_filing,
+    "insider_entities": core_insider.build_insider_entities,
+    "insider_trade": core_insider.build_insider_trade,
+    "insider_activity": core_insider.build_insider_activity,
+    "insider_cluster": core_insider.build_insider_cluster,
+    "macro": core_market.build_macro,
+    "ticker_span": core_market.build_ticker_span,
+    "short_volume": core_market.build_short_volume,
 }
 LAYERS: dict[str, dict[str, Step]] = {"staging": STAGING, "reference": REFERENCE, "core": CORE}
 

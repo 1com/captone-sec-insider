@@ -45,6 +45,18 @@ def test_a_filing_counts_the_same_day_only_if_accepted_before_the_close(con, tmp
     assert got == {"a": date(2022, 4, 20), "b": date(2022, 4, 21), "c": date(2022, 4, 25)}
 
 
+def test_filings_before_the_calendar_keep_their_order(con, tmp_data):
+    _frame(con, "stg_sec_filings.filing", [
+        _filing("1", "a", "10-Q", date(2021, 6, 4)),  # a Friday, before the calendar's 2022 start
+        _filing("1", "b", "10-Q", date(2021, 6, 8)),
+    ])  # fmt: skip
+    _frame(con, "stg_sec_headers.header",
+           [{"accession": "x", "accepted_at_et": datetime(2022, 1, 3, 9, 0)}])  # fmt: skip
+    filings.build_filing(con, tmp_data, **QUIET)
+    got = dict(con.execute("select accession, known_at from core.filing").fetchall())
+    assert got == {"a": date(2021, 6, 7), "b": date(2021, 6, 9)}  # not both 3 January 2022
+
+
 def _fact(cik, tax, tag, unit, start, end, value, filed, accn):
     return {"cik": cik, "taxonomy": tax, "tag": tag, "unit": unit, "period_start": start,
             "period_end": end, "value": value, "accession": accn, "fy": 2022, "fp": "Q1",

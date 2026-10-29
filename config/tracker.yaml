@@ -1,0 +1,29 @@
+# Insider tracker rules. The values are v1's registered ones (config/params.yaml at tag v1-final);
+# v2 drops the insider study (V2-4), so they decide what the tracker shows, not a hypothesis test.
+# Regular expressions apply case-insensitively.
+
+version: 1
+
+purchase:
+  # A clean purchase: an original Form 4 whose open-market purchase lines of common stock, filed
+  # on time, outside any plan and any offering, total at least this much (v1 gate G6).
+  min_value_usd: 25000
+  timeliness_days: 30  # filed at most this many calendar days after the trade
+
+cluster:
+  # On each day an issuer has a clean purchase, the clean purchases filed in the window ending
+  # that day: A = at least `min_entities` buyers, one an officer or director; B1 = one CEO or CFO;
+  # B2 = one officer or director. Each needs `min_value_usd` in total.
+  window_days: 14
+  min_entities: 2
+  min_value_usd: 100000
+  # A new event starts when the issuer had none in the same group this many days before
+  # (v1's preliminary cooldown, about 63 trading sessions).
+  cooldown_days: 91
+
+patterns:
+  common_title: 'common|ordinary|\bclass [a-z]\b|\bshares?\b'
+  excluded_title: 'preferred|warrant|\bunits?\b|\bnotes?\b|option|\brights?\b|debenture'
+  plan_footnote: '10b5-?1|10b-?5-?1|dividend reinvest|\bDRIP\b|employee stock purchase|\bESPP\b|automatic(ally)?\s+(purchase|reinvest)|reinvest(ed|ment) of dividends'
+  offering_footnote: 'public offering|underwrit|private placement|registered direct|subscription agreement|securities purchase agreement|\bPIPE\b|rights offering|directly from the (company|issuer)|from the issuer'
+  ceo_cfo_title: '\bCEO\b|\bCFO\b|chief executive|chief financial|principal executive|principal financial'

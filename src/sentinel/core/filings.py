@@ -4,7 +4,8 @@
 trading day after its filing date, unless its header shows it was accepted before the 4 pm close on
 a trading day (then that day). Only headers carry reliable acceptance times (`stg_sec_filings`), so
 most filings take the conservative next day: a feature for day D never uses a filing the market
-could not have read by D's close.
+could not have read by D's close. Before the trading calendar starts (2010), the next weekday
+stands in for the next trading day.
 
 - `core.filing`: every staged filing: form, dates, 8-K items, `accepted_at_et`, `known_at`.
 - `core.financial_fact`: each financial item per company and period, every reported version, the
@@ -30,6 +31,27 @@ CLOSE_HOUR = 16
 QUARTER_DAYS = (80, 100)  # a quarterly weighted average, not a year-to-date one
 
 
+def next_session(day: str, session: str) -> str:
+    """SQL: `session`, the first trading day after `day` (ASOF-joined from `ref.calendar`). Before
+    the calendar starts (2010) the next weekday stands in: nothing is priced then, but earlier
+    filings keep their order instead of all landing on the calendar's first day."""
+    return (
+        f"case when {day} < (select min(session) from ref.calendar) "
+        f"then {day} + case dayofweek({day}) when 5 then 3 when 6 then 2 else 1 end "
+        f"else {session} end"
+    )
+
+
+def same_day_or_next(day: str, accepted: str, session: str) -> str:
+    """SQL: `day` itself if `accepted` (ET) is before the close on that trading day, otherwise
+    `next_session`."""
+    return (
+        f"case when hour({accepted}) < {CLOSE_HOUR} and {accepted}::DATE = {day} "
+        f"and {day} in (select session from ref.calendar) then {day} "
+        f"else {next_session(day, session)} end"
+    )
+
+
 def build_filing(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
     db.require(con, ["stg_sec_filings.filing", "stg_sec_headers.header", "ref.calendar"],
                "core.filing")  # fmt: skip
@@ -44,10 +66,7 @@ def build_filing(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
                      from stg_sec_filings.filing f left join h using (accession)
                      where f.filing_date is not null)
             select b.*,
-                   case when hour(b.accepted_at_et) < {CLOSE_HOUR}
-                             and b.accepted_at_et::DATE = b.filing_date
-                             and b.filing_date in (select session from ref.calendar)
-                        then b.filing_date else c.session end as known_at
+                   {same_day_or_next("b.filing_date", "b.accepted_at_et", "c.session")} as known_at
             from base b asof left join ref.calendar c on c.session > b.filing_date
             """
         )
@@ -93,7 +112,7 @@ def build_financial_fact(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -
                    t.value, t.unit, t.filed, t.accession, t.form, t.fp, t.taxonomy, t.tag,
                    row_number() over (partition by t.cik, t.item, t.period_start, t.period_end
                                       order by t.filed, t.accession) = 1 as first_filed,
-                   c.session as known_at
+                   {next_session("t.filed", "c.session")} as known_at
             from chosen t asof left join ref.calendar c on c.session > t.filed
             """
         )

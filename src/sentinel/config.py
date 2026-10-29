@@ -1,8 +1,9 @@
 """Paths, settings and secrets.
 
-Settings: `config/sources.yaml` (where data comes from, rate limits) and `config/risk_params.yaml`
-(the registered risk definitions, tag `prereg-risk-v5`, never edited). Secrets come only from the
-git-ignored `.env` and are never exported into the process environment.
+Settings: `config/sources.yaml` (where data comes from, rate limits), `config/risk_params.yaml`
+(the registered risk definitions, tag `prereg-risk-v5`, never edited) and `config/tracker.yaml`
+(the insider tracker's rules). Secrets come only from the git-ignored `.env` and are never
+exported into the process environment.
 """
 
 import hashlib
@@ -52,6 +53,7 @@ class Paths:
     reports: Path
     sources_file: Path
     risk_params_file: Path
+    tracker_file: Path
     env_file: Path
 
     @classmethod
@@ -81,6 +83,7 @@ class Paths:
             reports=root / "reports",
             sources_file=root / "config" / "sources.yaml",
             risk_params_file=root / "config" / "risk_params.yaml",
+            tracker_file=root / "config" / "tracker.yaml",
             env_file=root / ".env",
         )
 
@@ -114,6 +117,15 @@ def sources(p: Paths) -> dict:
 
 def risk_params(p: Paths) -> dict:
     return _yaml(p.risk_params_file)
+
+
+def tracker(p: Paths) -> dict:
+    """`config/tracker.yaml`: the insider tracker's rules."""
+    doc = _yaml(p.tracker_file)
+    missing = [s for s in ("purchase", "cluster", "patterns") if not isinstance(doc.get(s), dict)]
+    if missing:
+        raise ConfigError(f"tracker.yaml lacks section(s): {', '.join(missing)}")
+    return doc
 
 
 def file_sha256(path: Path) -> str:
