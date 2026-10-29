@@ -11,6 +11,7 @@ stands in for the next trading day.
 - `core.financial_fact`: each financial item per company and period, every reported version, the
   first filed flagged; the main tag wins its periods and later tags fill only periods it lacks
   (`staging.sec_xbrl.ITEMS`). `known_at` is the next trading day after the version's filing date.
+  Values with impossible dates (a typed year such as 2201) stay in staging but not here.
 - `core.shares_outstanding`: the cover-page share count (first filed); a company with no cover-page
   count at all (several share classes, tagged per class) uses its quarterly weighted-average basic
   shares instead, for all its periods (risk_params v5).
@@ -29,6 +30,8 @@ from sentinel.staging.sec_xbrl import ITEMS
 
 CLOSE_HOUR = 16
 QUARTER_DAYS = (80, 100)  # a quarterly weighted average, not a year-to-date one
+LATE_END_DAYS = 31  # a cover-page count may be dated a little after the filing date
+EARLIEST_PERIOD = "1950-01-01"
 
 
 def next_session(day: str, session: str) -> str:
@@ -85,6 +88,15 @@ def _item_tags_sql() -> str:
     return "select * from (values " + ", ".join(rows) + ") t(item, taxonomy, tag, unit, tag_rank)"
 
 
+def _possible_dates(f: str) -> str:
+    """SQL: a value's period could be real: it ends by `LATE_END_DAYS` after the filing that
+    reports it, and no date is before `EARLIEST_PERIOD`. Typed dates such as 2201 for 2015 fail."""
+    return (f"{f}.period_end <= {f}.filed + {LATE_END_DAYS} "
+            f"and {f}.period_end >= DATE '{EARLIEST_PERIOD}' "
+            f"and ({f}.period_start is null or {f}.period_start between DATE '{EARLIEST_PERIOD}' "
+            f"and {f}.period_end)")  # fmt: skip
+
+
 def build_financial_fact(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
     db.require(con, ["stg_sec_xbrl.fact", "ref.calendar"], "core.financial_fact")
     with db.transaction(con):
@@ -96,6 +108,7 @@ def build_financial_fact(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -
                        f.period_end, f.value, f.filed, f.accession, f.form, f.fp
                 from stg_sec_xbrl.fact f
                 join ({_item_tags_sql()}) t using (taxonomy, tag, unit)
+                where {_possible_dates("f")}
             ),
             best_tag as (  -- per company, item and period: the highest-priority tag reporting it
                 select cik, item, period_start, period_end, min(tag_rank) as tag_rank
@@ -119,6 +132,10 @@ def build_financial_fact(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -
     counts = dict(zip(["fact", "first_filed", "companies"], con.execute(
         "select count(*), count(*) filter (where first_filed), count(distinct cik) "
         "from core.financial_fact").fetchone(), strict=True))  # fmt: skip
+    counts["impossible_dates"] = con.execute(
+        f"select count(*) from stg_sec_xbrl.fact f join ({_item_tags_sql()}) t "
+        f"using (taxonomy, tag, unit) where not ({_possible_dates('f')})"
+    ).fetchone()[0]
     echo(f"  financial facts: {counts}")
     return counts
 

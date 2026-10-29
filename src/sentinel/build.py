@@ -11,6 +11,14 @@ from sentinel.core import insider as core_insider
 from sentinel.core import market as core_market
 from sentinel.core import prices as core_prices
 from sentinel.db import StepFailed
+from sentinel.features import events as feat_events
+from sentinel.features import fundamentals as feat_fundamentals
+from sentinel.features import insider as feat_insider
+from sentinel.features import market as feat_market
+from sentinel.features import price as feat_price
+from sentinel.features import rows as feat_rows
+from sentinel.features import snapshot as feat_snapshot
+from sentinel.labels import risk as risk_labels
 from sentinel.reference import build as ref
 from sentinel.staging import market, prices, sec_filings, sec_form4, sec_headers, sec_xbrl
 
@@ -67,7 +75,19 @@ CORE: dict[str, Step] = {
     "ticker_span": core_market.build_ticker_span,
     "short_volume": core_market.build_short_volume,
 }
-LAYERS: dict[str, dict[str, Step]] = {"staging": STAGING, "reference": REFERENCE, "core": CORE}
+FEATURES: dict[str, Step] = {
+    "rows": feat_rows.build_rows,
+    "price": feat_price.build_price,
+    "fundamentals": feat_fundamentals.build_fundamentals,
+    "events": feat_events.build_events,
+    "insider": feat_insider.build_insider,
+    "short": feat_market.build_short,
+    "macro": feat_market.build_macro,
+    "snapshot": feat_snapshot.build_snapshot,
+}
+LABELS: dict[str, Step] = {"risk": risk_labels.build_labels}
+LAYERS: dict[str, dict[str, Step]] = {"staging": STAGING, "reference": REFERENCE, "core": CORE,
+                                      "features": FEATURES, "labels": LABELS}  # fmt: skip
 
 
 def run(con, p: Paths, layer: str, only: list[str] | None = None, echo=print) -> dict:

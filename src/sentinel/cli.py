@@ -29,7 +29,9 @@ def version() -> None:
 
 @app.command()
 def build(
-    layer: str = typer.Argument(..., help="The layer to rebuild: staging, reference, core."),
+    layer: str = typer.Argument(
+        ..., help="The layer to rebuild: staging, reference, core, features, labels."
+    ),
     only: str = typer.Option(None, "--only", help="Comma list of steps (default: all)."),
 ) -> None:
     """Rebuild a layer of data/sentinel.duckdb from the layer below it."""
@@ -59,3 +61,34 @@ def build(
     for step, counts in results.items():
         typer.echo(f"  {step}: " + ", ".join(f"{k} {v:,}" for k, v in counts.items()))
     typer.echo(f"build {layer}: done in {time.monotonic() - started:,.0f}s")
+
+
+def _serving(name: str, run) -> None:
+    from sentinel import config, db
+
+    started = time.monotonic()
+    try:
+        counts = run(config.paths(), typer.echo)
+    except config.ConfigError as e:
+        _fail(str(e), CONFIG)
+    except (FileNotFoundError, db.MissingInput) as e:
+        _fail(f"{name}: {e}", CONFIG)
+    except duckdb.IOException as e:
+        _fail(f"{name}: a database is in use ({e})", FAILED)
+    typer.echo(f"{name}: {len(counts)} tables in {time.monotonic() - started:,.0f}s")
+
+
+@app.command()
+def publish() -> None:
+    """Write data/serving.duckdb, the tables the product reads."""
+    from sentinel.serving import publish as serving
+
+    _serving("publish", serving.publish)
+
+
+@app.command()
+def export() -> None:
+    """Write the private Parquet snapshot to data/exports/."""
+    from sentinel.serving import export as serving
+
+    _serving("export", serving.export)

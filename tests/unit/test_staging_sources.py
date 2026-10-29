@@ -115,6 +115,7 @@ def test_price_staging_holds_every_file_of_each_source(tmp_data):
         csv = ("date,close,high,low,open,volume,adjClose,adjHigh,adjLow,adjOpen,adjVolume,"
                "divCash,splitFactor\n2020-01-02,5,5,5,5,10,5,5,5,5,10,0.0,1.0\n")  # fmt: skip
         (t / d / f"{ticker}.csv.gz").write_bytes(gzip.compress(csv.encode()))
+    (t / "prices" / "NODATA.csv.gz").write_bytes(gzip.compress(b"[]"))  # Tiingo: no prices
     (t / "meta").mkdir()
     (t / "meta" / "GONE.json.gz").write_bytes(gzip.compress(json.dumps(
         {"ticker": "gone", "name": "Gone Corp", "exchangeCode": "NYSE",
@@ -147,7 +148,8 @@ def test_price_staging_holds_every_file_of_each_source(tmp_data):
         "select ticker, session, close, raw_file from stg_yahoo.price order by ticker, session"
     ).fetchall()[0] == ("AAPL", date(2020, 1, 2), 10.0, "yahoo/AAPL.parquet")
     counts = prices.stage_tiingo(con, tmp_data, **QUIET)
-    assert counts == {"files": 2, "price": 2, "meta": 2, "listing": 2, "search": 1}
+    assert counts == {"files": 2, "no_prices": 1, "price": 2, "meta": 2, "listing": 2,
+                      "search": 1}  # fmt: skip
     meta = con.execute("select ticker, name, end_date from stg_tiingo.meta order by 1").fetchall()
     assert meta == [("GONE", "Gone Corp", date(2015, 6, 30)), ("NOPE", None, None)]
     assert con.execute("select query, ticker from stg_tiingo.search").fetchone() == (

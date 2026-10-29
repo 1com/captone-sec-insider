@@ -5,7 +5,8 @@
   `data/raw/yahoo/panel/*.parquet`): as-traded open, high, low, close, adjusted close, volume,
   dividend, split ratio.
 - `stg_tiingo.price`: the same from every Tiingo price file (`prices/`, `panel_prices/`,
-  `listed_prices/`), with Tiingo's adjusted columns, dividend and split factor.
+  `listed_prices/`), with Tiingo's adjusted columns, dividend and split factor. Tiingo's `[]`
+  answers (a ticker without prices) are counted and skipped.
 - `stg_tiingo.meta`: Tiingo's description of each fetched ticker (company name, exchange, first and
   last date); a ticker Tiingo did not know has a row with no name.
 - `stg_tiingo.listing`: Tiingo's whole ticker list (`supported_tickers.zip`), every asset type.
@@ -56,10 +57,16 @@ def stage_yahoo(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
     return {"files": len(files), "price": n}
 
 
+def _is_price_csv(path) -> bool:
+    """Whether a stored Tiingo answer is a price table: for a ticker without prices Tiingo answers
+    `[]`, which is stored as received."""
+    with gzip.open(path, "rt", encoding="utf-8") as f:
+        return f.readline().startswith("date,")
+
+
 def stage_tiingo(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
-    files = [
-        f.as_posix() for d in TIINGO_PRICE_DIRS for f in sorted((p.tiingo / d).glob("*.csv.gz"))
-    ]
+    stored = [f for d in TIINGO_PRICE_DIRS for f in sorted((p.tiingo / d).glob("*.csv.gz"))]
+    files = [f.as_posix() for f in stored if _is_price_csv(f)]
     raw = p.raw.as_posix() + "/"
     numeric = ["close", "high", "low", "open", "volume", "adjClose", "adjHigh", "adjLow", "adjOpen",
                "adjVolume", "divCash", "splitFactor"]  # fmt: skip
@@ -83,9 +90,11 @@ def stage_tiingo(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
     meta = _tiingo_meta(con, p)
     listing = _tiingo_listing(con, p)
     search = _tiingo_search(con, p)
-    echo(f"  tiingo: {len(files):,} price files, {n:,} rows; {meta:,} meta, {listing:,} listed "
-         f"tickers, {search:,} search hits")  # fmt: skip
-    return {"files": len(files), "price": n, "meta": meta, "listing": listing, "search": search}
+    empty = len(stored) - len(files)
+    echo(f"  tiingo: {len(files):,} price files ({empty:,} without prices), {n:,} rows; "
+         f"{meta:,} meta, {listing:,} listed tickers, {search:,} search hits")  # fmt: skip
+    return {"files": len(files), "no_prices": empty, "price": n, "meta": meta, "listing": listing,
+            "search": search}  # fmt: skip
 
 
 def _tiingo_meta(con, p: Paths) -> int:

@@ -72,8 +72,10 @@ def test_financial_facts_keep_versions_and_fallback_tags_fill_only_gaps(con, tmp
         _fact("1", "us-gaap", rev, "USD", *q1, 105.0, date(2022, 8, 1), "a2"),  # restated later
         _fact("1", "us-gaap", alt, "USD", *q1, 999.0, date(2022, 5, 2), "a1"),  # main tag wins
         _fact("1", "us-gaap", alt, "USD", *q2, 120.0, date(2022, 8, 1), "a2"),  # fills Q2
+        _fact("1", "us-gaap", rev, "USD", date(2201, 7, 1), date(2201, 9, 30), 130.0,
+              date(2022, 11, 1), "a3"),  # 2201 typed for 2022: impossible, left out
     ])  # fmt: skip
-    filings.build_financial_fact(con, tmp_data, **QUIET)
+    assert filings.build_financial_fact(con, tmp_data, **QUIET)["impossible_dates"] == 1
     got = con.execute(
         "select period_end, value, first_filed, known_at, tag from core.financial_fact "
         "where item = 'revenue' order by period_end, filed"
