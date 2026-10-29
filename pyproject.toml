@@ -51,3 +51,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "slow: checks on the real data/sentinel.duckdb (skipped without it)",
+    "network: needs the internet (run with --run-network)",
+]
