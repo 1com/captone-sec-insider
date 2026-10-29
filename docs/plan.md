@@ -10,7 +10,7 @@ pass and its owner and the researcher have seen a plain summary.
 | Who | Role |
 |---|---|
 | Researcher (`1com`) | owner of the project and its decisions; builds the **app and front end** |
-| Teammate | builds the **data-science** track: EDA, the three models, the report |
+| Teammate (`sonson033`) | builds the **data-science** track: EDA, the three models, the report |
 | Coding agent (Claude Code) | builds the **data platform**; helps both tracks |
 
 ## How the tracks fit together
