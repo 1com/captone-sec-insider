@@ -84,12 +84,13 @@ def _build(con, p: Paths, layers, echo, errors: list[str]) -> None:
 
 def update(p: Paths, today: date | None = None, scheduled: bool = False, fetch: bool = True,
            echo=print, layers=LAYERS, publish: Callable = serving_publish.publish,
-           export: Callable = serving_export.export) -> dict:  # fmt: skip
-    """Run the update; returns the run's record (status, sources, changes, log file)."""
+           export: Callable = serving_export.export, notes: list[str] = ()) -> dict:  # fmt: skip
+    """Run the update; returns the run's record (status, sources, changes, log file). `notes` go
+    to the top of the log (e.g. a scheduled run without its memory cap)."""
     today = today or date.today()
     run_id = datetime.now().strftime("%Y%m%dT%H%M%S")
     log_file = p.logs / f"update-{today}.log"
-    lines = [f"run {run_id} ({'scheduled' if scheduled else 'manual'})"]
+    lines = [f"run {run_id} ({'scheduled' if scheduled else 'manual'})", *notes]
 
     def say(line: str) -> None:
         echo(line)

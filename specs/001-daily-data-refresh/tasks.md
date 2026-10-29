@@ -166,13 +166,13 @@ tested on its own.
 
 ### Tests for User Story 5
 
-- [ ] T055 [P] [US5] tests/unit/test_schedule.py: the generated task XML has weekday triggers at `update.schedule_time`, `StartWhenAvailable` true, `MultipleInstancesPolicy` `IgnoreNew`, and the action `wsl.exe -d <distro> --cd <repo> -- <uv> run sentinel update --scheduled`; `install` runs `schtasks.exe /Create /TN <task_name> /XML <file> /F`, `remove` `/Delete /TN <task_name> /F`, `show` `/Query /TN <task_name> /V /FO LIST` (subprocess stand-in)
-- [ ] T056 [P] [US5] tests/unit/test_status.py: `sentinel status` on synthetic `ops` tables and a synthetic serving copy prints the recent runs, each dataset's latest date and the coverage summary, and never takes the update lock
+- [X] T055 [P] [US5] tests/unit/test_schedule.py: the generated task XML has weekday triggers at `update.schedule_time`, `StartWhenAvailable` true, `MultipleInstancesPolicy` `IgnoreNew`, and the action `wsl.exe -d <distro> --cd <repo> -- <uv> run sentinel update --scheduled`; `install` runs `schtasks.exe /Create /TN <task_name> /XML <file> /F`, `remove` `/Delete /TN <task_name> /F`, `show` `/Query /TN <task_name> /V /FO LIST` (subprocess stand-in)
+- [X] T056 [P] [US5] tests/unit/test_status.py: `sentinel status` on synthetic `ops` tables and a synthetic serving copy prints the recent runs, each dataset's latest date and the coverage summary, and never takes the update lock
 
 ### Implementation for User Story 5
 
-- [ ] T057 [US5] Create src/sentinel/update/schedule.py (the task XML in UTF-16 per research R13; `install`, `remove`, `show` through `schtasks.exe`; `uv` located with `shutil.which`; `ConfigError` when `schtasks.exe` is unreachable) and `sentinel schedule install|remove|show [--time HH:MM]` in src/sentinel/cli.py
-- [ ] T058 [US5] Add `sentinel status [--runs N]` to src/sentinel/cli.py reading `ops.update_run`, `ops.update_source`, `ops.coverage` and `app.freshness`, plus the task's next run from `schedule show` when installed
+- [X] T057 [US5] Create src/sentinel/update/schedule.py (the task XML in UTF-16 per research R13; `install`, `remove`, `show` through `schtasks.exe`; `uv` located with `shutil.which`; `ConfigError` when `schtasks.exe` is unreachable) and `sentinel schedule install|remove|show [--time HH:MM]` in src/sentinel/cli.py
+- [X] T058 [US5] Add `sentinel status [--runs N]` to src/sentinel/cli.py reading `ops.update_run`, `ops.update_source`, `ops.coverage` and `app.freshness`, plus the task's next run from `schedule show` when installed
 - [ ] T059 [US5] With the researcher's approval, install the task on this machine (`sentinel schedule install`), confirm `sentinel schedule show` lists the next weekday 23:00 run, and after the next scheduled evening confirm the run with `sentinel status`, as in specs/001-daily-data-refresh/quickstart.md §6; report the results
 
 **Checkpoint**: SC-008 under way (two weeks of runs).
