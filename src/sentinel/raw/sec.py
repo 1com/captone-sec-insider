@@ -11,7 +11,6 @@ Every SEC request in the process shares one rate limiter (`sec.document_requests
 never above 10 a second) and carries the contact from `.env`.
 """
 
-import contextlib
 import csv
 import json
 import os
@@ -23,7 +22,7 @@ import httpx
 
 from sentinel import db
 from sentinel.config import ConfigError, Paths, secrets, sources
-from sentinel.raw import FetchReport
+from sentinel.raw import FetchReport, reader
 from sentinel.raw.http import (
     RateLimiter,
     RetryPolicy,
@@ -104,21 +103,6 @@ def parse_index(text: str) -> list[IndexRow]:
 
 def _now() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
-@contextlib.contextmanager
-def _reader(p: Paths, con):
-    """The caller's connection, or a read-only one of the build database."""
-    if con is not None:
-        yield con
-        return
-    if not p.build_db.exists():
-        raise db.MissingInput("the build database is missing: run `sentinel build staging` first")
-    reader = db.connect(p, read_only=True)
-    try:
-        yield reader
-    finally:
-        reader.close()
 
 
 class _Sec:
@@ -277,9 +261,9 @@ def fetch_daily(p: Paths, today: date, echo=print, con=None, from_day=None, to_d
     financial values (`companyfacts`) of `sec.periodic_forms` filers; the filing history of each
     CIK not yet known that filed a company form (research R2, R4, R5)."""
     report = FetchReport("sec-daily")
-    with _reader(p, con) as reader:
-        db.require(reader, ["stg_sec_filings.filer"], "sentinel fetch sec-daily")
-        known = dict(reader.execute("select cik, is_company from stg_sec_filings.filer").fetchall())
+    with reader(p, con) as r:
+        db.require(r, ["stg_sec_filings.filer"], "sentinel fetch sec-daily")
+        known = dict(r.execute("select cik, is_company from stg_sec_filings.filer").fetchall())
     sec = _Sec(p, report)
     try:
         s = sec.settings["sec"]
