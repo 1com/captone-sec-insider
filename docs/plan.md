@@ -45,6 +45,6 @@ GitHub: one issue per feature, in three milestones.
 ## Questions settled on 29 October
 
 The 50% fall forecast is dropped (V2-9); the volatility range is scaled on all earlier years
-(V2-10); the price-only level is in (V2-11); v1's issues are closed and v2's opened (V2-12); the
+(V2-10); the price-only level is in (V2-11); v1's issues and milestones are deleted and v2's opened (V2-12); the
 daily refresh follows V2-16 to V2-20; R asked for private reference copies with every year's
 answers (F002, to be logged as V2-21).
