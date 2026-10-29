@@ -62,6 +62,7 @@ CORE: dict[str, Step] = {
     "price_daily": core_prices.build_daily,
     "price_check": core_prices.build_check,
     "security": core_prices.build_security,
+    "price_coverage": core_prices.build_coverage,
     "filing": core_filings.build_filing,
     "financial_fact": core_filings.build_financial_fact,
     "shares": core_filings.build_shares,
