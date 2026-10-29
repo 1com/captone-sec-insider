@@ -77,8 +77,11 @@ merge into `main` (T063–T064).
 
 ## For an agent continuing this work
 
-Read, in order: this README, the constitution, `docs/spec.md`, `docs/architecture.md`,
-`docs/decisions.md`, `docs/plan.md`, then the current feature's `specs/NNN-name/tasks.md`.
+Start with [docs/plan.md](docs/plan.md): its **Next steps** list says what to do now, and its
+**Data for each model** table says which file, rows, answer and baseline each model uses. Then
+read the constitution, `docs/spec.md`, `docs/architecture.md`, `docs/decisions.md`, and the
+current feature's `specs/NNN-name/tasks.md`. The GitHub Project *EDGAR-SENTINEL v2 roadmap* shows
+every feature's track, dates and status.
 
 **How work is done.**
 

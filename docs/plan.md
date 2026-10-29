@@ -29,6 +29,44 @@ when the daily scores (009) land, the placeholders fill without changing the pag
 Every feature has a fixed number; its spec-kit folder and branch use it (`specs/NNN-name/`,
 branch `NNN-name`), so two people specifying at once never collide.
 
+## Next steps (keep this list current)
+
+1. **001 (agent):** finish the first full update (running), run `tests/real`, rerun the update
+   (expect `nothing_new`), run `sentinel verify`, look into the two September Form 4s the SEC
+   lists but does not serve, mark tasks in `specs/001-daily-data-refresh/tasks.md`, update this
+   file and the README, merge into `main`, close #68. Install the schedule only after the
+   researcher approves (T059).
+2. **002 (agent):** reference datasets (#73), then **003** team workflow and CI (#75).
+3. **Researcher:** start **011** app design and the forecast contract (#80); share the private
+   export with the teammate.
+4. **Teammate:** start **004** EDA (#76) on the files in the next section, then 005, 006, 007.
+
+## Data for each model
+
+Every training set is a Parquet file in `data/exports/ml/` (private, written by `sentinel export`,
+column list in the generated `data/exports/README.md`). One row per company and date; the features
+come first, the answer last. Train and test only on rows with `eligible = true` and a non-missing
+answer. Never use the answer columns, `window_end` or the outcome columns as features.
+
+| Model (feature) | File | Rows are | Answer | Naive baseline to beat | Excluded from the features |
+|---|---|---|---|---|---|
+| Volatility (005) | `ml/volatility.parquet` | month-ends, 2012 – Sep 2022 | `vol_63_future`: annualised volatility over the next 63 sessions (model its log) | `vol_63`, the past 63 sessions | `vol_63_future`, `window_end` |
+| Results-day move (006) | `ml/results_move.parquet` | one per results release (the eve's features), 2010–2022 | `move`: market-adjusted absolute move | `prev4_mean`, the mean of the previous four moves (`n_prev` of them) | `move`, `close_after`, `filing_date`, `report_date`, `prev4_mean` as a feature only if declared |
+| Dilution (007) | `ml/dilution.parquet` | month-ends, 2012 – Jun 2022 | `dilution`: shares up 10% or more within 182 days (true in about 14%) | the base rate; then a rule | `dilution`, `window_end` |
+
+- **Evaluation** (D60, `config/risk_params.yaml` v5, never edited): yearly walk-forward test years
+  2019, 2020, 2021, 2022; training rows whose answer window ends after a test year starts are
+  purged (`window_end`; for results moves the session after `filing_date`). Levels: rule, classic
+  model, LightGBM; pick the simplest within one standard error of the best. Forecasts as bands or
+  chances with hit rates (D62). Runs logged in MLflow; fixed seeds.
+- **Scoring today:** `ml/latest.parquet` holds each company's newest row (the same feature
+  columns). `ml/feature_snapshot.parquet` holds every feature row without answers.
+- **Holdout:** rows from 2023 on have no answers in `ml/`. Never use them to build or choose a
+  model; feature 010 tests once. The private `reference/` copies (002) hold every year's answers
+  for personal analysis only.
+- **Feature definitions:** `src/sentinel/features/` and `docs/architecture.md` (layer 4); answer
+  definitions: `src/sentinel/labels/risk.py` and `config/risk_params.yaml`.
+
 ## Timeline
 
 | Week | Data platform | Data science | App |
