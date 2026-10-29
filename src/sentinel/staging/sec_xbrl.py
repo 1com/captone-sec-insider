@@ -62,7 +62,7 @@ FACT_SCHEMA = pa.schema([
     ("accession", pa.string()), ("fy", pa.int32()), ("fp", pa.string()), ("form", pa.string()),
     ("filed", pa.date32()), ("frame", pa.string()), ("raw_file", pa.string()),
 ])  # fmt: skip
-BATCH_ROWS = 500_000
+BATCH_ROWS = 200_000
 
 
 def facts(doc: dict, raw_file: str) -> list[tuple]:

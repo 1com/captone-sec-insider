@@ -29,7 +29,7 @@ def version() -> None:
 
 @app.command()
 def build(
-    layer: str = typer.Argument(..., help="The layer to rebuild: staging, reference."),
+    layer: str = typer.Argument(..., help="The layer to rebuild: staging, reference, core."),
     only: str = typer.Option(None, "--only", help="Comma list of steps (default: all)."),
 ) -> None:
     """Rebuild a layer of data/sentinel.duckdb from the layer below it."""

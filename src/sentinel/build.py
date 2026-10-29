@@ -6,6 +6,7 @@ from collections.abc import Callable
 import duckdb
 
 from sentinel.config import Paths
+from sentinel.core import prices as core_prices
 from sentinel.reference import build as ref
 from sentinel.staging import market, prices, sec_filings, sec_form4, sec_headers, sec_xbrl
 
@@ -43,7 +44,14 @@ REFERENCE: dict[str, Step] = {
     "calendar": ref.build_calendar,
     "sector": ref.build_sector,
 }
-LAYERS: dict[str, dict[str, Step]] = {"staging": STAGING, "reference": REFERENCE}
+CORE: dict[str, Step] = {
+    "price_candidates": core_prices.build_candidates,
+    "price_choice": core_prices.build_choice,
+    "price_daily": core_prices.build_daily,
+    "price_check": core_prices.build_check,
+    "security": core_prices.build_security,
+}
+LAYERS: dict[str, dict[str, Step]] = {"staging": STAGING, "reference": REFERENCE, "core": CORE}
 
 
 def run(con, p: Paths, layer: str, only: list[str] | None = None, echo=print) -> dict:

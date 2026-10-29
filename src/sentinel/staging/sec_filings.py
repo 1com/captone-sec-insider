@@ -63,7 +63,7 @@ FILER_SCHEMA = pa.schema([
 FILING_SCHEMA = pa.schema(
     [("cik", pa.string())] + [(n, t) for n, t in FILING_COLS.values()] + [("raw_file", pa.string())]
 )
-BATCH = 20_000
+FLUSH_ROWS = 250_000  # filing rows held in memory at most: some filers have 100,000+ filings
 
 
 def _text(v) -> str | None:
@@ -182,14 +182,18 @@ def stage(con: duckdb.DuckDBPyConnection, p: Paths, echo: Callable[[str], None] 
                                                  f"{rel}!{name}"), *extra])  # fmt: skip
                 for k, v in rows.items():
                     filings[k] += v
-            if i % BATCH == 0 or i == len(mains):
+            if (
+                len(filings["cik"]) >= FLUSH_ROWS
+                or len(filers["cik"]) >= FLUSH_ROWS
+                or i == len(mains)
+            ):
                 with db.transaction(con):
                     _flush(con, "filer", FILER_SCHEMA, filers)
                     _flush(con, "filing", FILING_SCHEMA, filings)
                 filers = {n: [] for n in FILER_SCHEMA.names}
                 filings = {n: [] for n in FILING_SCHEMA.names}
-                if i % 200_000 == 0 or i == len(mains):
-                    echo(f"  submissions: {i:,}/{len(mains):,} filers read")
+            if i % 100_000 == 0 or i == len(mains):
+                echo(f"  submissions: {i:,}/{len(mains):,} filers read")
     with db.transaction(con):
         for table in ("filer", "filing"):
             con.execute(f"drop table if exists {SCHEMA}.{table}")
