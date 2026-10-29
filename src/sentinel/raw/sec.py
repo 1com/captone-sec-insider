@@ -4,7 +4,9 @@
 - `sec-daily`: per filing day, the master index; the headers of filings whose details are used
   (`sec.detail_forms`); the financial values of periodic-report filers; the filing histories of
   CIKs not seen before.
-- `form4`: per filing day, every Form 3, 4 and 5 and amendment as its full submission.
+- `form4`: per filing day, every Form 3, 4 and 5 and amendment as its full submission; and each
+  quarterly Form 3/4/5 data set once the SEC publishes it (`--quarterly`: only those, from
+  `sec.form4_first_quarter` on a fresh clone).
 - `sec-bulk`: new copies of the bulk filing histories and financial values.
 
 Every SEC request in the process shares one rate limiter (`sec.document_requests_per_second`,
@@ -14,9 +16,12 @@ never above 10 a second) and carries the contact from `.env`.
 import csv
 import json
 import os
+import re
 import threading
+import zipfile
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from urllib.parse import urljoin
 
 import httpx
 
@@ -26,6 +31,7 @@ from sentinel.raw import FetchReport, reader
 from sentinel.raw.http import (
     RateLimiter,
     RetryPolicy,
+    SecForbidden,
     is_missing,
     make_client,
     request_with_retry,
@@ -38,6 +44,9 @@ _LIMITER: RateLimiter | None = None
 _LIMITER_LOCK = threading.Lock()
 INDEX_GRACE_DAYS = 4  # an index still missing this many days later: no filings that day (holiday)
 FIRST_DAILY_DAY = date(2026, 10, 1)  # the day after the last quarterly Form 4 data set (2026q3)
+OWNERSHIP = "sec_ownership_filing"
+QUARTERLY = "sec_insider_bulk"
+QUARTER_LINK = re.compile(r'href="([^"]*?(\d{4}q[1-4])_form345\.zip)"')
 
 
 def shared_limiter(settings: dict) -> RateLimiter:
@@ -335,6 +344,110 @@ def fetch_bulk(p: Paths, today: date, echo=print, con=None, **_) -> FetchReport:
                 http_etag=result.etag, tool="sentinel"))  # fmt: skip
             report.stored(result.bytes)
             report.latest_date = today
+        return report
+    finally:
+        sec.close()
+
+
+def _next_quarter(key: str) -> str:
+    year, q = int(key[:4]), int(key[-1])
+    return f"{year + q // 4}q{q % 4 + 1}"
+
+
+def _quarter_end(key: str) -> date:
+    year, q = int(key[:4]), int(key[-1])
+    return date(year + q // 4, q % 4 * 3 + 1, 1) - timedelta(days=1)
+
+
+def _valid_archive(path, required: list[str]) -> str | None:
+    """None if the zip is intact and holds every required table, else why not."""
+    try:
+        with zipfile.ZipFile(path) as zf:
+            if (bad := zf.testzip()) is not None:
+                return f"corrupt member {bad}"
+            names = set(zf.namelist())
+    except (zipfile.BadZipFile, OSError) as e:
+        return f"not a readable zip ({e})"
+    missing = [t for t in required if f"{t}.tsv" not in names]
+    return f"missing table(s): {', '.join(missing)}" if missing else None
+
+
+def _fetch_quarters(sec: _Sec, today: date, echo, first: str) -> None:
+    """Each quarterly data set after the newest stored one (from `first` when none is), for
+    quarters that have ended, while the SEC has published them (ported from v1's `sec_bulk`).
+    URLs come from the data sets' page, else the known folders."""
+    s = sec.settings["sec"]
+    stored = sorted(e.key for e in sec.book.originals(QUARTERLY))
+    key = _next_quarter(stored[-1]) if stored else first
+    if _quarter_end(key) >= today:
+        return
+    page = sec.get(s["form4_landing_page"])
+    listed = {k: urljoin(str(page.url), href) for href, k in QUARTER_LINK.findall(page.text)}
+    while _quarter_end(key) < today:
+        final = sec.p.sec_insider / f"{key}_form345.zip"
+        part = final.with_name(final.name + ".part")
+        final.parent.mkdir(parents=True, exist_ok=True)
+        result = None
+        for url in (
+            [listed[key]]
+            if key in listed
+            else [u.format(key=key) for u in s["form4_folder_patterns"]]
+        ):
+            sec.report.requests += 1
+            try:
+                result = stream_to_file(sec.client, url, part, sec.limiter, sec.policy)
+                break
+            except SecForbidden, httpx.HTTPStatusError:
+                continue  # not in this folder
+        if result is None:
+            echo(f"  form4: data set {key} not published yet")
+            return
+        if problem := _valid_archive(part, s["form4_required_tables"]):
+            part.unlink(missing_ok=True)
+            raise ValueError(f"data set {key}: {problem}")
+        os.replace(part, final)
+        os.chmod(final, 0o444)
+        sec.book.add(ManifestEntry(
+            path=final.relative_to(sec.p.raw).as_posix(), source=QUARTERLY, key=key,
+            role="original", url=result.url, fetched_at=_now(), bytes=result.bytes,
+            sha256=result.sha256, http_last_modified=result.last_modified,
+            http_etag=result.etag, tool="sentinel"))  # fmt: skip
+        sec.report.stored(result.bytes)
+        echo(f"  form4: data set {key} stored ({result.bytes / 1e6:,.0f} MB)")
+        key = _next_quarter(key)
+
+
+def fetch_ownership(p: Paths, today: date, echo=print, con=None, from_day=None, to_day=None,
+                    quarterly: bool = False, **_) -> FetchReport:  # fmt: skip
+    """For each filing day, every `sec.ownership_forms` filing's full submission (header and
+    `ownershipDocument`), once per accession (research R3); then any quarterly data set newly
+    published. With `quarterly`, only the data sets."""
+    report = FetchReport("form4")
+    sec = _Sec(p, report)
+    try:
+        s = sec.settings["sec"]
+        if quarterly or sec.book.originals(QUARTERLY):
+            _fetch_quarters(sec, today, echo, s["form4_first_quarter"])
+        if quarterly:
+            return report
+        forms = set(s["ownership_forms"])
+        days = index_days(p, today, "form4", form4_start(sec.book), from_day, to_day)
+        for day, rows in _each_index(sec, days, today, echo, "form4"):
+            # a filing is listed under its issuer and under each owner: one fetch per accession
+            filings = {r.accession: r for r in rows if r.form in forms}
+            new = 0
+            for acc, r in sorted(filings.items()):
+                if sec.book.find_original(OWNERSHIP, acc):
+                    continue
+                url = s["filing_text_url"].format(file_name=r.file_name)
+                resp = sec.get(url, allow_missing=True)
+                if resp is None:
+                    report.errors.append(f"{acc}: listed in the {day} index but not on EDGAR")
+                    continue
+                sec.store(OWNERSHIP, f"sec/form4/{day:%Y}/{acc}.txt.gz", acc, resp.content, url,
+                          gz=True)  # fmt: skip
+                new += 1
+            echo(f"  {day}: {len(filings):,} insider filings, {new:,} new")
         return report
     finally:
         sec.close()

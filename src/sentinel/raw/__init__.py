@@ -78,6 +78,7 @@ def fetchers() -> dict[str, Fetcher]:
     return {
         "sec-tickers": sec.fetch_tickers,
         "sec-daily": sec.fetch_daily,
+        "form4": sec.fetch_ownership,
         "sec-bulk": sec.fetch_bulk,
         "yahoo": yahoo.fetch_window,
         "tiingo": tiingo.fetch_new_days,

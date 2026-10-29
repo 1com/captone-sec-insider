@@ -21,7 +21,15 @@ from sentinel.features import snapshot as feat_snapshot
 from sentinel.labels import risk as risk_labels
 from sentinel.raw import manifest
 from sentinel.reference import build as ref
-from sentinel.staging import market, prices, sec_filings, sec_form4, sec_headers, sec_xbrl
+from sentinel.staging import (
+    market,
+    prices,
+    sec_filings,
+    sec_form4,
+    sec_form4_daily,
+    sec_headers,
+    sec_xbrl,
+)
 from sentinel.update import record
 
 Step = Callable[[duckdb.DuckDBPyConnection, Paths, Callable[[str], None]], dict]
@@ -44,6 +52,7 @@ def _sec_form4(con, p: Paths, echo) -> dict:
 
 STAGING: dict[str, Step] = {
     "sec_form4": _sec_form4,
+    "sec_form4_daily": sec_form4_daily.stage,
     "sec_filings": sec_filings.stage,
     "sec_xbrl": sec_xbrl.stage,
     "sec_headers": sec_headers.stage_headers,
@@ -56,6 +65,7 @@ STAGING: dict[str, Step] = {
 # stored file the step has not applied (`ops.staged_file`).
 STAGING_SOURCES: dict[str, tuple[str, ...]] = {
     "sec_form4": ("sec_insider_bulk",),
+    "sec_form4_daily": ("sec_ownership_filing",),
     "sec_filings": ("sec_company", "sec_submissions_cik", "sec_index"),
     "sec_xbrl": ("sec_company", "sec_companyfacts_cik"),
     "sec_headers": ("sec_filing_header",),
@@ -86,6 +96,7 @@ CORE: dict[str, Step] = {
     "insider_trade": core_insider.build_insider_trade,
     "insider_activity": core_insider.build_insider_activity,
     "insider_cluster": core_insider.build_insider_cluster,
+    "form4_reconciliation": core_insider.build_form4_reconciliation,
     "macro": core_market.build_macro,
     "ticker_span": core_market.build_ticker_span,
     "short_volume": core_market.build_short_volume,

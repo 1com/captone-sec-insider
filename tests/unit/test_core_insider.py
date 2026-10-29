@@ -8,7 +8,8 @@ from conftest import holding, line, note, owner, sub
 
 from sentinel import db
 from sentinel.core import insider
-from sentinel.staging import sec_form4
+from sentinel.raw.manifest import Manifest, store_gz
+from sentinel.staging import sec_form4, sec_form4_daily
 
 QUIET = {"echo": lambda s: None}
 STEPS = (
@@ -17,19 +18,62 @@ STEPS = (
     insider.build_insider_trade,
     insider.build_insider_activity,
     insider.build_insider_cluster,
+    insider.build_form4_reconciliation,
 )
+
+
+def filing(
+    acc: str, filed: date, accepted: str, owners=("9001",), lines=(("1000", "50"),)
+) -> bytes:
+    """A Form 4 submission as the SEC serves it: header, then `ownershipDocument`; a director's
+    open-market purchases of (shares, price) on 13 March 2019 at issuer 100."""
+    who = "".join(
+        f"<reportingOwner><reportingOwnerId><rptOwnerCik>{o}</rptOwnerCik><rptOwnerName>Owner {o}"
+        "</rptOwnerName></reportingOwnerId><reportingOwnerRelationship><isDirector>1</isDirector>"
+        "</reportingOwnerRelationship></reportingOwner>"
+        for o in owners
+    )
+    trades = "".join(
+        "<nonDerivativeTransaction><securityTitle><value>Common Stock</value></securityTitle>"
+        "<transactionDate><value>2019-03-13</value></transactionDate><transactionCoding>"
+        "<transactionFormType>4</transactionFormType><transactionCode>P</transactionCode>"
+        "<equitySwapInvolved>0</equitySwapInvolved></transactionCoding><transactionAmounts>"
+        f"<transactionShares><value>{shares}</value></transactionShares><transactionPricePerShare>"
+        f"<value>{price}</value></transactionPricePerShare><transactionAcquiredDisposedCode>"
+        "<value>A</value></transactionAcquiredDisposedCode></transactionAmounts><ownershipNature>"
+        "<directOrIndirectOwnership><value>D</value></directOrIndirectOwnership></ownershipNature>"
+        "</nonDerivativeTransaction>"
+        for shares, price in lines
+    )
+    return (
+        f"<SEC-DOCUMENT>{acc}.txt\n<SEC-HEADER>{acc}.hdr.sgml\n<ACCEPTANCE-DATETIME>{accepted}\n"
+        f"ACCESSION NUMBER:\t\t{acc}\nCONFORMED SUBMISSION TYPE:\t4\n"
+        f"FILED AS OF DATE:\t\t{filed:%Y%m%d}\n</SEC-HEADER>\n<DOCUMENT>\n<TYPE>4\n<TEXT>\n<XML>\n"
+        '<?xml version="1.0"?>\n<ownershipDocument><documentType>4</documentType>'
+        "<periodOfReport>2019-03-13</periodOfReport><issuer><issuerCik>0000000100</issuerCik>"
+        "<issuerName>Abc Corp</issuerName><issuerTradingSymbol>ABC</issuerTradingSymbol></issuer>"
+        f"{who}<nonDerivativeTable>{trades}</nonDerivativeTable></ownershipDocument>\n</XML>\n"
+        "</TEXT>\n</DOCUMENT>\n</SEC-DOCUMENT>\n"
+    ).encode()
 
 
 @pytest.fixture
 def build(archives, tmp_data):
-    """build({quarter: {TABLE: rows}}) stages the archives and runs every insider step."""
+    """build({quarter: {TABLE: rows}}, {accession: submission}) stages the archives and the daily
+    filings, then runs every insider step."""
     cons = []
 
-    def run(quarters):
+    def run(quarters, daily=None):
         archives(quarters)
+        book = Manifest(tmp_data.manifest)
+        for acc, data in (daily or {}).items():
+            store_gz(tmp_data, book, sec_form4_daily.SOURCE, f"sec/form4/2019/{acc}.txt.gz", acc,
+                     data, "stand-in")  # fmt: skip
         con = db.connect(tmp_data)
         cons.append(con)
         sec_form4.stage_all(con, sec_form4.stored_archives(tmp_data))
+        if daily:
+            sec_form4_daily.stage(con, tmp_data, **QUIET)
         days = [d.date() for d in pd.bdate_range("2019-01-02", "2019-12-31")]
         con.register("_s", pd.DataFrame({"session": days}))
         con.execute(
@@ -170,3 +214,46 @@ def test_clusters_need_two_buyers_or_one_senior_one_and_events_cool_down(build):
         ("100", date(2019, 3, 15), "A", 2, 160_000.0, False, date(2019, 3, 18)),  # same run
         ("200", date(2019, 3, 11), "B1", 1, 150_000.0, True, date(2019, 3, 12)),
     ]  # two 10% owners (CIK 300) are no group: A needs an officer or director
+
+
+def test_daily_filings_fill_in_after_the_data_sets_which_win_where_both_have_one(build):
+    con = build(
+        {"2019q1": {"SUBMISSION": [sub("q"), sub("same")],
+                    "REPORTINGOWNER": [owner("q"), owner("same")],
+                    "NONDERIV_TRANS": [line("q", "1"), line("same", "1")]}},
+        {"q": filing("q", date(2019, 3, 15), "20190315100000", lines=[("2000", "50")]),
+         "same": filing("same", date(2019, 3, 15), "20190315100000"),
+         "d": filing("d", date(2019, 3, 20), "20190320153000", owners=["9002"]),
+         "late": filing("late", date(2019, 3, 20), "20190320171000", owners=["9003"])},
+    )  # fmt: skip
+    got = {r[0]: r[1:] for r in con.execute(
+        "select accession, quarter, known_at, value_usd, owner_ciks from core.insider_activity"
+    ).fetchall()}  # fmt: skip
+    assert got == {
+        "q": ("2019q1", date(2019, 3, 15), 50_000.0, ["9001"]),  # the data set's 1,000 shares
+        "same": ("2019q1", date(2019, 3, 15), 50_000.0, ["9001"]),
+        "d": ("2019q1", date(2019, 3, 20), 50_000.0, ["9002"]),  # accepted before the close
+        "late": ("2019q1", date(2019, 3, 21), 50_000.0, ["9003"]),  # after it: the next session
+    }
+    (filed,) = con.execute("select known_at from core.insider_filing where accession = 'q'"
+                           ).fetchone()  # fmt: skip
+    assert filed == date(2019, 3, 15)  # the daily copy's acceptance time, 10:00 that day
+    diff = con.execute(
+        "select accession, owners_differ, lines_differ, value_differ, value_quarterly, value_daily "
+        "from core.form4_reconciliation"
+    ).fetchall()
+    assert diff == [("q", False, False, True, 50_000.0, 100_000.0)]
+
+
+def test_a_reconciliation_lists_different_owners_and_line_counts(build):
+    con = build(
+        {"2019q1": {"SUBMISSION": [sub("a")], "REPORTINGOWNER": [owner("a")],
+                    "NONDERIV_TRANS": [line("a", "1")]}},
+        {"a": filing("a", date(2019, 3, 15), "20190315100000", owners=["9001", "9009"],
+                     lines=[("1000", "50"), ("0", "0")])},
+    )  # fmt: skip
+    (row,) = con.execute(
+        "select owners_quarterly, owners_daily, lines_quarterly, lines_daily, owners_differ, "
+        "lines_differ, value_differ from core.form4_reconciliation"
+    ).fetchall()
+    assert row == (["9001"], ["9001", "9009"], 1, 2, True, True, False)

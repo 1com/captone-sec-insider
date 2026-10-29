@@ -12,6 +12,7 @@ import duckdb
 
 from sentinel import db
 from sentinel.config import Paths
+from sentinel.staging.sec_form4_daily import union_sql
 
 INSIDER_COUNTS = ("buy_filings", "buy_value", "sell_filings", "sell_value")
 INSIDER_FEATURES = [f"{k}_{w}" for k in INSIDER_COUNTS for w in ("3m", "12m")] + [
@@ -49,7 +50,7 @@ def build_insider(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
             ceo_sells as (
                 select distinct t.accession
                 from t
-                join stg_sec_form4.reportingowner o
+                join {union_sql(con, "reportingowner")} o
                   on o.accession_number = t.accession and o.quarter = t.quarter
                 asof join core.insider_owner_role r
                   on r.issuer_cik = t.cik and r.owner_cik = o.rptownercik

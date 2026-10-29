@@ -20,6 +20,7 @@ import duckdb
 
 from sentinel import db
 from sentinel.config import Paths, sources
+from sentinel.staging.sec_form4_daily import union_sql
 
 SINCE = date(2012, 1, 1)
 NO_TICKER = {"", "NONE", "NA", "NULL", "N/A"}
@@ -74,7 +75,7 @@ def build_company(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
             form4 as (
                 select issuercik as cik, count(distinct accession_number) as n_form4,
                        min(filing_date) as first_form4, max(filing_date) as last_form4
-                from stg_sec_form4.submission where issuercik is not null group by 1
+                from {union_sql(con, "submission")} where issuercik is not null group by 1
             ),
             today as (
                 select cik, list(ticker order by rank) as tickers,
@@ -113,7 +114,8 @@ def build_ticker_history(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -
     spans: dict[tuple[str, str], list] = {}
     for cik, raw, first, last in con.execute(
         "select issuercik, issuertradingsymbol, min(filing_date), max(filing_date) "
-        "from stg_sec_form4.submission where issuercik is not null and filing_date is not null "
+        f"from {union_sql(con, 'submission')} where issuercik is not null "
+        "and filing_date is not null "
         "and issuertradingsymbol is not null group by all"
     ).fetchall():
         for ticker in split_symbols(raw):

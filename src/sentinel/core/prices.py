@@ -43,6 +43,7 @@ import duckdb
 from sentinel import db
 from sentinel.config import Paths, risk_params, sources
 from sentinel.reference.build import normalise
+from sentinel.staging.sec_form4_daily import union_sql
 
 WARMUP_DAYS = 400
 TAIL_DAYS = 90
@@ -122,7 +123,7 @@ def _companies(con) -> dict[str, dict]:
     ).fetchall()
     form4_names: dict[str, list[str]] = {}
     for cik, name in con.execute(
-        "select distinct issuercik, issuername from stg_sec_form4.submission "
+        f"select distinct issuercik, issuername from {union_sql(con, 'submission')} "
         "where issuercik is not null and issuername is not null"
     ).fetchall():
         form4_names.setdefault(cik, []).append(name)

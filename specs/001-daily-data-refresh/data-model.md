@@ -18,7 +18,7 @@ files, the newest file winning per key. Built at once or file by file, the resul
 
 | Table | Change | Key | Newest-wins rule |
 |---|---|---|---|
-| `stg_sec_form4_daily.submission`, `reportingowner`, `nonderiv_trans`, `nonderiv_holding`, `deriv_trans`, `deriv_holding`, `footnotes`, `owner_signature` | **new**: the quarterly data sets' columns, parsed from each Form 3/4/5 submission (R3), plus `accepted_at_et` (submission only), `filing_day` and `raw_file` | accession (+ the table's line key) | one file per accession; a later file for the same accession (rare) replaces it |
+| `stg_sec_form4_daily.submission`, `reportingowner`, `nonderiv_trans`, `nonderiv_holding`, `deriv_trans`, `deriv_holding`, `footnotes`, `owner_signature` | **new**: the quarterly data sets' columns, parsed from each Form 3/4/5 submission (R3), plus `accepted_at_et` (submission only), `filing_day` and `raw_file` | accession (+ the table's line key) | one file per accession (the manifest holds one original per key) |
 | `stg_sec_form4_daily.parse_issue` | **new**: documents or elements that could not be parsed (accession, element, message) | accession | rebuilt with the tables |
 | `stg_sec_filings.filing` | adds `origin` (`bulk` / `daily`); daily rows from the master index of company-like filers, with `report_date`, `items` and the acceptance time from the header where fetched (R4) | accession | bulk rows win for accessions the newest bulk file holds; daily rows fill the rest |
 | `stg_sec_filings.filer` | adds rows for CIKs first seen in a daily index (their submissions document, fetched once) | cik | newest document per CIK |

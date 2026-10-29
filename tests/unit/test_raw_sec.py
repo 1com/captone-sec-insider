@@ -13,7 +13,7 @@ from sentinel import db
 from sentinel.config import sources
 from sentinel.raw import sec
 from sentinel.raw.http import RateLimiter
-from sentinel.raw.manifest import Manifest
+from sentinel.raw.manifest import Manifest, read_stored
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "sec"
 S3_MISSING = "<Error><Code>AccessDenied</Code><Message>Access Denied</Message></Error>"
@@ -143,3 +143,85 @@ def test_a_new_bulk_copy_goes_to_a_dated_folder_and_never_replaces_the_old_one(s
     keys = sorted(e.key for e in Manifest(p.manifest).originals("sec_company"))
     assert keys == ["companyfacts/2026-10-30", "submissions/2026-10-30"]
     assert sec.fetch_bulk(p, date(2026, 10, 30), **QUIET).files_stored == 0
+
+
+INSIDER = {
+    "0001437749-26-033807": "form4_purchase.txt",
+    "0001204816-26-000057": "form4_checkbox.txt",
+    "0001040470-26-000320": "form3.txt",
+    "0001493152-26-048811": "form4a.txt",
+}
+
+
+def _submissions():
+    """Every full submission: the four fixtures as served, a stand-in for the others."""
+
+    def answer(req):
+        acc = str(req.url).rsplit("/", 1)[1].removesuffix(".txt")
+        name = INSIDER.get(acc)
+        return httpx.Response(200, content=(FIXTURES / name).read_bytes() if name
+                              else f"<SEC-DOCUMENT>{acc}".encode())  # fmt: skip
+
+    return respx.get(re.compile(r".*/edgar/data/\d+/[\d-]+\.txt$")).mock(side_effect=answer)
+
+
+@respx.mock
+def test_form4_stores_every_insider_filing_of_a_day_once_as_served(sec_env):
+    p, _ = sec_env
+    _routes()
+    route = _submissions()
+    report = sec.fetch_ownership(p, date(2026, 10, 30), from_day=date(2026, 10, 28), **QUIET)
+    assert route.call_count == 13  # the 3, 4, 4/A filings of the index excerpt
+    assert (report.files_stored, report.latest_date) == (14, date(2026, 10, 28))  # with the index
+    book = Manifest(p.manifest)
+    entry = book.find_original("sec_ownership_filing", "0001437749-26-033807")
+    assert entry.path == "sec/form4/2026/0001437749-26-033807.txt.gz"
+    assert read_stored(p, entry) == (FIXTURES / "form4_purchase.txt").read_bytes()
+    assert (p.sec_index / "done-form4.txt").read_text().strip() == "2026-10-28"
+    again = sec.fetch_ownership(p, date(2026, 10, 30), **QUIET)  # only the 29th's index: missing
+    assert (again.requests, again.files_stored) == (1, 0)
+    assert sec.fetch_ownership(p, date(2026, 10, 30), from_day=date(2026, 10, 28),
+                               **QUIET).files_stored == 0  # fmt: skip
+
+
+PAGE = "https://www.sec.gov/data-research/sec-markets-data/insider-transactions-data-sets"
+SETS = "https://www.sec.gov/files/structureddata/data/insider-transactions-data-sets"
+
+
+@respx.mock
+def test_a_quarterly_data_set_is_fetched_once_its_quarter_has_ended_and_it_is_published(
+    sec_env, archives, quarter_zip
+):
+    p, _ = sec_env
+    archives({"2026q3": {"SUBMISSION": [{"ACCESSION_NUMBER": "a"}]}})
+    page = respx.get(PAGE).mock(return_value=httpx.Response(200, text=(
+        '<a href="/files/structureddata/data/insider-transactions-data-sets/2026q3_form345.zip">'
+        '</a><a href="/files/structureddata/data/insider-transactions-data-sets/'
+        '2026q4_form345.zip">2026 Q4</a>')))  # fmt: skip
+    tables = {t: [{"ACCESSION_NUMBER": "b"}] for t in ("SUBMISSION", "REPORTINGOWNER",
+                                                      "NONDERIV_TRANS", "FOOTNOTES")}  # fmt: skip
+    q4 = respx.get(f"{SETS}/2026q4_form345.zip").mock(
+        return_value=httpx.Response(200, content=quarter_zip(tables))
+    )
+    q1 = respx.get(re.compile(r".*/2027q1_form345\.zip$")).mock(return_value=httpx.Response(404))
+    assert sec.fetch_ownership(p, date(2026, 12, 15), quarterly=True, **QUIET).requests == 0
+    report = sec.fetch_ownership(p, date(2027, 2, 15), quarterly=True, **QUIET)
+    assert (page.call_count, q4.call_count, q1.call_count) == (1, 1, 0)  # Q1 2027 not ended
+    assert report.files_stored == 1
+    entry = Manifest(p.manifest).find_original("sec_insider_bulk", "2026q4")
+    assert entry.path == "sec/insider/2026q4_form345.zip"
+    assert sec.fetch_ownership(p, date(2027, 2, 15), quarterly=True, **QUIET).requests == 0
+    report = sec.fetch_ownership(p, date(2027, 4, 15), quarterly=True, **QUIET)
+    assert (q1.call_count, report.files_stored, report.status) == (2, 0, "nothing_new")
+
+
+@respx.mock
+def test_a_broken_quarterly_data_set_is_not_stored(sec_env, archives):
+    p, _ = sec_env
+    archives({"2026q3": {"SUBMISSION": [{"ACCESSION_NUMBER": "a"}]}})
+    respx.get(PAGE).mock(return_value=httpx.Response(200, text=""))
+    respx.get(f"{SETS}/2026q4_form345.zip").mock(return_value=httpx.Response(200, content=b"PK?"))
+    with pytest.raises(ValueError, match="2026q4: not a readable zip"):
+        sec.fetch_ownership(p, date(2027, 2, 15), quarterly=True, **QUIET)
+    assert not list(p.sec_insider.glob("2026q4*"))
+    assert Manifest(p.manifest).find_original("sec_insider_bulk", "2026q4") is None

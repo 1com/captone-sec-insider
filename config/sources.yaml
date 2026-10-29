@@ -17,6 +17,7 @@ sec:
     - "https://www.sec.gov/files/structureddata/data/insider-transactions-data-sets/{key}_form345.zip"
     - "https://www.sec.gov/files/datastandardsinnovation/data/insider-transactions-data-sets/{key}_form345.zip"
   form4_required_tables: [SUBMISSION, REPORTINGOWNER, NONDERIV_TRANS, FOOTNOTES]
+  form4_first_quarter: 2006q1  # the first data set (a fresh clone fetches from here)
   company_tickers_url: "https://www.sec.gov/files/company_tickers_exchange.json"
   companyfacts_url: "https://www.sec.gov/Archives/edgar/daily-index/xbrl/companyfacts.zip"
   submissions_url: "https://www.sec.gov/Archives/edgar/daily-index/bulkdata/submissions.zip"
