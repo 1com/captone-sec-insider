@@ -6,11 +6,16 @@ from collections.abc import Callable
 import duckdb
 
 from sentinel.config import Paths
+from sentinel.core import filings as core_filings
 from sentinel.core import prices as core_prices
 from sentinel.reference import build as ref
 from sentinel.staging import market, prices, sec_filings, sec_form4, sec_headers, sec_xbrl
 
 Step = Callable[[duckdb.DuckDBPyConnection, Paths, Callable[[str], None]], dict]
+
+
+class UnknownStep(Exception):
+    """A layer or step name that does not exist (CLI exit code 2)."""
 
 
 class StepFailed(Exception):
@@ -50,6 +55,10 @@ CORE: dict[str, Step] = {
     "price_daily": core_prices.build_daily,
     "price_check": core_prices.build_check,
     "security": core_prices.build_security,
+    "filing": core_filings.build_filing,
+    "financial_fact": core_filings.build_financial_fact,
+    "shares": core_filings.build_shares,
+    "results_release": core_filings.build_results_release,
 }
 LAYERS: dict[str, dict[str, Step]] = {"staging": STAGING, "reference": REFERENCE, "core": CORE}
 
@@ -58,7 +67,9 @@ def run(con, p: Paths, layer: str, only: list[str] | None = None, echo=print) ->
     steps = LAYERS[layer]
     unknown = [s for s in only or [] if s not in steps]
     if unknown:
-        raise KeyError(f"unknown {layer} step(s): {', '.join(unknown)}; known: {', '.join(steps)}")
+        raise UnknownStep(
+            f"unknown {layer} step(s): {', '.join(unknown)}; known: {', '.join(steps)}"
+        )
     results = {}
     for name, step in steps.items():
         if only and name not in only:

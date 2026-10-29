@@ -48,7 +48,9 @@ def build(
     started = time.monotonic()
     try:
         results = builder.run(con, p, layer, only.split(",") if only else None, typer.echo)
-    except (KeyError, FileNotFoundError, db.MissingInput) as e:
+    except builder.UnknownStep as e:
+        _fail(f"build {layer}: {e}", USAGE)
+    except (FileNotFoundError, db.MissingInput) as e:
         _fail(f"build {layer}: {e}", CONFIG)
     except builder.StepFailed as e:
         _fail(f"build {layer}: {e}", FAILED)

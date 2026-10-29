@@ -65,9 +65,10 @@ FACT_SCHEMA = pa.schema([
 BATCH_ROWS = 200_000
 
 
-def facts(doc: dict, raw_file: str) -> list[tuple]:
-    """Every wanted value in one company's document, as `FACT_SCHEMA` rows."""
-    cik = str(int(doc["cik"]))
+def facts(doc: dict, raw_file: str, cik: str | None = None) -> list[tuple]:
+    """Every wanted value in one company's document, as `FACT_SCHEMA` rows. `cik` defaults to the
+    document's own (a few documents lack it; `stage` passes the one in the file name)."""
+    cik = cik or str(int(doc["cik"]))
     rows = []
     for taxonomy, tags in (doc.get("facts") or {}).items():
         for tag, body in tags.items():
@@ -113,7 +114,8 @@ def stage(con: duckdb.DuckDBPyConnection, p: Paths, echo: Callable[[str], None] 
     with zipfile.ZipFile(path) as z:
         names = sorted(n for n in z.namelist() if n.startswith("CIK"))
         for i, name in enumerate(names, 1):
-            rows += facts(json.loads(z.read(name)), f"{rel}!{name}")
+            cik = str(int(name.removeprefix("CIK").removesuffix(".json")))
+            rows += facts(json.loads(z.read(name)), f"{rel}!{name}", cik)
             if len(rows) >= BATCH_ROWS:
                 _flush(con, rows)
                 rows = []
