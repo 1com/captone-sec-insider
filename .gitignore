@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+*.egg-info
+.venv
+.pytest_cache/
+.ruff_cache/
+
+# Secrets
+.env
+
+# Data: raw downloads and every database and export built from them (docs/architecture.md).
+# Values derived from Tiingo prices are private and never published.
+data/
+*.part

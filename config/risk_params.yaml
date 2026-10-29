@@ -1,0 +1,134 @@
+# The risk panel and its four exploratory risk models (decision D59, docs/initialplan.md §12).
+#
+# Kept apart from config/params.yaml, which the prereg-v1 tag locks byte for byte. Approved by the
+# researcher on 28 October 2026 and tagged `prereg-risk-v1` before any risk label was computed (v2,
+# tagged `prereg-risk-v2`, amends the results-move window, D61; v3, tagged `prereg-risk-v3` on
+# 29 October before any label of the new universe was computed, widens the universe to every SEC
+# registrant and fixes five data problems, D63; v4, tagged `prereg-risk-v4` the same day, still
+# before any such label, also searches disappeared foreign filers, whom the SEC types "other";
+# v5, tagged `prereg-risk-v5` the same day after the build checks and before any model result was
+# read, keeps business development companies (they file N-2 like funds, but 10-Ks) and dates
+# results releases by announcement, so supplements and releases filed after the 10-Q count right);
+# the steps that compute risk labels refuse to run unless this file equals its tagged version.
+# Any change after the tag is logged in the decision log.
+version: 5
+
+universe:
+  # Every Form 4 issuer with a filing on or after this date is a panel candidate. Issuers already
+  # priced for the study reuse its prices; the others are priced from Yahoo if listed today and
+  # from Tiingo (paid window only) if they have since disappeared.
+  issuer_filings_from: 2012-01-01
+  # v3 (D63): so is every SEC registrant with a periodic report (10-K, 10-Q, 20-F, 40-F) filed on
+  # or after this date, with or without Form 4 filings (submissions.zip): the risk questions cover
+  # any stock, not only those whose insiders file Form 4. Those in today's SEC company-ticker list
+  # are priced from Yahoo under their first listed ticker; those that have disappeared left no
+  # ticker in SEC records, so Tiingo is searched by their names and a hit is kept only if its
+  # dates overlap their filings and its name passes the check used for every Tiingo series.
+  periodic_reports_from: 2012-01-01
+  # Not searched: registrants that never had a traded stock: asset-backed trusts and commodity
+  # pools, and entity types other than operating companies and "other" (v4: the SEC types most
+  # foreign filers "other"; v3 left 732 disappeared foreign filers unsearched, 58.com among them).
+  search_skip_sic: [6189, 6221]
+
+prices:
+  # A one-day spike that reverses the next day is a data error, not a price. Such sessions are
+  # flagged (risk.price_glitch) and treated as missing in every panel feature and label; the
+  # study's own prices are not changed.
+  glitch:
+    up: 1.00             # a daily return above +100% ...
+    up_reversal: 0.40    # ... followed by a fall of more than 40% the next day
+    down: 0.50           # or a daily return below -50% ...
+    down_reversal: 0.80  # ... followed by a rise of more than 80% the next day
+
+sources:
+  # Market and macro inputs of the risk models (D59). Market series are prices and are never
+  # revised; CPI and unemployment are used only as first published (ALFRED), from their release day.
+  vix_url: "https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv"
+  fred_market_series: [DGS2, DGS10, T10Y2Y, DFF, BAA10Y]
+  fred_released_series: [CPIAUCSL, UNRATE]
+  # FINRA's daily short-sale volume per reporting facility (off-exchange trades reported to
+  # FINRA). The per-facility files exist from 2009 and are summed; the combined file starts later.
+  finra_short_url: "https://cdn.finra.org/equity/regsho/daily/{facility}shvol{day}.txt"
+  finra_short_facilities: [FNSQ, FNYX, FNRA, FORF, FNQC]
+  finra_short_from: 2011-10-01
+  finra_requests_per_second: 5
+
+panel:
+  # One row per company and month: the last trading session of the month (features as of its close).
+  first_month: 2012-01
+  # A company-month counts only if the company is an active SEC filer then: any filing (Form 4,
+  # 10-K, 10-Q, 8-K, 20-F, 40-F, 6-K, ...) in the 12 months before. This also removes "same company,
+  # new CIK" duplicates.
+  active_filer_months: 12
+  # Funds and blank-check companies trade on net asset or trust value, as in the study's G7. v3
+  # (D63): a company filing a registered fund's reports (N-CSR, NPORT, N-CEN) is excluded too,
+  # whatever its SIC code (closed-end funds often have none). v5: N-2 no longer counts (v3, v4
+  # counted it): business development companies file it too, and they file 10-Ks and trade as
+  # stocks (69 such companies, e.g. Sixth Street Specialty Lending).
+  excluded_sic: [6722, 6726, 6770]
+  # v3 (D63), features. Foreign private issuers (20-F or 40-F reports only): insider (Form 4) and
+  # 8-K features are missing, not zero, as those filings do not apply to them; market value is
+  # missing, as their share counts are of ordinary shares while the price is often an ADR's.
+  # Offerings count share sales only: registrations (S-1, S-3, F-1, F-3, with amendments) and final
+  # prospectuses 424B1, 424B3, 424B4, and 424B5 unless a pricing term sheet (FWP) was filed in the
+  # five days before it, as with large companies' bond sales (424B2: banks' structured notes).
+  # Minimal tradability, looser than the study's ($2, $100k) so that risky small stocks stay in.
+  min_close: 1.00
+  min_addv20_usd: 10000
+  min_price_history_sessions: 63
+
+development:
+  # As in the study: development labels only for windows that end by this date. Rows signalled
+  # from 2023 form a sealed risk holdout, labelled and evaluated once at the end.
+  last_window_end: 2022-12-31
+  test_years: [2019, 2020, 2021, 2022]   # yearly walk-forward folds, purged by each label's window
+
+labels:
+  volatility:
+    # Annualised standard deviation of daily log returns (adjusted close) over the next 63
+    # sessions; missing with fewer than 50 returns. Modelled as its logarithm (a number).
+    window_sessions: 63
+    min_returns: 50
+    naive_baseline: the same measure over the previous 63 sessions
+  results_move:
+    # One row per results announcement (8-K item 2.02), not per company-month. The move is the
+    # absolute return from the close before the results were released (the 8-K's report date) to
+    # the close after the 8-K was filed, minus SPY's over the same days. This covers before-the-open
+    # and after-the-close releases and 8-Ks filed a few days late (about 7% are filed two or more
+    # days after the release). Amended in v2 (D61): v1 started the window at the filing date and
+    # so missed the reaction to late-filed results.
+    # v5 (D63): original item 2.02 8-Ks filed within same_announcement_days of each other are one
+    # announcement, dated by the first (a release and its supplement). Each announcement belongs to
+    # the company's first 10-Q or 10-K filed from report_before_days before it to
+    # release_within_days after it; of the announcements belonging to one report the last is the
+    # results release, so earlier ones (delivery figures, preliminary results) are left out.
+    # Features use a release only once its report is filed (no look-ahead). v3 and v4 kept the last
+    # single 8-K before a report, which dated some releases by a later supplement and dropped
+    # releases filed just after the 10-Q (4,446 in 2012-2022).
+    event: "8-K item 2.02 announcements, the last belonging to each 10-Q or 10-K"
+    release_within_days: 75
+    same_announcement_days: 5
+    report_before_days: 5
+    window: close of the session before the report date to close of the session after the filing date
+    max_report_gap_days: 10   # report date missing, after the filing date or more than 10 days before it: left out
+    market_adjusted: true
+    naive_baseline: mean of the company's previous four results-day moves
+  dilution:
+    # 1 if split-adjusted shares outstanding (as first filed) rise by 10% or more between the last
+    # count filed by month-end and the last count filed within the next 182 days; missing if no
+    # new count is filed in that time. Splits come from the price series' split factors.
+    # v3 (D63): companies without any cover-page count (several share classes, tagged per class)
+    # use their quarterly weighted-average basic shares instead, for all their periods.
+    window_days: 182
+    min_increase: 0.10
+  blow_up:
+    # 1 if any adjusted close in the next 252 sessions is 50% or more below the month-end close,
+    # or if the price series ends inside the window with no merger evidence (a merger proxy,
+    # tender offer or S-4 in the prior 12 months, the study's §6.7 rule).
+    window_sessions: 252
+    max_drawdown: 0.50
+
+reporting:
+  # Shown as bands (D47): five groups by predicted risk, each with its past hit rate or median
+  # outcome on the walk-forward test years. Never a bare probability.
+  bands: 5
