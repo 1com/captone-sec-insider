@@ -23,6 +23,7 @@ from sentinel.config import Paths, sources
 
 SINCE = date(2012, 1, 1)
 NO_TICKER = {"", "NONE", "NA", "NULL", "N/A"}
+MARKET_TICKERS = 1000  # a session at least this many tickers reached is a market session
 US_FORMS = ("10-K", "10-K/A", "10-Q", "10-Q/A", "10-KT", "10-KT/A")
 FOREIGN_FORMS = ("20-F", "20-F/A", "40-F", "40-F/A")
 FILER_FORMS = (*US_FORMS, *FOREIGN_FORMS, "8-K", "6-K")
@@ -140,13 +141,22 @@ def build_ticker_history(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -
 
 
 def build_calendar(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
+    """SPY's sessions since `prices.history_start`. Fails when SPY's prices stop before the last
+    session most tickers reached: an old SPY file would silently drop every later price (the
+    calendar stopped on 23 October 2026 that way; specs/001-daily-data-refresh, research R9)."""
     db.require(con, ["stg_yahoo.price"], "ref.calendar")
     start = sources(p)["prices"]["history_start"]
-    n = con.execute(
-        "select count(distinct session) from stg_yahoo.price where ticker = 'SPY' "
-        "and session >= ?", [start]).fetchone()[0]  # fmt: skip
+    n, spy_last = con.execute(
+        "select count(distinct session), max(session) from stg_yahoo.price where ticker = 'SPY' "
+        "and session >= ?", [start]).fetchone()  # fmt: skip
     if not n:
         raise db.MissingInput("ref.calendar needs SPY's Yahoo prices: run `sentinel fetch yahoo`")
+    market_last = con.execute(
+        "select max(session) from (select session from stg_yahoo.price group by session "
+        "having count(distinct ticker) >= ?)", [MARKET_TICKERS]).fetchone()[0]  # fmt: skip
+    if market_last is not None and spy_last < market_last:
+        raise db.StepFailed(f"SPY's prices end on {spy_last} but at least {MARKET_TICKERS:,} "
+                            f"tickers reach {market_last}: fetch Yahoo again")  # fmt: skip
     with db.transaction(con):
         con.execute(
             """

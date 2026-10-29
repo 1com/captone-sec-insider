@@ -98,3 +98,14 @@ def test_the_calendar_is_spys_sessions_and_sectors_come_from_sic(con, tmp_data):
     ref.build_sector(con, tmp_data, **QUIET)
     got = dict(con.execute("select cik, sector from ref.sector").fetchall())
     assert got["1"] == "BusEq" and got["2"] == "Other"
+
+
+def test_the_calendar_refuses_an_spy_file_older_than_the_market(con, tmp_data):
+    rows = [("SPY", date(2026, 10, 22)), ("SPY", date(2026, 10, 23))]
+    rows += [(f"T{i}", d) for i in range(ref.MARKET_TICKERS)
+             for d in (date(2026, 10, 23), date(2026, 10, 28))]  # fmt: skip
+    con.execute("create or replace table stg_yahoo.price (ticker VARCHAR, session DATE, "
+                "close DOUBLE)")  # fmt: skip
+    con.executemany("insert into stg_yahoo.price values (?, ?, 10.0)", rows)
+    with pytest.raises(db.StepFailed, match="SPY's prices end on 2026-10-23 .* reach 2026-10-28"):
+        ref.build_calendar(con, tmp_data, **QUIET)

@@ -7,7 +7,8 @@ most filings take the conservative next day: a feature for day D never uses a fi
 could not have read by D's close. Before the trading calendar starts (2010), the next weekday
 stands in for the next trading day.
 
-- `core.filing`: every staged filing: form, dates, 8-K items, `accepted_at_et`, `known_at`.
+- `core.filing`: every staged filing: form, dates, 8-K items, `accepted_at_et`, `known_at`. A filing
+  staged from a daily index takes its report date and 8-K items from its header.
 - `core.financial_fact`: each financial item per company and period, every reported version, the
   first filed flagged; the main tag wins its periods and later tags fill only periods it lacks
   (`staging.sec_xbrl.ITEMS`). `known_at` is the next trading day after the version's filing date.
@@ -62,9 +63,12 @@ def build_filing(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
         con.execute(
             f"""
             create or replace table core.filing as
-            with h as (select accession, min(accepted_at_et) as accepted_at_et
+            with h as (select accession, min(accepted_at_et) as accepted_at_et,
+                              max(items) as items, max(period_of_report) as period_of_report
                        from stg_sec_headers.header group by 1),
-            base as (select f.cik, f.accession, f.form, f.filing_date, f.report_date, f.items,
+            base as (select f.cik, f.accession, f.form, f.filing_date,
+                            coalesce(f.report_date::DATE, h.period_of_report::DATE) as report_date,
+                            coalesce(f.items::VARCHAR, h.items::VARCHAR) as items,
                             h.accepted_at_et
                      from stg_sec_filings.filing f left join h using (accession)
                      where f.filing_date is not null)

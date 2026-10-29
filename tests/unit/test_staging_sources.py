@@ -57,8 +57,10 @@ def test_filers_are_all_kept_but_only_companies_have_their_filings_staged(tmp_da
     (tmp_data.sec_company / "submissions.zip").write_bytes(_zip({
         "CIK0000000042.json": company, "CIK0000000042-submissions-001.json": page,
         "CIK0000009001.json": person}))  # fmt: skip
+    _record(tmp_data, "sec/company/submissions.zip", "submissions", "sec_company")
     con = db.connect(tmp_data)
-    assert sec_filings.stage(con, tmp_data, **QUIET) == {"filer": 2, "filing": 3}
+    assert sec_filings.stage(con, tmp_data, **QUIET) == {"filer": 2, "filing": 3, "new_filers": 0,
+                                                         "daily_filings": 0}  # fmt: skip
     filers = con.execute(
         "select cik, is_company, n_filings, former_names[1].valid_to from stg_sec_filings.filer "
         "order by cik"
@@ -87,6 +89,7 @@ def test_every_version_of_a_wanted_value_is_kept_and_other_tags_are_not(tmp_data
     }}  # fmt: skip
     tmp_data.sec_company.mkdir(parents=True)
     (tmp_data.sec_company / "companyfacts.zip").write_bytes(_zip({"CIK0000000042.json": doc}))
+    _record(tmp_data, "sec/company/companyfacts.zip", "companyfacts", "sec_company")
     con = db.connect(tmp_data)
     assert sec_xbrl.stage(con, tmp_data, **QUIET) == {"fact": 3}
     got = con.execute(
@@ -238,3 +241,24 @@ def test_market_staging_keeps_first_releases_and_sums_finra_facilities(tmp_data)
     assert con.execute("select short_volume, total_volume, facilities "
                        "from stg_market.short_volume").fetchone() == (50.0, 200.0, 2)  # fmt: skip
     assert con.execute("select close from stg_market.vix").fetchone() == (12.47,)
+
+
+def test_compressed_daily_copies_of_fred_and_the_vix_are_read_newest_first(tmp_data):
+    from sentinel.raw.manifest import store_bytes, store_gz
+
+    book = Manifest(tmp_data.manifest)
+
+    def obs(*days):
+        return json.dumps({"observations": [{"date": d, "value": "4.1"} for d in days]}).encode()
+
+    store_bytes(tmp_data, book, "fred", "fred/DGS10-market-2026-10-28.json",
+                "DGS10-market-2026-10-28", obs("2026-10-27"), "u")  # fmt: skip
+    store_gz(tmp_data, book, "fred", "fred/DGS10-market-2026-10-30.json.gz",
+             "DGS10-market-2026-10-30", obs("2026-10-27", "2026-10-29"), "u")  # fmt: skip
+    store_gz(tmp_data, book, "cboe", "cboe/VIX_History-2026-10-30.csv.gz", "VIX_History-2026-10-30",
+             b"DATE,OPEN,HIGH,LOW,CLOSE\n10/29/2026,1,1,1,16.5\n", "u")  # fmt: skip
+    con = db.connect(tmp_data)
+    market.stage(con, tmp_data, **QUIET)
+    assert con.execute("select max(period), count(*) from stg_market.fred").fetchone() == (
+        date(2026, 10, 29), 2)  # fmt: skip
+    assert con.execute("select close from stg_market.vix").fetchone() == (16.5,)

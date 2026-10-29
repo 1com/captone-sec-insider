@@ -15,6 +15,7 @@ sees a half-written file; the app and anyone exploring open it read-only.
   shares, holdings before and after, plan and offering flags, link.
 - `app.insider_feed`: market-wide insider events (clusters of buyers, senior solo buys).
 - `app.screener`: one row per priced company with the screeners' filters.
+- `app.freshness`: each dataset's latest date, for "data as of" on every page.
 
 The risk forecasts and the model card join these once the models exist (plan steps 5 and 8).
 """
@@ -28,8 +29,9 @@ from sentinel.config import Paths
 
 EDGAR = "https://www.sec.gov/Archives/edgar/data"
 NEEDED = ["ref.company", "ref.security", "ref.sector", "core.price_daily", "core.filing",
-          "core.financial_fact", "core.results_release", "core.insider_activity",
-          "core.insider_cluster", "feature.snapshot"]  # fmt: skip
+          "core.financial_fact", "core.results_release", "core.insider_filing",
+          "core.insider_activity", "core.insider_cluster", "core.short_volume",
+          "core.macro_observation", "feature.snapshot"]  # fmt: skip
 GROUP_KIND = {"A": "cluster", "B1": "ceo_cfo_buy", "B2": "officer_director_buy"}
 
 
@@ -100,6 +102,20 @@ TABLES = {
                c.accessions
         from b.core.insider_cluster c left join app.stock s on s.cik = c.issuer_cik
         where c.starts_event order by c.cluster_date desc, c.issuer_cik
+    """,
+    "freshness": """
+        select * from (values
+            ('prices', (select max(session) from b.core.price_daily)),
+            ('filings', (select max(filing_date) from b.core.filing)),
+            ('financial_values', (select max(filed) from b.core.financial_fact)),
+            ('insider_filings', (select max(filing_date) from b.core.insider_filing)),
+            ('short_volume', (select max(session) from b.core.short_volume)),
+            ('vix', (select max(period) from b.core.macro_observation where series = 'VIX'))
+        ) t(dataset, latest_date)
+        union all
+        select 'fred:' || series, max(period) from b.core.macro_observation
+        where series <> 'VIX' group by series
+        order by dataset
     """,
     "screener": """
         select c.cik, s.ticker, s.name, c.sector, c.coverage, s.listed, c.as_of, c.close,

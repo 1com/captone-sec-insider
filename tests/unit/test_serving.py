@@ -49,3 +49,12 @@ def test_export_writes_the_training_sets_and_a_readme(built):
     assert {"move", "vol_63", "release_eve"} <= set(moves.columns)
     assert moves["release_eve"].all()  # features as of the close before each release
     assert "ml/volatility.parquet" in (built.exports / "README.md").read_text()
+
+
+def test_freshness_gives_each_datasets_latest_date(built):
+    publish.publish(built, **QUIET)
+    with duckdb.connect(str(built.serving_db), read_only=True) as con:
+        fresh = dict(con.execute("select dataset, latest_date from app.freshness").fetchall())
+    assert fresh["prices"] == pd.Timestamp("2021-12-31").date()
+    assert fresh["insider_filings"] == pd.Timestamp("2021-06-30").date()
+    assert {"filings", "financial_values", "short_volume", "vix", "fred:DGS10"} <= set(fresh)
