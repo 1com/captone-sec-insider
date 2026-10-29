@@ -69,6 +69,11 @@ merge into `main` (T063–T064).
   `SPECIFY_FEATURE_DIRECTORY=specs/005-volatility-model`.
 - **Pull requests into `main`.** One branch per feature; open a pull request; CI (from feature 003)
   must pass; ask the other track to review when a contract changes. Merge, then delete the branch.
+- **Notebooks for exploring, `src/` for what runs.** EDA and model experiments go in
+  `notebooks/` with outputs stripped (never commit outputs: they could publish private data); the
+  chosen models go in `src/sentinel/models/` and run by command. Details in `docs/plan.md`.
+- **The app reads `data/serving.duckdb`**, rebuilt by each night's update; `data/exports/app/` holds
+  Parquet copies of the same tables for sharing and analysis.
 - **Data is never in git.** `data/` is git-ignored. The researcher shares the private export with
   the teammate directly (it holds Tiingo-derived prices: never publish it, never commit it). The
   build needs the raw files and `.env` keys, which stay on the researcher's machine.

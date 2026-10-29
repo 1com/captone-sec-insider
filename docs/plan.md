@@ -41,6 +41,21 @@ branch `NNN-name`), so two people specifying at once never collide.
    export with the teammate.
 4. **Teammate:** start **004** EDA (#76) on the files in the next section, then 005, 006, 007.
 
+## Notebooks and code
+
+- **Notebooks** (`notebooks/NNN-topic.ipynb`, numbered by feature) are for EDA, exploration and
+  trying model ideas. They read the private Parquet export in `data/exports/`, never commit their
+  outputs (stripped by `nbstripout`; CI rejects a notebook with outputs: the repository is public
+  and an output cell could publish Tiingo-derived values), and never write to `data/`.
+- **The chosen models live in `src/sentinel/models/`** and run by command: training, the
+  walk-forward test, calibration and daily scoring, with fixed seeds and MLflow logging, because
+  `sentinel update` scores every company each night without a notebook. A notebook may import and
+  call this code.
+- **Reports** (004, 008) may be notebooks if one command runs them start to finish
+  (`jupyter nbconvert --execute`), so they regenerate from the data.
+- **The app reads `data/serving.duckdb`** (read-only, reopened after each night's update), not the
+  Parquet copies in `data/exports/app/`, which are for sharing and analysis.
+
 ## Data for each model
 
 Every training set is a Parquet file in `data/exports/ml/` (private, written by `sentinel export`,
@@ -85,7 +100,7 @@ answer. Never use the answer columns, `window_end` or the outcome columns as fea
 |---|---|---|---|---|---|---|---|
 | 001 | **Daily data refresh and update**: A fetch command per source (SEC filings and financial values through the daily master index, the SEC ticker list, Form 3/4/5 filings as filed, Yahoo for every listed symbol plus SPY and IWM, Tiingo while the plan lasts, FRED, Cboe VIX, FINRA short volume); the one-off refresh; `sentinel update` (fetch what is new, re-stage changed sources, rebuild the upper layers, publish, export, record the run in `ops`); `sentinel status`, `verify`, `schedule` (weekday evenings). | coding agent; researcher (1com) approves the schedule | Thu 29 – Fri 30 Oct | — | every table reaches the last completed session; a rerun the same day is `nothing_new`; `sentinel verify` finds every table identical; the daily Form 4 parser matches the 2026q3 data set; named real checks pass; the schedule runs on two weekday evenings | in progress: code done, real runs under way | #68 |
 | 002 | **Reference datasets with every year (private)**: Private reference copies per question (volatility, dilution, results-day move) for personal data-science work: every year to the latest day in the training files' exact layout, answers wherever the window has closed (the 2023–2026 holdout included), a `period` column (development / gap / holdout); `sentinel export --reference` → `data/exports/reference/` (git-ignored, Tiingo-derived: never published). The models never read them. Constitution IV amended, decision V2-21, disclosed in the report. | coding agent | Fri 30 Oct | 001 | three files with the training files' columns, types and order plus `period`; their development rows equal the training rows; tests | next | #73 |
-| 003 | **Team workflow and CI**: Two people and an agent working in parallel: GitHub Actions running `ruff check`, `ruff format --check` and the unit tests on every pull request; `main` protected (pull request with green CI); a pull-request template (feature number, tests, data never committed); the README's "Working together" section; the teammate added as collaborator; how the private data is shared (not through git). | coding agent | Fri 30 Oct | — | a pull request from each person passes CI and merges into `main` | not started | #75 |
+| 003 | **Team workflow and CI**: Two people and an agent working in parallel: GitHub Actions running `ruff check`, `ruff format --check` and the unit tests on every pull request; `main` protected (pull request with green CI); a pull-request template (feature number, tests, data never committed); the README's "Working together" section; the teammate added as collaborator; how the private data is shared (not through git). Notebooks: a `notebooks/` folder; `nbstripout` as a git filter and a CI check that rejects any notebook with saved outputs (the repository is public and outputs could show Tiingo-derived values). | coding agent | Fri 30 Oct | — | a pull request from each person passes CI and merges into `main` | not started | #75 |
 
 ### v2 · 2 Data science (due 2026-11-13)
 
