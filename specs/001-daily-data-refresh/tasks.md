@@ -181,8 +181,8 @@ tested on its own.
 
 ## Phase 8: Polish & cross-cutting
 
-- [ ] T060 [P] Update docs/architecture.md: the daily raw layout (link to specs/001-daily-data-refresh/contracts/raw-layout.md), the staging newest-file rule, `stg_sec_form4_daily`, the `ops` schema, `app.freshness`, and `sentinel fetch`, `update`, `status`, `verify`, `schedule` under Commands
-- [ ] T061 [P] Log decisions in docs/decisions.md: V2-16 daily SEC data through the master index, Form 4s from their full submissions; V2-17 Yahoo and Tiingo windows with full refetches after splits and dividends; V2-18 a listed company's own ticker accepted on dates, history from the ticker's listing start; V2-19 the update rebuilds the layers above staging in full, checked by `sentinel verify`; V2-20 Windows Task Scheduler for the schedule
+- [X] T060 [P] Update docs/architecture.md: the daily raw layout (link to specs/001-daily-data-refresh/contracts/raw-layout.md), the staging newest-file rule, `stg_sec_form4_daily`, the `ops` schema, `app.freshness`, and `sentinel fetch`, `update`, `status`, `verify`, `schedule` under Commands
+- [X] T061 [P] Log decisions in docs/decisions.md: V2-16 daily SEC data through the master index, Form 4s from their full submissions; V2-17 Yahoo and Tiingo windows with full refetches after splits and dividends; V2-18 a listed company's own ticker accepted on dates, history from the ticker's listing start; V2-19 the update rebuilds the layers above staging in full, checked by `sentinel verify`; V2-20 Windows Task Scheduler for the schedule
 - [ ] T062 [P] Update docs/plan.md (status of steps 1 and 6) and README.md (the daily commands)
 - [ ] T063 Run quickstart.md end to end and `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run pytest -q`; report durations and results
 - [ ] T064 Mark this file's tasks done in specs/001-daily-data-refresh/tasks.md, merge `001-daily-data-refresh` into `main`, delete the branch locally and on GitHub, and comment on issues #63 and #68
