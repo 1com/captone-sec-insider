@@ -231,6 +231,10 @@ def fake_env(tmp_path):
 
 @pytest.fixture
 def tmp_data(tmp_path) -> Paths:
+    """A project root in a temporary folder, with copies of the real settings files."""
+    (tmp_path / "config").mkdir()
+    for name in ("sources.yaml", "risk_params.yaml"):
+        (tmp_path / "config" / name).write_bytes((REPO / "config" / name).read_bytes())
     return Paths.from_root(tmp_path)
 
 

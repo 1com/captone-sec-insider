@@ -6,6 +6,7 @@ from collections.abc import Callable
 import duckdb
 
 from sentinel.config import Paths
+from sentinel.reference import build as ref
 from sentinel.staging import market, prices, sec_filings, sec_form4, sec_headers, sec_xbrl
 
 Step = Callable[[duckdb.DuckDBPyConnection, Paths, Callable[[str], None]], dict]
@@ -36,7 +37,13 @@ STAGING: dict[str, Step] = {
     "tiingo": prices.stage_tiingo,
     "market": market.stage,
 }
-LAYERS: dict[str, dict[str, Step]] = {"staging": STAGING}
+REFERENCE: dict[str, Step] = {
+    "company": ref.build_company,
+    "ticker_history": ref.build_ticker_history,
+    "calendar": ref.build_calendar,
+    "sector": ref.build_sector,
+}
+LAYERS: dict[str, dict[str, Step]] = {"staging": STAGING, "reference": REFERENCE}
 
 
 def run(con, p: Paths, layer: str, only: list[str] | None = None, echo=print) -> dict:
