@@ -4,36 +4,35 @@ Owners: R = the researcher, C = the coding agent (Claude Code). Working days Mon
 weekends of 31 Oct – 1 Nov, 7–8 Nov and 14–15 Nov are buffer. Each step is done when its tests pass,
 its named real-data checks pass and the researcher has seen its summary.
 
+From 29 October all work follows spec-kit: each piece of work is a feature (`F001`, `F002`, …)
+specified, planned, broken into tasks and implemented under `specs/NNN-name/`, on its own branch,
+merged into `main` when done. The steps 0–4 below were built before spec-kit was adopted. Feature
+numbers give the intended order; spec-kit assigns the final number when a feature is specified.
+GitHub: one issue per feature, in three milestones.
+
 ## Schedule
 
-| # | Step | Content | Done when | Who | Dates |
-|---|---|---|---|---|---|
-| 0 | Fresh start | archive v1 (`v1-final`); fresh `main`; spec, architecture, lessons, decisions, plan; Tiingo for every listed company | the repository holds only v2; Tiingo downloads complete | C | Thu 29 Oct |
-| 1 | Raw and staging | fetchers for every source (SEC, Yahoo, Tiingo, FRED, Cboe, FINRA, French) on the v1 behaviour; daily SEC ticker snapshots; complete staging per source, as views over raw where possible | each staging table holds every downloaded file; row counts match the manifest | C | Fri 30 Oct – Mon 2 Nov |
-| 2 | Reference | `ref.company`, `ref.security` (classes, ADRs and ratios), `ref.ticker_history`, calendar, industry, `ref.coverage` | Apple, ASML, Meta, Hitachi, Ares Capital, a closed-end fund and a disappeared company each land in the right level with the right tickers | C | Tue 3 Nov |
-| 3 | Core | prices (source choice, fallbacks, Yahoo–Tiingo check, glitches), corporate actions, filings, financial facts with `known_at`, shares per class, results releases, insider trades and clusters, macro, short volume | named checks: Jamie Dimon's 2016 JPM purchase, Tesla's 2022 releases, Meta's market value, TSMC's market value | C | Wed 4 – Thu 5 Nov |
-| 4 | Features | features as of month-ends, release eves and each company's latest day (V2-13); month-end training panel | features for a fixture day equal those of a full rebuild | C | Fri 6 – Mon 9 Nov |
-| 5 | Labels and models | development answers (windows to 2022); the three risk models under D60; report; MLflow | two runs give identical predictions; report generated | C | Mon 9 – Tue 10 Nov |
-| 6 | Daily update and serving | `sentinel update`, `score.daily`, `score.outcome`, `sentinel publish` | a rerun on the same day changes nothing; the serving copy opens read-only | C | Wed 11 Nov |
-| 7 | Risk holdout | the one test of the chosen models on windows from 2023 | guard log shows a single run | R triggers, C builds | Thu 12 Nov |
-| 8 | Product | stock page, dilution check, risk card, insider tracker, screeners, model card, over `serving.duckdb` | endpoint tests; pages match the report | C | Thu 12 – Mon 16 Nov |
-| 9 | Hand-in | product v1 (17 Nov), report (18 Nov) | | R, C | Tue 17 – Wed 18 Nov |
-| 10 | Before Tiingo ends | offline rebuild check from raw | a fresh clone plus raw rebuilds the serving copy | C | by 25 Nov |
+| # | Work | Content | Done when | Who | Dates | Issue |
+|---|---|---|---|---|---|---|
+| 0 | Fresh start | archive v1 (`v1-final`); fresh `main`; spec, architecture, lessons, decisions, plan; Tiingo for every listed company | the repository holds only v2; Tiingo downloads complete | C | Thu 29 Oct | #62 |
+| 1–4 | Data layers | staging per source; reference (companies, securities, tickers, calendar, sectors); core (prices, filings, financial facts with `known_at`, shares, results releases, insider trades and clusters, macro, short volume); features as of month-ends, release eves and latest days (V2-13); development labels | named checks (Dimon 2016, Tesla 2022 releases, Apple's split day, Meta, TSMC, a BDC, a closed-end fund, Bed Bath & Beyond); features equal a full rebuild | C | Thu 29 Oct | #63–#66 |
+| F001 | Daily data refresh and update (steps 1 and 6) | a fetch command per source; a one-off refresh; `sentinel update`, `status`, `verify`, `schedule`; Form 4s as filed | every table reaches the last session; a rerun is `nothing_new`; `verify` identical; the parser matches 2026q3; the schedule runs | C (R approves the schedule) | Thu 29 – Fri 30 Oct | #68 |
+| F002 | Reference datasets (private) | every year per question, the training layout, answers wherever the window has closed (holdout included), a `period` column; `sentinel export --reference` | development rows equal the training files | C | Fri 30 Oct | #73 |
+| F003 | Risk models (step 5) | the three models under D60 and risk_params v5: rule, classic, LightGBM, purged walk-forward 2019–2022, one-standard-error rule, calibration, bands with hit rates; MLflow; generated report | two runs give identical predictions; R approves the level per question | C, R | Mon 2 – Fri 6 Nov | #67 |
+| F004 | Daily scores and outcomes (step 6) | `score.daily`, `score.outcome`; forecasts in `app.company_card` and `app.model_card` through `sentinel update` | a rerun changes nothing; `verify` identical | C | Mon 9 – Tue 10 Nov | #74 |
+| F005 | Risk holdout (step 7) | the one test of the chosen models on windows from 2023 | guard log shows a single run | R triggers, C builds | Thu 12 Nov | #69 |
+| F006 | Product v1 (step 8) | stock page led by volatility and the results-day move, standalone dilution check, insider tracker, screeners, model card, "data as of", over `serving.duckdb` | endpoint tests; pages match the report | C | Thu 12 – Mon 16 Nov | #70 |
+| F007 | Hand-in (step 9) | product v1 (17 Nov), report (18 Nov) | both generated by commands | R, C | Tue 17 – Wed 18 Nov | #71 |
+| F008 | Offline rebuild (step 10) | a fresh clone plus the raw files rebuilds everything; `data/raw/` backed up | identical to the working copy | C | by Wed 25 Nov | #72 |
 
-## Status on 29 October
+## Status on 29 October (evening)
 
-The data layers are built ahead of schedule; work stopped there at the researcher's request, before
-the models and the product.
-
-| # | Status |
+| Work | Status |
 |---|---|
-| 0 | done |
-| 1 | staging done for every source (Form 4 row counts match the files); left: porting v1's fetch commands, and Yahoo prices for the 373 listed companies neither source has (mostly thin OTC ADRs) |
-| 2 | done: Apple, Meta, Hitachi (price-only), a BDC, a closed-end fund (not covered) and Bed Bath & Beyond (Tiingo) land right; one price series per company, so share classes and ADR ratios are not modelled and a foreign filer's market value is missing |
-| 3 | done; named checks pass (Jamie Dimon's purchase, Tesla's 2022 releases, Meta's and Apple's market value, TSMC); no corporate-actions table (splits and dividends are in `core.price_daily`; delisting reasons served the dropped 50% fall label) |
-| 4 | done |
-| 5 | development labels done (windows to 2022); the models are next |
-| 6 | `sentinel publish` and `sentinel export` done; `sentinel update` and the score tables are next |
+| 0, 1–4 | done. One price series per company: share classes and ADR ratios are not modelled, so a foreign filer's market value is missing. Development labels done (windows to 2022) |
+| F001 | code done and tested (130 synthetic tests): fetchers for every source, Form 4 parser and reconciliation, `update`, `status`, `verify`, `schedule`. Running: the real refresh (all sources fetched to 28–29 Oct; Form 4s for 24 Sep – 28 Oct and missing Yahoo histories downloading). Left: the real update, named checks, a rerun and `verify` (T028, T029, T035, T036, T046, T053, T054); installing the schedule after R's approval (T059); this plan and the README (T062); validation and merge (T063, T064) |
+| F002 | agreed with R on 29 Oct; to be specified after F001 merges |
+| F003–F008 | not started |
 
 ## Cut order (if a step slips)
 
@@ -46,4 +45,6 @@ the models and the product.
 ## Questions settled on 29 October
 
 The 50% fall forecast is dropped (V2-9); the volatility range is scaled on all earlier years
-(V2-10); the price-only level is in (V2-11); v1's issues are closed and v2's opened (V2-12).
+(V2-10); the price-only level is in (V2-11); v1's issues are closed and v2's opened (V2-12); the
+daily refresh follows V2-16 to V2-20; R asked for private reference copies with every year's
+answers (F002, to be logged as V2-21).

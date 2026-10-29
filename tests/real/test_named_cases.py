@@ -7,11 +7,14 @@ import duckdb
 import pytest
 
 from sentinel.config import paths
+from sentinel.raw import yahoo
+from sentinel.raw.manifest import Manifest
 
 pytestmark = pytest.mark.slow
 
 APPLE, META, TESLA, JPM, TSMC = "320193", "1326801", "1318605", "19617", "1046179"
 SIXTH_STREET, BED_BATH, ADAMS_FUND = "1508655", "886158", "2230"
+HITACHI, DEUTSCHE_TELEKOM, STANDARD_LIFE, NGK = "47710", "946770", "1370418", "1442655"
 
 
 @pytest.fixture(scope="module")
@@ -89,3 +92,73 @@ def test_a_disappeared_company_is_priced_from_tiingo(con):
     row = _one(con, "select source, listed, last_session from ref.security where security_id = ?",
                BED_BATH)  # fmt: skip
     assert row[:2] == ("tiingo", False) and date(2023, 4, 1) <= row[2] <= date(2023, 12, 31)
+
+
+# --- Feature 001: the daily refresh ------------------------------------------------------------
+
+
+def test_the_calendar_and_prices_reach_the_last_session_of_the_refresh(con):
+    """The calendar no longer stops on 23 October 2026 (an old SPY file): it reaches the last
+    session the refresh fetched, and Apple has a close that day."""
+    (last,) = _one(con, "select max(session) from ref.calendar")
+    assert last >= date(2026, 10, 28)
+    assert _one(con, "select close from core.price_daily where cik = ? and session = ?",
+                APPLE, last)[0] > 0  # fmt: skip
+
+
+def test_every_dataset_has_a_data_as_of_date():
+    with duckdb.connect(str(paths().serving_db), read_only=True) as serving:
+        got = dict(serving.execute("select dataset, latest_date from app.freshness").fetchall())
+    for dataset in ("prices", "filings", "financial_values", "insider_filings", "short_volume",
+                    "vix"):  # fmt: skip
+        assert got.get(dataset) is not None, dataset
+    assert any(k.startswith("fred:") for k in got)
+    assert got["insider_filings"] >= date(2026, 10, 28)  # daily Form 4s, past the 2026q3 data set
+
+
+def test_price_only_stocks_have_long_histories(con):
+    """Foreign companies listed in the US but filing nothing periodic with the SEC (V2-11) are
+    priced from their listing (V2-18): Hitachi's ADR from April 2012, Deutsche Telekom's from
+    2010."""
+    first = dict(con.execute(
+        "select cik, min(session) from core.price_daily where cik in (?, ?, ?, ?) group by 1",
+        [HITACHI, DEUTSCHE_TELEKOM, STANDARD_LIFE, NGK]).fetchall())  # fmt: skip
+    assert first[HITACHI] <= date(2012, 4, 27)
+    assert first[DEUTSCHE_TELEKOM] <= date(2010, 6, 21)
+    assert STANDARD_LIFE in first and NGK in first  # renamed (abrdn; Niterra): now priced
+    (long,) = _one(con, "select count(*) from core.price_coverage c join ref.security s "
+                        "on s.security_id = c.cik where s.coverage = 'price_only' "
+                        "and c.priced_from < '2025-01-01'")  # fmt: skip
+    assert long >= 450
+
+
+def test_every_listed_symbol_was_asked_of_yahoo_and_every_unpriced_company_has_a_reason(con):
+    p = paths()
+    book = Manifest(p.manifest)
+    assert yahoo.missing_histories(p, book, yahoo.listed_symbols(p, book)) == []
+    assert _one(con, "select count(*) from core.price_coverage where reason is null")[0] == 0
+
+
+def test_daily_form4s_match_the_quarterly_data_set(con):
+    """The filings of 24–30 September 2026, fetched one by one and parsed (US4), against the
+    2026q3 data set built from the same documents: no filing differs."""
+    (both,) = _one(con, "select count(*) from stg_sec_form4_daily.submission d "
+                        "join stg_sec_form4.submission q using (accession_number) "
+                        "where d.filing_day between '2026-09-24' and '2026-09-30'")  # fmt: skip
+    assert both >= 1_000
+    differ = con.execute(
+        "select r.* from core.form4_reconciliation r join stg_sec_form4_daily.submission d "
+        "on d.accession_number = r.accession where d.filing_day between '2026-09-24' and "
+        "'2026-09-30'"
+    ).fetchall()
+    assert differ == []
+
+
+def test_a_form4_filed_on_28_october_is_in_the_tracker(con):
+    """Derek Williams, an officer of Consumers Bancorp, bought 100 shares at $31.71 on 28 October
+    2026; the filing was accepted at 16:57, after the close, so it is known from the 29th."""
+    row = _one(con, "select side, owner_names, entity_role, shares, value_usd, known_at "
+                    "from core.insider_activity where accession = ?",
+               "0001437749-26-033807")  # fmt: skip
+    assert row == ("buy", ["WILLIAMS DEREK G"], "officer", 100.0, pytest.approx(3171.0),
+                   date(2026, 10, 29))  # fmt: skip
