@@ -6,7 +6,9 @@ retail investor cannot easily get elsewhere: **dilution risk**, the **expected r
 and **expected volatility**. Updated every day.
 
 This is version 2, rebuilt from scratch on 29 October 2026. Version 1 (an insider-trading study
-that grew into this platform) is kept at the tag `v1-final`.
+that grew into this platform) is retired: its code, history, issues and demo site were removed from
+GitHub on 29 October (decision V2-2); what it taught is in
+[docs/lessons-from-v1.md](docs/lessons-from-v1.md).
 
 The platform answers four independent questions, each for every stock the data allows: who among
 the insiders is buying or selling (the tracker: rules, no model), how much the stock will move over
@@ -73,8 +75,8 @@ Read, in order: this README, the constitution, `docs/spec.md`, `docs/architectur
 - Every piece of work is a spec-kit feature: `/speckit-specify` → `/speckit-plan` →
   `/speckit-tasks` → `/speckit-implement` (skills in `.claude/skills/`), on a branch named after
   the feature. Mark each task `[X]` in `tasks.md` as it is done.
-- When a feature is done, merge it into `main` and delete its branch. Only `main` and `gh-pages`
-  (v1's public demo site) live on GitHub.
+- When a feature is done, merge it into `main` and delete its branch. Only `main` (and the branch
+  of the feature in progress) lives on GitHub.
 - Each feature is done when its tests pass, its named real-data checks pass
   (`tests/real/test_named_cases.py`), and the researcher has seen a plain summary. Before asking
   to continue, say in plain words what the next step does.
@@ -98,7 +100,9 @@ Read, in order: this README, the constitution, `docs/spec.md`, `docs/architectur
   `config/sources.yaml`, and Tiingo-derived values never appear on public pages or in public
   files. `data/exports/` is private.
 - SEC requests stay under 10 a second with the contact in the User-Agent.
-- Never delete the tags `v1-final`, `prereg-v1`, `prereg-risk-v1` … `prereg-risk-v5`.
+- Never delete or move the tag `prereg-risk-v5`: the risk pre-registration. The label code runs
+  only while `config/risk_params.yaml` is byte-identical to its version at that tag, so the file
+  (comments included) is never edited; a change needs a logged decision and a new tag.
 
 **This machine** (WSL2 on Windows).
 

@@ -1,7 +1,7 @@
 # EDGAR-SENTINEL Constitution
 
 The standing rules for EDGAR-SENTINEL v2, a market research platform for any US-traded stock
-([docs/spec.md](../../docs/spec.md)). Version 1's constitution (3.2.0) is kept at tag `v1-final`.
+([docs/spec.md](../../docs/spec.md)). Version 1's constitution (3.2.0) was retired with v1 (decision V2-2).
 
 ## Core Principles
 
@@ -102,4 +102,4 @@ Rationale: a forecast is only as useful as the honesty of its track record.
 - **Versioning:** MAJOR for removing or redefining a principle, MINOR for adding one or materially
   expanding guidance, PATCH for wording.
 
-**Version**: 4.0.0 | **Ratified**: 2026-10-29 (v2) | **Last Amended**: 2026-10-29
+**Version**: 4.0.1 | **Ratified**: 2026-10-29 (v2) | **Last Amended**: 2026-10-29 (v1 retired, V2-2)

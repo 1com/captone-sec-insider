@@ -14,7 +14,7 @@ GitHub: one issue per feature, in three milestones.
 
 | # | Work | Content | Done when | Who | Dates | Issue |
 |---|---|---|---|---|---|---|
-| 0 | Fresh start | archive v1 (`v1-final`); fresh `main`; spec, architecture, lessons, decisions, plan; Tiingo for every listed company | the repository holds only v2; Tiingo downloads complete | C | Thu 29 Oct | #62 |
+| 0 | Fresh start | retire v1; fresh `main`; spec, architecture, lessons, decisions, plan; Tiingo for every listed company | the repository holds only v2; Tiingo downloads complete | C | Thu 29 Oct | #62 |
 | 1–4 | Data layers | staging per source; reference (companies, securities, tickers, calendar, sectors); core (prices, filings, financial facts with `known_at`, shares, results releases, insider trades and clusters, macro, short volume); features as of month-ends, release eves and latest days (V2-13); development labels | named checks (Dimon 2016, Tesla 2022 releases, Apple's split day, Meta, TSMC, a BDC, a closed-end fund, Bed Bath & Beyond); features equal a full rebuild | C | Thu 29 Oct | #63–#66 |
 | F001 | Daily data refresh and update (steps 1 and 6) | a fetch command per source; a one-off refresh; `sentinel update`, `status`, `verify`, `schedule`; Form 4s as filed | every table reaches the last session; a rerun is `nothing_new`; `verify` identical; the parser matches 2026q3; the schedule runs | C (R approves the schedule) | Thu 29 – Fri 30 Oct | #68 |
 | F002 | Reference datasets (private) | every year per question, the training layout, answers wherever the window has closed (holdout included), a `period` column; `sentinel export --reference` | development rows equal the training files | C | Fri 30 Oct | #73 |
