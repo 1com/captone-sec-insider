@@ -27,24 +27,20 @@ company is about to issue many new shares (dilution).
 | [docs/lessons-from-v1.md](docs/lessons-from-v1.md) | what went wrong in v1 and the rule v2 follows instead |
 | [specs/](specs/) | one folder per spec-kit feature: spec, plan, research, data model, contracts, quickstart, tasks |
 
-## Plan and progress (29 October 2026, evening)
+## Roadmap and progress (29 October 2026, evening)
 
-The full plan with its done-when tests is in [docs/plan.md](docs/plan.md); the two are updated
-together. GitHub: one issue per piece of work, in three milestones (*v2 · 1 Data platform*,
-*v2 · 2 Risk models*, *v2 · 3 Product and hand-in*).
+The detailed roadmap (every feature with its owner, dates, dependencies and done-when test) is
+[docs/plan.md](docs/plan.md); GitHub has one issue per feature (#67–#86) in five milestones. The
+three are updated together.
 
-| # | Work | Dates | Status | Issue |
-|---|---|---|---|---|
-| 0 | Fresh start: v1 archived, v2 documents | 29 Oct | done | #62 |
-| 1–4 | Data layers: staging, reference, core, features, development labels | 29 Oct | done | #63–#66 |
-| F001 | Daily data refresh and update (`specs/001-daily-data-refresh/`) | 29–30 Oct | code done; real runs under way | #68 |
-| F002 | Reference datasets with every year, private | 30 Oct | agreed, next | #73 |
-| F003 | Risk models: volatility, dilution, results-day move (D60) | 2–6 Nov | not started | #67 |
-| F004 | Daily scores and outcomes | 9–10 Nov | not started | #74 |
-| F005 | Risk holdout: the one sealed test | 12 Nov | not started | #69 |
-| F006 | Product v1 | 12–16 Nov | not started | #70 |
-| F007 | Hand-in: product 17 Nov, report 18 Nov | 17–18 Nov | not started | #71 |
-| F008 | Offline rebuild from raw before Tiingo ends | by 25 Nov | not started | #72 |
+| Milestone (due) | Features | Owner | Status |
+|---|---|---|---|
+| *done 29 Oct* | steps 0–4: v2 started, every data layer built (#62–#66) | agent | done |
+| 1 Data platform (30 Oct) | 001 daily data refresh (#68) · 002 reference datasets (#73) · 003 team workflow and CI (#75) | agent | 001 in progress; 002, 003 next |
+| 2 Data science (13 Nov) | 004 EDA (#76) · 005 volatility (#67) · 006 results-day move (#77) · 007 dilution (#78) · 008 model report (#79) · 009 daily scores (#74) | teammate, with the agent | not started |
+| 3 App (16 Nov) | 011 design and forecast contract (#80) · 012 API (#81) · 013 stock page (#70) · 014 insider tracker (#82) · 015 dilution check (#83) · 016 screeners (#84) · 017 forecasts and model card (#85) · 018 hosting (#86) | researcher, with the agent | not started |
+| 4 Holdout and hand-in (18 Nov) | 010 holdout test (#69) · 019 report and hand-in (#71): product 17 Nov, report 18 Nov | all | not started |
+| 5 Before Tiingo ends (25 Nov) | 020 offline rebuild and raw backup (#72) | agent | not started |
 
 **What exists now.** Every layer is built in `data/sentinel.duckdb` from the raw files in
 `data/raw/` (8.9 GB, with a manifest line per file): staging per source, companies and securities,
@@ -54,16 +50,30 @@ results eves and each company's latest day, and the development answers of the t
 (windows ending by 31 December 2022). `data/serving.duckdb` holds the product's `app` tables;
 `data/exports/` holds a private Parquet export (`ml/` training sets, `app/` copies).
 
-**Where F001 stands** (tasks in `specs/001-daily-data-refresh/tasks.md`): the fetchers for every
+**Where 001 stands** (tasks in `specs/001-daily-data-refresh/tasks.md`): the fetchers for every
 source, the daily Form 4 parser with its reconciliation against the quarterly data sets,
-`sentinel update`, `status`, `verify` and `schedule` are written and tested. The real refresh is
-running: every source has been fetched to 28–29 October. Left: the real update and its named
-checks, a same-day rerun (`nothing_new`) and `sentinel verify` (T028–T029, T035–T036, T046,
-T053–T054); installing the weekday schedule, which needs the researcher's approval (T059); the
-final validation and the merge into `main` (T063–T064).
+`sentinel update`, `status`, `verify` and `schedule` are written and tested; every source is
+fetched to 28–29 October and the first full update is running. Left: its named checks, a same-day
+rerun (`nothing_new`) and `sentinel verify` (T028–T029, T035–T036, T046, T053–T054); installing
+the weekday schedule, which needs the researcher's approval (T059); the final validation and the
+merge into `main` (T063–T064).
 
-**Next.** F002 (reference copies with every year, holdout answers included, for the researcher's
-own work; the models never read them), then F003, the risk models.
+## Working together
+
+- **Three tracks, three contracts.** The data platform writes the training export and the serving
+  copy; data science reads the export; the app reads the serving copy. The forecast contract
+  (feature 011) fixes the columns each forecast is published in, so the app is built with
+  placeholders while the models are made. Change a contract only by agreement, in its spec.
+- **Fixed feature numbers.** Use the number from the roadmap for the spec-kit folder and branch
+  (`specs/NNN-name/`, branch `NNN-name`), e.g. `/speckit-specify` for 005 with
+  `SPECIFY_FEATURE_DIRECTORY=specs/005-volatility-model`.
+- **Pull requests into `main`.** One branch per feature; open a pull request; CI (from feature 003)
+  must pass; ask the other track to review when a contract changes. Merge, then delete the branch.
+- **Data is never in git.** `data/` is git-ignored. The researcher shares the private export with
+  the teammate directly (it holds Tiingo-derived prices: never publish it, never commit it). The
+  build needs the raw files and `.env` keys, which stay on the researcher's machine.
+- **Status lives in the issues.** Move an issue's checklist forward as tasks are done, close it when
+  the feature merges, and update `docs/plan.md` and this table.
 
 ## For an agent continuing this work
 
@@ -72,11 +82,11 @@ Read, in order: this README, the constitution, `docs/spec.md`, `docs/architectur
 
 **How work is done.**
 
-- Every piece of work is a spec-kit feature: `/speckit-specify` → `/speckit-plan` →
-  `/speckit-tasks` → `/speckit-implement` (skills in `.claude/skills/`), on a branch named after
-  the feature. Mark each task `[X]` in `tasks.md` as it is done.
-- When a feature is done, merge it into `main` and delete its branch. Only `main` (and the branch
-  of the feature in progress) lives on GitHub.
+- Every piece of work is a spec-kit feature with its roadmap number: `/speckit-specify` →
+  `/speckit-plan` → `/speckit-tasks` → `/speckit-implement` (skills in `.claude/skills/`), on a
+  branch named after the feature. Mark each task `[X]` in `tasks.md` as it is done.
+- When a feature is done, merge it into `main` through a pull request and delete its branch. Only
+  `main` and the branches of features in progress live on GitHub.
 - Each feature is done when its tests pass, its named real-data checks pass
   (`tests/real/test_named_cases.py`), and the researcher has seen a plain summary. Before asking
   to continue, say in plain words what the next step does.
@@ -90,8 +100,8 @@ Read, in order: this README, the constitution, `docs/spec.md`, `docs/architectur
 - No look-ahead: every fact carries `known_at`, the first trading day it could be used. The
   truncation test checks that features do not change when later records are removed.
 - The risk holdout (answers whose windows start in 2023 or later) is never used to build, tune or
-  choose a model. It is evaluated once, by a guarded and logged run (F005). The private reference
-  copies of F002 are for the researcher's own work, never for the models.
+  choose a model. It is evaluated once, by a guarded and logged run (feature 010). The private
+  reference copies of 002 are for personal work, never for the models.
 - Raw files are never edited or deleted; Tiingo files included. A newer copy gets a new path.
   Every layer is rebuilt deterministically from the one below, and `sentinel update` must give
   the same tables as a full rebuild (`sentinel verify`).
