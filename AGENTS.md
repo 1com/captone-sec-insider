@@ -117,9 +117,10 @@ file in step.
 - **Data**: every source current to 29 October 2026; the build, serving copy and export were
   rebuilt on 30 October with all cleaning rules (V2-22 to V2-32). The pipeline's cleaning is now
   frozen (V2-33): further cleaning belongs to each model's preprocessing.
-- **Teammate**: `data/exports/share/dilution-2026-10-30.zip` (private, git-ignored) holds the
-  dilution training set, `latest`, `feature_snapshot` and the column guide, with
-  `README-dilution.md` saying what to read and do; the researcher sends it privately.
+- **Teammate (`sonson033`) builds 006 (results-day move) and 007 (dilution)**; the agent builds
+  005 (volatility) and supports. `data/exports/share/teammate-006-007-2026-10-30.zip` (private,
+  git-ignored) holds both training sets, `latest`, `feature_snapshot` and the column guide, with
+  `README-teammate.md` saying what to read and do; the researcher sends it privately.
 - **Decisions waiting for the researcher** (`docs/decisions.md`, "Proposed by the EDA"):
   V2-25 (named cases for the validation round, listed there). Decided on 30 October: V2-26,
   price-only stocks are eligible for volatility on the price rules alone (`eligible_volatility`);
