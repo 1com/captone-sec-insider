@@ -81,7 +81,8 @@ def build_snapshot(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict
             select x.cik, x.as_of, x.month_end, x.release_eve, x.latest, x.coverage,
                    x.filer_type, x.foreign_filer, x.sector,
                    {", ".join(f"p.{c}" for c in PRICE_FEATURES + PRICE_EXTRAS)},
-                   f.market_cap, f.shares_outstanding, {columns},
+                   case when x.foreign_filer then null else f.market_cap end as market_cap,
+                   f.shares_outstanding, {columns},
                    case when x.foreign_filer then null
                         else (i.buy_value_12m - i.sell_value_12m) / nullif(f.market_cap, 0)
                    end as net_buy_to_mcap_12m,

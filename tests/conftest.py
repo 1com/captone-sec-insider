@@ -455,10 +455,12 @@ def build_world(con) -> None:
     counts = [(date(2019, 4, 25), 1000.0, reports[0])] + [
         (f - timedelta(days=7), 1300.0 if f < SPLIT_DAY else 2600.0, f) for f in reports[1:]
     ]
+    counts_2 = [(date(y - 1, 12, 31), 5000.0, date(y, 4, 30)) for y in (2019, 2020, 2021)]
     frame(con, "core.shares_outstanding", [
-        {"cik": "1", "as_of": a, "shares": s, "filed": f, "known_at": next_session(f),
-         "source": "cover_page"} for a, s, f in counts
-    ])
+        {"cik": c, "as_of": a, "shares": s, "filed": f, "known_at": next_session(f),
+         "source": "cover_page"} for c, rows in (("1", counts), ("2", counts_2))
+        for a, s, f in rows
+    ])  # "2" files ordinary-share counts on its 20-F
     trade = {"issuer_cik": "1", "quarter": "2021q2", "g1_form4": True, "g3_common": True,
              "g4a_no_checkbox": True, "g5_no_offering_fn": True}
     frame(con, "core.insider_trade", [

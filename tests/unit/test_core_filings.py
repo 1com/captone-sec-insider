@@ -134,3 +134,60 @@ def test_results_releases_follow_the_registered_announcement_rule(con, tmp_data)
         "select filing_date, confirmed from core.results_release order by filing_date"
     ).fetchall()
     assert got == [(date(2022, 4, 20), date(2022, 4, 25)), (date(2022, 7, 26), date(2022, 7, 26))]
+
+
+def _counts(*rows):
+    """Share counts in the order they became known: (cik, shares, source, basic, cum[, close])."""
+    rows = [r if len(r) == 6 else (*r, None) for r in rows]
+    return pd.DataFrame(rows, columns=["cik", "shares", "source", "basic", "cum", "close"])
+
+
+def test_share_typos_are_judged_only_by_what_was_known_when_filed():
+    c, b = "cover_page", "basic_average"
+    counts = _counts(
+        ("1", 1000.0, c, 990.0, None), ("1", 1_000_000.0, c, 1000.0, None),  # unit typo
+        ("1", 1010.0, c, 1005.0, None),
+        ("2", 500.0, c, None, None), ("2", 0.0, c, None, None),  # not a count
+        ("2", 50_000.0, c, None, None), ("2", 520.0, c, None, None),  # jump, then back
+        ("3", 1000.0, b, None, 0.005), ("3", 5.0, b, None, 1.0),  # 1-for-200 reverse split
+        ("4", 1000.0, c, None, None), ("4", 200_000.0, c, None, None),  # a real change the
+        ("4", 201_000.0, c, None, None), ("4", 199_000.0, c, None, None),  # next count confirms
+        ("5", 1000.0, c, None, None, 10.0), ("5", 200_000.0, c, None, None, 0.06),  # a real issue:
+        ("6", 1000.0, c, None, None, 10.0), ("6", 1_000_000.0, c, None, None, 10.0),  # the price
+        ("6", 1_000_000.0, c, None, None, 10.0), ("6", 1010.0, c, None, None, 10.0),  # fell
+    )  # fmt: skip
+    assert filings.share_typos(counts) == [
+        None, "far from the same filing's average count", None,
+        None, "not positive", "jump from the last accepted count", None,
+        None, None,
+        None, "jump from the last accepted count", None, None,
+        None, None,  # value 10,000 then 12,000: kept
+        None, "jump from the last accepted count",  # value 10,000 then 10 million: a typo,
+        "jump from the last accepted count", None,  # repeated in the next filing (Legg Mason)
+    ]  # fmt: skip
+    # truncation: dropping the later counts leaves every earlier verdict unchanged
+    for n in range(1, len(counts)):
+        assert filings.share_typos(counts.iloc[:n]) == filings.share_typos(counts)[:n]
+
+
+def test_rejected_share_counts_are_kept_apart_with_their_reason(con, tmp_data):
+    dei = "EntityCommonStockSharesOutstanding"
+    _frame(con, "stg_sec_xbrl.fact", [
+        _fact("1", "dei", dei, "shares", None, date(2022, 4, 25), 1000.0, date(2022, 5, 2), "a1"),
+        _fact("1", "dei", dei, "shares", None, date(2022, 7, 25), 9e8, date(2022, 8, 1), "a2"),
+        _fact("1", "dei", dei, "shares", None, date(2022, 10, 25), 1020.0, date(2022, 11, 1),
+              "a3"),
+        _fact("9", "us-gaap", "Revenues", "USD", date(2022, 1, 1), date(2022, 3, 31), 1.0,
+              date(2022, 5, 2), "z1"),  # gives period_start its date type
+    ])  # fmt: skip
+    filings.build_financial_fact(con, tmp_data, **QUIET)
+    counts = filings.build_shares(con, tmp_data, **QUIET)
+    assert counts["rejected: jump from the last accepted count"] == 1
+    kept = con.execute("select as_of, shares from core.shares_outstanding order by 1").fetchall()
+    assert kept == [(date(2022, 4, 25), 1000.0), (date(2022, 10, 25), 1020.0)]
+    assert con.execute("select shares, reason from core.shares_rejected").fetchall() == [
+        (9e8, "jump from the last accepted count")
+    ]
+    types = dict(con.execute("select column_name, data_type from duckdb_columns() "
+                             "where table_name = 'shares_outstanding'").fetchall())  # fmt: skip
+    assert types["as_of"] == types["known_at"] == "DATE"

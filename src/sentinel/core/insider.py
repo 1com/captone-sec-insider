@@ -20,7 +20,11 @@ when several insiders bought together.
 - `core.insider_trade`: every non-derivative line with v1's gate flags: G1 an original Form 4; G2
   an open-market purchase (`g2_sale`: an open-market sale); G3 common stock; G4a no 10b5-1
   checkbox; G4b no plan footnote; G5 no offering footnote; G6a filed on time, with a value.
-  Footnote screens read only the footnotes the line itself cites.
+  Footnote screens read only the footnotes the line itself cites. A line has a typo in its price
+  or shares when its price per share is more than 10 times above or below the stock's as-traded
+  close on or before the filing date, or when it is worth more than the whole company (that close
+  times the share count known by the filing date): its `value_usd` is missing and `value_typo` is
+  set (V2-24); the line itself stays.
 - `core.insider_activity`: per filing and side (buy or sell), its open-market lines (G1, G2, G3,
   G6a): value, shares, trade dates, whether any line was planned or part of an offering, the
   entity and its role at the filing date, and the holdings before and after the filing. `clean`
@@ -384,6 +388,18 @@ def build_insider_trade(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) ->
     db.require(con, ["core.insider_filing", "stg_sec_form4.nonderiv_trans",
                      "stg_sec_form4.footnotes"], "core.insider_trade")  # fmt: skip
     rules = tracker(p)
+    has_value = con.execute(
+        "select count(*) = 2 from duckdb_tables() where schema_name = 'core' "
+        "and table_name in ('price_daily', 'shares_outstanding')"
+    ).fetchone()[0]
+    company_value = (  # what was known when the line was filed
+        "p.close as market_price, p.close * s.shares as company_value from lines l "
+        "asof left join core.price_daily p on p.cik = l.issuer_cik and p.session <= l.filing_date "
+        "asof left join core.shares_outstanding s on s.cik = l.issuer_cik "
+        "and s.known_at <= l.filing_date"
+        if has_value
+        else "null::DOUBLE as market_price, null::DOUBLE as company_value from lines l"
+    )
     args = _title_args(rules) | {
         "plan_re": rules["patterns"]["plan_footnote"],
         "offer_re": rules["patterns"]["offering_footnote"],
@@ -421,6 +437,11 @@ def build_insider_trade(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) ->
                 join core.insider_filing f
                   on f.accession = n.accession_number and f.quarter = n.quarter
             ),
+            valued as (
+                select *, coalesce(price > 10 * market_price or price * 10 < market_price
+                                   or shares * price > company_value, false) as typo
+                from (select l.*, {company_value})
+            ),
             hits as (
                 select c.accession, c.line_sk,
                        bool_or(n.plan_fn) as plan_fn, bool_or(n.offering_fn) as offering_fn
@@ -429,7 +450,9 @@ def build_insider_trade(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) ->
                 group by all
             ),
             flagged as (
-                select l.* exclude (aff10b5one), l.shares * l.price as value_usd,
+                select l.* exclude (aff10b5one, market_price, company_value, typo),
+                       case when l.typo then null else l.shares * l.price end as value_usd,
+                       l.typo as value_typo,
                        coalesce(l.document_type = '4', false) as g1_form4,
                        coalesce(l.trans_code = 'P' and l.acq_disp = 'A', false) as g2_purchase,
                        coalesce(l.trans_code = 'S' and l.acq_disp = 'D', false) as g2_sale,
@@ -440,7 +463,7 @@ def build_insider_trade(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) ->
                        coalesce(date_diff('day', l.trans_date, l.filing_date)
                                 between 0 and $timely_days and l.shares * l.price > 0, false)
                            as g6a_timely_valued
-                from lines l left join hits h using (accession, line_sk)
+                from valued l left join hits h using (accession, line_sk)
             )
             select *, {" and ".join(LINE_GATES)} as passes_lines,
                    case when g2_purchase then 'buy' when g2_sale then 'sell' end as side,

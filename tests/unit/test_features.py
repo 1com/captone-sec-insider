@@ -79,9 +79,10 @@ def test_insider_short_and_macro_values(con):
 
 
 def test_foreign_filers_have_no_insider_8k_or_market_value_features(con):
-    cap, buys, results_8k, ret = _row(con, "2", date(2021, 6, 30), "log_market_cap",
-                                      "buy_value_12m", "n_exec_change_12m", "ret_1m")  # fmt: skip
-    assert (cap, buys, results_8k) == (None, None, None)
+    cap, log_cap, buys, results_8k, ret = _row(con, "2", date(2021, 6, 30), "market_cap",
+                                               "log_market_cap", "buy_value_12m",
+                                               "n_exec_change_12m", "ret_1m")  # fmt: skip
+    assert (cap, log_cap, buys, results_8k) == (None, None, None, None)  # market value: V2-22
     assert ret is not None
 
 

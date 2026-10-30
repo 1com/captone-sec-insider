@@ -89,6 +89,20 @@ rows affected.
 
 ---
 
+## Phase 6b: Cleaning rules decided by the researcher (30 Oct)
+
+**Goal**: the accepted proposals V2-22 to V2-24 in the pipeline, point-in-time (constitution I),
+then the EDA re-run on the cleaned data.
+
+- [X] T019 [P] [US4] tests/unit/test_core_filings.py: a count of 0 or below is rejected; a cover count 100× or more from the same filing's weighted-average count is rejected; without one, a jump of 100× or more against the last accepted count (split-adjusted) is rejected unless the next count confirms the new level; a 1-for-200 reverse split in the price series is accepted; rejected counts land in `core.shares_rejected` with their reason; no rule uses a count filed later than the one judged
+- [X] T020 [US4] V2-23 in src/sentinel/core/filings.py `build_shares`: the rule of T019; `core.shares_rejected` (cik, as_of, shares, filed, known_at, source, reason)
+- [X] T021 [P] [US4] V2-22 in src/sentinel/features/snapshot.py: `market_cap` (and so the app's market value) blank for foreign filers; test in tests/unit/test_features.py
+- [X] T022 [P] [US4] V2-24 in src/sentinel/core/insider.py `build_insider_trade`: a line worth more than the issuer's market value (as-traded close on or before the trade date × shares known by the filing date) gets `value_usd` null and `value_typo` true; the line and its shares stay; test
+- [ ] T023 [US4] Move V2-22 to V2-24 from "Proposed" into the decision table of docs/decisions.md as decided, with the final rule and counts; rebuild core, features, labels, publish and export under the memory cap; run the named real checks and the unit tests
+- [ ] T024 [US1] [US2] [US3] Re-run the three EDA notebooks as a regular EDA on the cleaned export: every section says what it does and why; rewrite each Findings section for the new numbers
+
+---
+
 ## Phase 7: Polish & cross-cutting
 
 - [X] T015 [P] Update docs/plan.md (004 owner: coding agent with the researcher; status; next steps) and README.md (how to run the notebooks)
