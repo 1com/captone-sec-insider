@@ -110,16 +110,10 @@ file in step.
 
 ## 7. Where things stand (30 October 2026, evening)
 
-- **Branches** (nothing is merged into `main` yet; `main` is the 29 October state). They are
-  stacked: `001-daily-data-refresh` → `004-eda` → `022-validation` (each contains the one
-  before); **`022-validation` is the newest code**. All three are pushed.
-  - 001 (daily data platform): left T046 (check a weekday 10:00 run, rerun, `sentinel verify`),
-    T059 (the schedule is installed; confirm with the researcher), T062–T064 (docs, checks,
-    merge).
-  - 004 (EDA): done; left T017 (merge).
-  - 022 (validation round): done: checks, verdicts, rules V2-28 to V2-32 implemented and rebuilt,
-    notebooks re-run; left T007 (merge).
-  - Merge order, with the researcher's go-ahead: 001, then 004, then 022 (pull requests).
+- **Branches**: everything is merged into `main` (30 Oct: #88 001, #89 004, #90 022); only
+  `main` exists. Still open in 001: T046 (check a weekday 10:00 run's log, a same-day rerun that
+  says `nothing_new`, and `sentinel verify`); T059 (confirm the schedule). GitHub issues #68 and
+  #76 still need closing comments (the agent's issue writes were blocked on 30 Oct).
 - **Data**: every source current to 29 October 2026; the build, serving copy and export were
   rebuilt on 30 October with all cleaning rules (V2-22 to V2-32). The pipeline's cleaning is now
   frozen (V2-33): further cleaning belongs to each model's preprocessing.
@@ -144,16 +138,15 @@ do it, show a plain summary, tick it here.
 - After any later pipeline change: rebuild, re-run the three EDA notebooks, and update their
   Findings if numbers move.
 
-### Step 2 · Finish 001 and merge both branches
+### Step 2 · Finish 001 (merged 30 Oct; checks left)
 - [ ] T046: after a weekday 10:00 run, read `data/logs/update-<date>.log` and `uv run sentinel
   status`: status `complete`, SEC staging without "filers read" lines (only new files), duration
   under 30 minutes; run `uv run sentinel update --no-fetch` (expect `nothing_new`), then
   `systemd-run … uv run sentinel verify` (expect every table identical). Report the three.
 - [ ] T059: confirm with the researcher that the 10:00 weekday schedule stays; tick.
 - [ ] T062–T063: docs, then the full checks and `specs/001-daily-data-refresh/quickstart.md`.
-- [ ] T064 and 004's T017: with the researcher's go-ahead, push, open pull requests, merge
-  `001-daily-data-refresh` then `004-eda` into `main`, delete both branches, comment on and close
-  issues #68 and #76.
+- [X] Merged into `main` (#88, #89, #90), branches deleted. Close #76 (004 done) and, after T046,
+  #68, with a short comment each.
 
 ### Step 3 · Validation round on named cases (feature 022, branch `022-validation`)
 **Status: done (30 Oct).** Verdicts in `notebooks/022-validation.ipynb` section 8; V2-28 to V2-32
