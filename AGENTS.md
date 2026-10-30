@@ -234,6 +234,11 @@ Corsi 2009), results-day information (Beaver 1968; implied volatility around ear
 Wolfson 1979), equity issuance (pecking order: Myers and Majluf 1984; market timing: Baker and
 Wurgler 2002).
 
+### Later, if the researcher asks · 024 Offering-event question
+A second dilution question, "will the company file a share offering in the next 6 months?",
+measured from the offering filings themselves, whatever the size; see `docs/plan.md` row 024. The
+10% definition stays for 007 (the researcher, 30 Oct).
+
 ### Step 10 · 020 Before Tiingo ends (by 25 November) and 021 (January 2027)
 - [ ] 020 (#72): a fresh clone plus `data/raw/` rebuilds every layer identically; back up
   `data/raw/` to a second disk. Never delete Tiingo files (the researcher's decision).
