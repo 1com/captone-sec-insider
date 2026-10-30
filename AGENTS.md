@@ -119,10 +119,10 @@ file in step.
 - **Data**: every source current to 29 October 2026; the build, serving copy and export were
   rebuilt with the cleaning rules V2-22 to V2-24 on 30 October.
 - **Decisions waiting for the researcher** (`docs/decisions.md`, "Proposed by the EDA"):
-  V2-25 (named cases for the validation round, listed there), V2-26 (price-only stocks and
-  volatility eligibility). Decided on 30 October: V2-27, foreign filers are left out of the
-  dilution question (007 trains, tests and scores without them; the app shows no dilution chance
-  for them).
+  V2-25 (named cases for the validation round, listed there). Decided on 30 October: V2-26,
+  price-only stocks are eligible for volatility on the price rules alone (`eligible_volatility`);
+  V2-27, foreign filers are left out of the dilution question (`eligible_dilution`; the app shows
+  no dilution chance for them). Each model trains only on its question's flag.
 
 ## 8. What to do next, step by step
 

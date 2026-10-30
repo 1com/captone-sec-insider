@@ -67,8 +67,8 @@ branch `NNN-name`), so two people specifying at once never collide.
 
 Every training set is a Parquet file in `data/exports/ml/` (private, written by `sentinel export`,
 column list in the generated `data/exports/README.md`). One row per company and date; the features
-come first, the answer last. Train and test only on rows with `eligible = true` and a non-missing
-answer. Never use the answer columns, `window_end` or the outcome columns as features.
+come first, the answer last. Train and test only on rows where the question's flag is true (`eligible_volatility`, `eligible` for
+the results move, `eligible_dilution`: V2-26, V2-27) and the answer is present. Never use the answer columns, `window_end` or the outcome columns as features.
 
 | Model (feature) | File | Rows are | Answer | Naive baseline to beat | Excluded from the features |
 |---|---|---|---|---|---|

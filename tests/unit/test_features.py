@@ -103,3 +103,24 @@ def test_values_filed_on_the_calendars_last_day_wait_for_the_next_session(tmp_da
     build.run(con, tmp_data, "features", **QUIET)
     assert con.execute("select count(*) from feature.fundamental where cik = '1'").fetchone()[0]
     con.close()
+
+
+def test_each_question_has_its_own_eligibility(con):
+    # V2-27: a foreign filer is eligible, but not for the dilution question
+    assert _row(con, "2", date(2021, 6, 30), "eligible", "eligible_dilution",
+                "eligible_volatility") == (True, False, True)  # fmt: skip
+    assert _row(con, "1", date(2021, 6, 30), "eligible", "eligible_dilution",
+                "eligible_volatility") == (True, True, True)  # fmt: skip
+
+
+def test_a_price_only_stock_is_eligible_for_volatility_only(tmp_data):
+    # V2-26: it files nothing, so it is never an active filer; volatility needs only its prices
+    con = db.connect(tmp_data)
+    build_world(con)
+    con.execute("update ref.security set coverage = 'price_only' where security_id = '2'")
+    con.execute("update ref.company set filer_type = 'non_reporting' where cik = '2'")
+    con.execute("delete from core.filing where cik = '2'")
+    build.run(con, tmp_data, "features", **QUIET)
+    assert _row(con, "2", date(2021, 6, 30), "active_filer", "eligible", "eligible_volatility",
+                "eligible_dilution") == (False, False, True, False)  # fmt: skip
+    con.close()

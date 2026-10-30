@@ -24,6 +24,9 @@ EXPORT = _P.exports / "ml"
 DEV_END: date = _DEV["last_window_end"]
 TEST_YEARS: list[int] = list(_DEV["test_years"])
 ANSWER = {"volatility": "vol_63_future", "results_move": "move", "dilution": "dilution"}
+# the rows each question's model learns from (V2-26, V2-27)
+ELIGIBLE = {"volatility": "eligible_volatility", "results_move": "eligible",
+            "dilution": "eligible_dilution"}  # fmt: skip
 DATES = ("as_of", "window_end", "filing_date", "report_date", "close_after")
 WINDOW_END = {"volatility": "window_end", "results_move": "close_after", "dilution": "window_end"}
 FAMILIES: list[tuple[str, str]] = [
@@ -86,16 +89,17 @@ def size_band(market_cap: pd.Series) -> pd.Series:
     return out
 
 
-def coverage_table(frame: pd.DataFrame, by, answer: str | None = None) -> pd.DataFrame:
-    """Rows, companies, the eligible share and (with `answer`) the share of eligible rows with an
-    answer, per group of `by` (a column name or a Series)."""
+def coverage_table(frame: pd.DataFrame, by, answer: str | None = None,
+                   eligible: str = "eligible") -> pd.DataFrame:  # fmt: skip
+    """Rows, companies, the eligible share (by the `eligible` column) and (with `answer`) the share
+    of eligible rows with an answer, per group of `by` (a column name or a Series)."""
     keys = frame[by] if isinstance(by, str) else by
     g = frame.groupby(keys, dropna=False, observed=True)
     out = pd.DataFrame({"rows": g.size(), "companies": g["cik"].nunique(),
-                        "eligible": g["eligible"].mean()})  # fmt: skip
+                        "eligible": g[eligible].mean()})  # fmt: skip
     if answer:
         out["answered_if_eligible"] = (
-            frame[answer].notna().where(frame["eligible"]).groupby(keys, observed=True).mean()
+            frame[answer].notna().where(frame[eligible]).groupby(keys, observed=True).mean()
         )
     return out
 
