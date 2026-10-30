@@ -9,7 +9,8 @@ not listed: they are the sealed risk holdout, labelled once at the end (plan ste
   daily log returns (adjusted close) over the next 63 sessions; missing with fewer than 50.
 - `label.dilution`, per month-end row: 1 if split-adjusted shares outstanding (as first filed) rise
   by 10% or more between the last count filed by the month-end and the last count filed within the
-  next 182 days; missing if no new count is filed in that time.
+  next 182 days; missing if no new count is filed in that time. A split is applied where the
+  counts show it (V2-29, `split_adjusted_before`).
 - `label.results_move`, per results release (`core.results_release`) with a usable report date:
   the market-adjusted absolute move from the close of the session before the report date to the
   close of the session after the 8-K's filing date (`as_of` is the first, the release-eve row of
@@ -63,6 +64,21 @@ def share_steps(shares: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(out) if out else shares.iloc[0:0]
 
 
+def split_adjusted_before(count: np.ndarray, split: np.ndarray, i0: int, i1: int) -> float:
+    """V2-29: the earlier share count `i0` in the later count `i1`'s shares. The price series'
+    split factor between the two counts' dates is applied only when the counts themselves show
+    it, i.e. one step from `i0` to `i1` moves by that factor (within 25%); otherwise the counts
+    are taken as already comparable (a split the price series dates differently from the
+    filings, or one the filings never show). NaN without a split factor."""
+    f = split[i0] / split[i1]
+    if not np.isfinite(f):
+        return np.nan
+    if abs(f - 1) < 1e-9:
+        return float(count[i0])
+    steps = count[i0 + 1 : i1 + 1] / count[i0:i1]
+    return float(count[i0] * f) if np.any(np.abs(steps / f - 1) <= 0.25) else float(count[i0])
+
+
 def month_labels(daily: pd.DataFrame, rows: pd.DataFrame, calendar: np.ndarray,
                  steps: pd.DataFrame, rules: dict, last_end: date) -> pd.DataFrame:  # fmt: skip
     """Volatility and dilution labels for a batch of companies. `daily`: (cik, session, adj_close,
@@ -109,7 +125,7 @@ def month_labels(daily: pd.DataFrame, rows: pd.DataFrame, calendar: np.ndarray,
                     i0 = np.searchsorted(filed, t, side="right") - 1
                     i1 = np.searchsorted(filed, horizon, side="right") - 1
                     if i0 >= 0 and i1 > i0 and count[i0] > 0 and split[i1] > 0:
-                        before = count[i0] * split[i0] / split[i1]  # in the later count's shares
+                        before = split_adjusted_before(count, split, i0, i1)
                         if np.isfinite(before):
                             row["dilution"] = float(count[i1] >= (1 + dil_min) * before)
             if row["vol_window_end"] or row["dilution_window_end"]:

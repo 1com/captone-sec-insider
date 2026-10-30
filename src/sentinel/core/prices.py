@@ -7,7 +7,12 @@ Tables:
 - `core.price_daily`: one row per company and trading day: as-traded open, high, low, close and
   volume (what printed that day), the adjusted close, `cum_split_after` (the product of split
   ratios after the day: split-adjusted price = as-traded ÷ `cum_split_after`), dividend, dollar
-  volume, and `glitch` (a one-day spike that reverses, `risk_params.yaml` `prices.glitch`).
+  volume, and `glitch`: a one-day spike that reverses (`risk_params.yaml` `prices.glitch`), or
+  (V2-28) a placeholder (an as-traded or adjusted close of `PLACEHOLDER` or less), or, after a
+  one-day move of `BREAK` times or more that no recorded split explains (adjusted closes already
+  include splits), every later day until the price is back within 10 times of its level before
+  the move. Each is judged with what was known that day; glitch days are left out of every
+  return-based feature and answer.
 - `core.price_issue`: rows dropped as invalid (non-positive close, high below low, off-calendar).
 - `core.price_check`: Yahoo against Tiingo where both cover a listed company.
 - `ref.security`: each priced company's traded line, with its coverage level (spec §4).
@@ -198,8 +203,8 @@ def build_candidates(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> di
                 t = normalise(t)
                 if t and t in ystats:
                     add("yahoo", t, "yahoo" if rank == 0 else "yahoo_other", first, None)
-                if t and t in tstats:
-                    add("tiingo", t, "tiingo_listed", first, None)
+                if t and t in tstats:  # V2-31: another rank is a warrant, preferred, note...
+                    add("tiingo", t, "tiingo_listed" if rank == 0 else "tiingo_other", first, None)
             continue
         best = None  # disappeared: Form 4 tickers first, else the name search
         for t, vf, vt in form4.get(cik, []):
@@ -239,7 +244,8 @@ def choose(candidates: list[tuple], first_seen: date | None, listed: bool, start
     (source, ticker, role, first_session, n_sessions, identity)."""
     need = max(start, (first_seen or start) - timedelta(days=WARMUP_DAYS))
     y = next((c for c in candidates if c[0] == "yahoo" and c[2] == "yahoo" and c[4]), None)
-    t = next((c for c in candidates if c[0] == "tiingo" and c[5] == "ok"), None)
+    t = next((c for c in candidates
+              if c[0] == "tiingo" and c[5] == "ok" and c[2] != "tiingo_other"), None)  # fmt: skip
     if listed:
         if y and y[3] <= need + timedelta(days=LATE_DAYS):
             return ("yahoo", y[1], "yahoo_primary")
@@ -315,6 +321,10 @@ def _significant(expr: str, digits: int = 10) -> str:
             f"{digits} - 1 - cast(floor(log10(abs({expr}))) as INTEGER)) end")  # fmt: skip
 
 
+PLACEHOLDER = 0.0001  # a close this low is a placeholder, not a price (V2-28)
+BREAK = 1000.0  # a one-day move this many times is not a return (V2-28)
+
+
 def build_daily(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
     db.require(con, ["core.price_choice", "ref.calendar"], "core.price_daily")
     glitch = risk_params(p)["prices"]["glitch"]
@@ -382,15 +392,30 @@ def build_daily(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
             ),
             moves as (
                 select *, adj_close / lag(adj_close) over w - 1 as r,
-                       lead(adj_close) over w / adj_close - 1 as r_next
+                       lead(adj_close) over w / adj_close - 1 as r_next,
+                       close <= {PLACEHOLDER} or adj_close <= {PLACEHOLDER} as placeholder
                 from traded window w as (partition by cik order by session)
+            ),
+            real as (  -- each priced day's move from the previous priced day
+                select cik, session, adj_close,
+                       lag(adj_close) over (partition by cik order by session) as before
+                from moves where not placeholder
+            ),
+            breaks as (  -- the first unexplained jump per company, and the level before it
+                select cik, min(session) as since, arg_min(before, session) as level
+                from real where adj_close >= {BREAK} * before or adj_close * {BREAK} <= before
+                group by cik
             )
-            select cik, session, source, ticker, open, high, low, close, volume, adj_close,
-                   cum_split_after, split_ratio, dividend, close * volume as dollar_volume,
-                   coalesce((r > $up and r_next < -$up_reversal)
-                            or (r < -$down and r_next > $down_reversal), false) as glitch
-            from moves
-            order by cik, session
+            select m.cik, m.session, m.source, m.ticker, m.open, m.high, m.low, m.close, m.volume,
+                   m.adj_close, m.cum_split_after, m.split_ratio, m.dividend,
+                   m.close * m.volume as dollar_volume,
+                   coalesce((m.r > $up and m.r_next < -$up_reversal)
+                            or (m.r < -$down and m.r_next > $down_reversal), false)
+                   or m.placeholder
+                   or coalesce(m.session >= b.since and not (m.adj_close between b.level / 10
+                                                             and b.level * 10), false) as glitch
+            from moves m left join breaks b using (cik)
+            order by m.cik, m.session
             """,
             glitch,
         )

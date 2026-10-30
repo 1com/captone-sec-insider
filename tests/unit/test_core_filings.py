@@ -103,12 +103,12 @@ def test_companies_without_a_cover_page_count_use_quarterly_basic_shares(con, tm
         "WeightedAverageNumberOfSharesOutstandingBasic",
     )
     _frame(con, "stg_sec_xbrl.fact", [
-        _fact("1", "dei", dei, "shares", None, date(2022, 4, 25), 1000.0, date(2022, 5, 2), "a1"),
-        _fact("1", "us-gaap", basic, "shares", date(2022, 1, 1), date(2022, 3, 31), 990.0,
+        _fact("1", "dei", dei, "shares", None, date(2022, 4, 25), 1e6, date(2022, 5, 2), "a1"),
+        _fact("1", "us-gaap", basic, "shares", date(2022, 1, 1), date(2022, 3, 31), 990e3,
               date(2022, 5, 2), "a1"),
-        _fact("2", "us-gaap", basic, "shares", date(2022, 1, 1), date(2022, 3, 31), 500.0,
+        _fact("2", "us-gaap", basic, "shares", date(2022, 1, 1), date(2022, 3, 31), 500e3,
               date(2022, 5, 2), "b1"),  # a quarter
-        _fact("2", "us-gaap", basic, "shares", date(2021, 4, 1), date(2022, 3, 31), 480.0,
+        _fact("2", "us-gaap", basic, "shares", date(2021, 4, 1), date(2022, 3, 31), 480e3,
               date(2022, 5, 2), "b1"),  # a year: not used
     ])  # fmt: skip
     filings.build_financial_fact(con, tmp_data, **QUIET)
@@ -116,7 +116,7 @@ def test_companies_without_a_cover_page_count_use_quarterly_basic_shares(con, tm
     got = con.execute(
         "select cik, shares, source from core.shares_outstanding order by cik"
     ).fetchall()
-    assert got == [("1", 1000.0, "cover_page"), ("2", 500.0, "basic_average")]
+    assert got == [("1", 1e6, "cover_page"), ("2", 500e3, "basic_average")]
 
 
 def test_results_releases_follow_the_registered_announcement_rule(con, tmp_data):
@@ -155,7 +155,9 @@ def test_share_typos_are_judged_only_by_what_was_known_when_filed():
         ("5", 1000.0, c, None, None, 10.0), ("5", 200_000.0, c, None, None, 0.06),  # a real issue:
         ("6", 1000.0, c, None, None, 10.0), ("6", 1_000_000.0, c, None, None, 10.0),  # the price
         ("6", 1_000_000.0, c, None, None, 10.0), ("6", 1010.0, c, None, None, 10.0),  # fell
+        ("7", 1e-6, c, None, None),  # one share, in millions: a placeholder (V2-30)
     )  # fmt: skip
+    counts[["shares", "basic"]] *= 1e6  # in millions above
     assert filings.share_typos(counts) == [
         None, "far from the same filing's average count", None,
         None, "not positive", "jump from the last accepted count", None,
@@ -164,6 +166,7 @@ def test_share_typos_are_judged_only_by_what_was_known_when_filed():
         None, None,  # value 10,000 then 12,000: kept
         None, "jump from the last accepted count",  # value 10,000 then 10 million: a typo,
         "jump from the last accepted count", None,  # repeated in the next filing (Legg Mason)
+        "below 1,000 shares",
     ]  # fmt: skip
     # truncation: dropping the later counts leaves every earlier verdict unchanged
     for n in range(1, len(counts)):

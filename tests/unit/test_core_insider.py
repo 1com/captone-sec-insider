@@ -293,3 +293,17 @@ def test_a_line_with_a_typed_in_price_or_size_loses_its_value(build):
     assert got == [("award", 1000.0, 0.0, False, False), ("big", 1e6, None, True, True),
                    ("class_a", 1.0, 30000.0, False, True), ("fine", 100.0, 2500.0, False, True),
                    ("pricey", 1.0, None, True, True)]  # fmt: skip
+
+
+def test_a_price_above_a_million_dollars_a_share_is_a_typo(build):
+    # V2-32: judged even without a market price (here none is given)
+    filings = {"huge": [line("huge", "1", shares="1", price="2000000")],
+               "fine": [line("fine", "1")]}  # fmt: skip
+    con = build({"2019q1": {
+        "SUBMISSION": [sub(acc) for acc in filings],
+        "REPORTINGOWNER": [owner(acc) for acc in filings],
+        "NONDERIV_TRANS": [row for rows in filings.values() for row in rows],
+    }})  # fmt: skip
+    got = con.execute("select accession, value_usd, value_typo from core.insider_trade "
+                      "order by 1").fetchall()  # fmt: skip
+    assert got == [("fine", 50000.0, False), ("huge", None, True)]
