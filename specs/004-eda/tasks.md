@@ -85,7 +85,7 @@ minutes and ends with its Findings.
 **Independent Test**: each rule in the three Findings sections has an entry with its reason and
 rows affected.
 
-- [ ] T014 [US4] Log the proposed cleaning rules in docs/decisions.md as proposals (V2-22 onwards: what, why, rows and companies affected, which set), marked "proposed, not implemented"; implementing them is a separate change with tests (FR-015)
+- [X] T014 [US4] Log the proposed cleaning rules in docs/decisions.md as proposals (V2-22 onwards: what, why, rows and companies affected, which set), marked "proposed, not implemented"; implementing them is a separate change with tests (FR-015)
 
 ---
 

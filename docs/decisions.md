@@ -29,6 +29,21 @@ that still apply are summarised at the end.
 | V2-19 | **The daily update re-stages only sources with new files and rebuilds every layer above staging in full**, recorded in `ops` and checked by `sentinel verify` (a full rebuild compared table by table) and the truncation test | Incremental inserts per layer | Full rebuilds of the upper layers take minutes and cannot drift from a rebuild; incremental code would need its own proof of equality |
 | V2-20 | **The schedule is a Windows Task Scheduler task** (weekdays 23:00, run after a missed start, one at a time) that starts WSL and runs `sentinel update --scheduled`, which puts itself under the 5 GB memory cap | A systemd timer or cron inside WSL | WSL is usually shut down when no terminal is open, so a timer inside it would not fire; the update catches up missed days itself |
 
+## Proposed by the EDA (004), not decided yet
+
+Found in `notebooks/004-eda-*.ipynb` (export of 30 October 2026; rows are eligible rows with an
+answer). Each needs the researcher's decision; a rule that is accepted is implemented in the
+pipeline with tests, applies to every year alike, and moves into the table above.
+
+| # | Proposal | Evidence | Note |
+|---|---|---|---|
+| V2-22 | **A foreign filer's `market_cap` is blank**, as risk_params v5 requires; it is missing from `FOREIGN_BLANK` in `src/sentinel/features/snapshot.py` (`log_market_cap` and `book_to_market` are blanked) | 26,048 volatility rows (573 companies), 11,150 dilution rows | a bug fix; also check the app's market values for foreign companies |
+| V2-23 | **An impossible share count is missing**: one that gives a market value of 0 or above \$5 trillion, or is negative | volatility: 215 rows above \$5 trillion (39 companies), 2,713 at 0; results: 65, 228 and one negative; dilution: 169 and 23 | the dilution label is built from share counts: applying it before the label changes a pre-registered label and needs its own decision |
+| V2-24 | **An insider trade line worth more than the company's market value has no value** (its count stays) | 12-month sales above \$100 billion: 108 volatility rows (13 companies); buys above \$10 billion: 156 (18) | typos in a Form 4's price or shares |
+| V2-25 | **Investigate before a rule**: extreme returns (51 rows above +1,000% in a month, 399 above +2,000% in 12 months, prices of \$1 or more), splits inside a dilution window (7,169 rows dilute 25.0% against 9.7%), companies with 5–6 results releases in a year (69 company-years) | the three notebooks, sections 5 and 8 | named cases first |
+| V2-26 | **Open: should price-only stocks be eligible for the volatility question?** Only 9% of their rows are (3,385 with an answer): they file nothing, so they are never active filers, yet the product forecasts their volatility (V2-11) | volatility notebook, section 3 | changes pre-registered eligibility (risk_params v5) |
+| V2-27 | **Open: should foreign filers be left out of the dilution question?** 77% of their eligible rows have no answer (yearly share counts), and the rest dilute at 17% against 9.8% | dilution notebook, section 5 | as the results move already leaves them out by definition |
+
 ## v1 decisions that still apply
 
 | v1 | In short | Where in v2 |
