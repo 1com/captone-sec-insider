@@ -23,3 +23,6 @@ Thumbs.db
 *.tmp
 .idea/
 .vscode/
+
+# Jupyter
+.ipynb_checkpoints/

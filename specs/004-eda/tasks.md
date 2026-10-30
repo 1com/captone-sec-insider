@@ -24,8 +24,8 @@ running it end to end.
 
 ## Phase 1: Setup
 
-- [ ] T001 Add `nbconvert` and `nbstripout` to the dev group in pyproject.toml and lock (`uv add --dev nbconvert nbstripout`)
-- [ ] T002 Install the output filter: `uv run nbstripout --install --attributes .gitattributes`; commit .gitattributes (`*.ipynb filter=nbstripout`, diff and merge settings as written by nbstripout)
+- [X] T001 Add `nbconvert` and `nbstripout` to the dev group in pyproject.toml and lock (`uv add --dev nbconvert nbstripout`)
+- [X] T002 Install the output filter: `uv run nbstripout --install --attributes .gitattributes`; commit .gitattributes (`*.ipynb filter=nbstripout`, diff and merge settings as written by nbstripout)
 
 ---
 
