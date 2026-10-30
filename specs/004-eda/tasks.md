@@ -98,8 +98,8 @@ then the EDA re-run on the cleaned data.
 - [X] T020 [US4] V2-23 in src/sentinel/core/filings.py `build_shares`: the rule of T019; `core.shares_rejected` (cik, as_of, shares, filed, known_at, source, reason)
 - [X] T021 [P] [US4] V2-22 in src/sentinel/features/snapshot.py: `market_cap` (and so the app's market value) blank for foreign filers; test in tests/unit/test_features.py
 - [X] T022 [P] [US4] V2-24 in src/sentinel/core/insider.py `build_insider_trade`: a line worth more than the issuer's market value (as-traded close on or before the trade date × shares known by the filing date) gets `value_usd` null and `value_typo` true; the line and its shares stay; test
-- [ ] T023 [US4] Move V2-22 to V2-24 from "Proposed" into the decision table of docs/decisions.md as decided, with the final rule and counts; rebuild core, features, labels, publish and export under the memory cap; run the named real checks and the unit tests
-- [ ] T024 [US1] [US2] [US3] Re-run the three EDA notebooks as a regular EDA on the cleaned export: every section says what it does and why; rewrite each Findings section for the new numbers
+- [X] T023 [US4] Move V2-22 to V2-24 from "Proposed" into the decision table of docs/decisions.md as decided, with the final rule and counts; rebuild core, features, labels, publish and export under the memory cap; run the named real checks and the unit tests
+- [X] T024 [US1] [US2] [US3] Re-run the three EDA notebooks as a regular EDA on the cleaned export: every section says what it does and why; rewrite each Findings section for the new numbers
 
 ---
 

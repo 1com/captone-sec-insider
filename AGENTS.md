@@ -111,16 +111,16 @@ file in step.
   - `001-daily-data-refresh`: the daily data platform. Code done; left: T046 (real-run check),
     T059 (the schedule is installed and ran on 30 Oct; confirm with the researcher and tick),
     T062–T064 (docs, final checks, merge).
-  - `004-eda` (on top of 001): the EDA notebooks, the cleaning rules V2-22 to V2-24 in the
-    pipeline, and the empty model notebooks for 005–007. Left: T023, T024, T017.
+  - `004-eda` (on top of 001): the EDA notebooks with findings on the cleaned data, the cleaning
+    rules V2-22 to V2-24 in the pipeline (decided, logged), the model notebooks for 005–007
+    (instructions only). Left: T017 (the merge, step 2).
   - Both branches are pushed to GitHub (30 Oct, the researcher's go-ahead); push new commits to
     them as work goes on. Merging into `main` waits for step 2.
 - **Data**: every source current to 29 October 2026; the build, serving copy and export were
-  rebuilt with the cleaning rules on 30 October.
+  rebuilt with the cleaning rules V2-22 to V2-24 on 30 October.
 - **Decisions waiting for the researcher** (`docs/decisions.md`, "Proposed by the EDA"):
-  V2-25 (named cases to investigate), V2-26 (price-only stocks and volatility eligibility),
-  V2-27 (foreign filers and the dilution question). Also: two tiny OTC stocks priced from Tiingo
-  show absurd prices in the app (CLS Holdings $144,200; NFiniTi $3,000).
+  V2-25 (named cases for the validation round, listed there), V2-26 (price-only stocks and
+  volatility eligibility), V2-27 (foreign filers and the dilution question).
 
 ## 8. What to do next, step by step
 
@@ -128,15 +128,11 @@ Do the steps in order unless the researcher says otherwise. Each step: say what 
 do it, show a plain summary, tick it here.
 
 ### Step 1 · Finish 004 (EDA), branch `004-eda`
-- [ ] T024: re-run the three EDA notebooks (`notebooks/004-eda-*.ipynb`, command in section 5)
-  and rewrite each "11. Findings" section from the new outputs (aggregates only, plain words,
-  every term explained).
-- [ ] T023: in `docs/decisions.md`, move V2-22, V2-23, V2-24 from "Proposed" into the decision
-  table as decided (30 Oct, the researcher), with the final rules (see the docstrings of
-  `share_typos` in `src/sentinel/core/filings.py`, `build_insider_trade` in
-  `src/sentinel/core/insider.py`, `FOREIGN_BLANK` handling in
-  `src/sentinel/features/snapshot.py`) and the row counts.
-- [ ] Update `docs/plan.md` and `README.md` status for 004.
+- [X] T024: the three EDA notebooks re-run on the cleaned export, Findings rewritten.
+- [X] T023: V2-22 to V2-24 recorded as decided in `docs/decisions.md`, with rules and counts.
+- [X] `docs/plan.md` and `README.md` updated. Left only T017, the merge (step 2).
+- After any later pipeline change: rebuild, re-run the three EDA notebooks, and update their
+  Findings if numbers move.
 
 ### Step 2 · Finish 001 and merge both branches
 - [ ] T046: after a weekday 10:00 run, read `data/logs/update-<date>.log` and `uv run sentinel
@@ -154,8 +150,9 @@ The EDA checks what statistics can show; this checks values against the SEC fili
 Pick 20–30 named companies on purpose: disappeared companies priced from Tiingo (right company?
 right last day?), small companies with reverse splits, rows with a split inside a dilution
 window (25% dilute vs 9.7% overall: real or counting error?), extreme returns (+1,000% in a
-month), foreign filers with ADRs, companies with 5–6 results releases a year, the two absurd
-Tiingo prices above, and the 194 companies where Yahoo and Tiingo disagree
+month), foreign filers with ADRs, companies with 5–6 results releases a year, the absurd Tiingo prices
+of two small OTC stocks (CLS Holdings, NFiniTi), share counts wrong from a company's first
+filing, and the 194 companies where Yahoo and Tiingo disagree
 (`core.price_check`). Output: `notebooks/022-validation.ipynb` with a pass/fail table; fixes as
 proposals in `docs/decisions.md` for the researcher; then fix in the pipeline with tests,
 rebuild, re-run the EDA. Add 022 to `docs/plan.md` first.
