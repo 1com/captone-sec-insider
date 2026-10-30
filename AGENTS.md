@@ -200,6 +200,17 @@ dilution check, 016 screeners, 017 forecasts and model card, 018 hosting with no
 value on a public page. Details and done-when in `docs/plan.md`.
 
 ### Step 8 · 010 Holdout test (16 November)
+**Already true (checked 30 Oct):** the holdout rows (`feature_snapshot` from 2023 on, built from
+`feature.snapshot` like the training files) have the training files' feature columns in the same
+order and types; the holdout answers come from the same label code (`labels/risk.py`) with
+`development.last_window_end` replaced by the latest closed window inside the guarded command
+only. **Required of every model** (in each model notebook's instructions): features selected by
+name, all preprocessing inside the saved model, one saved object with feature list, eligibility
+flag, seed, commit and export date, one `predict(model, rows)` function, and a dry run on the
+2023+ feature rows (no answers) before the test. **To build in 010:** the guarded command; a unit
+test that the label code with a later end date gives exactly the development answers for
+2012–2022 rows; the comparison of each model with its baselines on the holdout.
+
 Build a guarded command: it refuses unless the models are frozen (approved, in
 `src/sentinel/models/`, logged in MLflow with commit and data version) and no earlier holdout
 run exists; it computes the 2023+ answers, scores the frozen models, writes the results and a
