@@ -84,6 +84,10 @@ merge into `main` (T063–T064).
 
 ## For an agent continuing this work
 
+**Start with [AGENTS.md](AGENTS.md)**: the step-by-step hand-over (where things stand, what to do
+next, the researcher's way of working). Gemini CLI loads it through `GEMINI.md`, Claude Code
+through `CLAUDE.md`; spec-kit steps are `/speckit:*` commands in Gemini (`.gemini/commands/`).
+
 Start with [docs/plan.md](docs/plan.md): its **Next steps** list says what to do now, and its
 **Data for each model** table says which file, rows, answer and baseline each model uses. Then
 read the constitution, `docs/spec.md`, `docs/architecture.md`, `docs/decisions.md`, and the

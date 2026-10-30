@@ -1,0 +1,9 @@
+description = "spec-kit: Create or update the project constitution from interactive or provided principle inputs."
+prompt = """
+Follow the spec-kit instructions below exactly, as written for this project. Where they say
+$ARGUMENTS or "User Input", use this input: {{args}}
+Where they mention Claude skills (for example /speckit-plan), the Gemini command is
+/speckit:plan. Where they mention a Claude tool, use your equivalent.
+
+@{.claude/skills/speckit-constitution/SKILL.md}
+"""

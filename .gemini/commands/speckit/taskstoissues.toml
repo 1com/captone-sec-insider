@@ -1,0 +1,9 @@
+description = "spec-kit: Convert existing tasks into actionable, dependency-ordered GitHub issues for the feature based on available design artifacts."
+prompt = """
+Follow the spec-kit instructions below exactly, as written for this project. Where they say
+$ARGUMENTS or "User Input", use this input: {{args}}
+Where they mention Claude skills (for example /speckit-plan), the Gemini command is
+/speckit:plan. Where they mention a Claude tool, use your equivalent.
+
+@{.claude/skills/speckit-taskstoissues/SKILL.md}
+"""

@@ -1,0 +1,9 @@
+description = "spec-kit: Assess the current codebase against the feature's spec, plan, and tasks, then append any remaining unbuilt work as new tasks to tasks.md so implement can complete it."
+prompt = """
+Follow the spec-kit instructions below exactly, as written for this project. Where they say
+$ARGUMENTS or "User Input", use this input: {{args}}
+Where they mention Claude skills (for example /speckit-plan), the Gemini command is
+/speckit:plan. Where they mention a Claude tool, use your equivalent.
+
+@{.claude/skills/speckit-converge/SKILL.md}
+"""
