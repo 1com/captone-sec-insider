@@ -180,10 +180,11 @@ def build_fundamentals(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> 
             facts = con.execute(
                 f"""
                 select cik, item as concept, period_start, period_end, value, filed, known_at
-                from core.financial_fact where item in ({items}) and {within}
+                from core.financial_fact
+                where item in ({items}) and known_at is not null and {within}
                 union all
                 select cik, 'shares_outstanding', null, as_of, shares, filed, known_at
-                from core.shares_outstanding where {within}
+                from core.shares_outstanding where known_at is not null and {within}
                 """,
                 args * 2,
             ).df()
