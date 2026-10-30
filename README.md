@@ -30,7 +30,7 @@ company is about to issue many new shares (dilution).
 ## Roadmap and progress (29 October 2026, evening)
 
 The detailed roadmap (every feature with its owner, dates, dependencies and done-when test) is
-[docs/plan.md](docs/plan.md); GitHub has one issue per feature (#67–#86) in five milestones. The
+[docs/plan.md](docs/plan.md); GitHub has one issue per feature (#67–#87) in six milestones. The
 three are updated together.
 
 | Milestone (due) | Features | Owner | Status |
@@ -41,6 +41,7 @@ three are updated together.
 | 3 App (16 Nov) | 011 design and forecast contract (#80) · 012 API (#81) · 013 stock page (#70) · 014 insider tracker (#82) · 015 dilution check (#83) · 016 screeners (#84) · 017 forecasts and model card (#85) · 018 hosting (#86) | researcher, with the agent | not started |
 | 4 Holdout and hand-in (18 Nov) | 010 holdout test (#69) · 019 report and hand-in (#71): product 17 Nov, report 18 Nov | all | not started |
 | 5 Before Tiingo ends (25 Nov) | 020 offline rebuild and raw backup (#72) | agent | not started |
+| 6 After hand-in (Jan 2027) | 021 quarterly model refit (#87): the models score daily but retrain only quarterly, by a logged comparison | teammate, with the agent | not started |
 
 **What exists now.** Every layer is built in `data/sentinel.duckdb` from the raw files in
 `data/raw/` (8.9 GB, with a manifest line per file): staging per source, companies and securities,

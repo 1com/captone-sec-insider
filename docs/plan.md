@@ -139,6 +139,13 @@ answer. Never use the answer columns, `window_end` or the outcome columns as fea
 |---|---|---|---|---|---|---|---|
 | 020 | **Offline rebuild and raw backup**: Before the Tiingo plan ends (26 Nov): fetch commands for the sources still missing one (the French industry files, the first Tiingo download per company); a fresh clone plus the stored raw files rebuilds every layer, the serving copy and the export identically (constitution V); `data/raw/` backed up to a second disk or private storage. | coding agent | by Wed 25 Nov | — | the rebuild from a clean clone is identical to the working copy; the backup exists | not started | #72 |
 
+
+### v2 · 6 After hand-in (due 2027-01-29)
+
+| # | Feature | Owner | Dates | Depends on | Done when | Status | Issue |
+|---|---|---|---|---|---|---|---|
+| 021 | **Quarterly model refit**: retrain each chosen model with the form and settings fixed in development on every answer whose window has closed (after the holdout test, the 2023+ answers may be used); compare with the current version on the most recent data; replace only if no worse, as a deliberate, logged step (D64, spec §7). Daily scoring (009) does not retrain: the frozen model scores each day's new feature rows, and outcomes give live hit rates | teammate, with coding agent; researcher approves each replacement | first refit January 2027 | 005–007, 009, 010 | a refit command produces a candidate, its comparison and a recorded decision; a replacement shows in `model.registry` and in the next day's forecasts | not started | #87 |
+
 ## Done before the roadmap (29 October)
 
 Steps 0–4 (issues #62–#66): v1 retired and v2 started (V2-1, V2-2); every data layer built from the
