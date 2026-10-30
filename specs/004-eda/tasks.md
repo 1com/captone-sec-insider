@@ -46,9 +46,9 @@ and its findings.
 **Independent Test**: the notebook runs start to finish with one command under the cap in under 10
 minutes and ends with its Findings.
 
-- [ ] T005 [US1] Write notebooks/004-eda-volatility.ipynb sections 0–10 (contract): baseline `vol_63`; measures of research R1 (log errors, Spearman, share within ±25%) overall and per test year; answer on a log scale; check `window_end > as_of`
-- [ ] T006 [US1] Run it under the cap (quickstart); fix errors; record its duration
-- [ ] T007 [US1] Write section 11, Findings, from the executed outputs (aggregates only): clean, cleaning rules with rows affected, modelling advice for 005, open questions; terms explained in plain words
+- [X] T005 [US1] Write notebooks/004-eda-volatility.ipynb sections 0–10 (contract): baseline `vol_63`; measures of research R1 (log errors, Spearman, share within ±25%) overall and per test year; answer on a log scale; check `window_end > as_of`
+- [X] T006 [US1] Run it under the cap (quickstart); fix errors; record its duration
+- [X] T007 [US1] Write section 11, Findings, from the executed outputs (aggregates only): clean, cleaning rules with rows affected, modelling advice for 005, open questions; terms explained in plain words
 
 **Checkpoint**: US1 complete; the volatility set is understood.
 
@@ -60,9 +60,9 @@ minutes and ends with its Findings.
 
 **Independent Test**: as US1.
 
-- [ ] T008 [P] [US2] Write notebooks/004-eda-results-move.ipynb sections 0–10: baseline `prev4_mean` where `n_prev` ≥ 1 (share with 4, 1–3, 0 earlier moves); constant-median floor; absolute errors and Spearman per test year; timing (`report_date` → `filing_date` → `close_after`) and `close_after > as_of`; move skew and its largest values
-- [ ] T009 [US2] Run it under the cap; fix errors; record its duration
-- [ ] T010 [US2] Write section 11, Findings (as T007), advice for 006
+- [X] T008 [P] [US2] Write notebooks/004-eda-results-move.ipynb sections 0–10: baseline `prev4_mean` where `n_prev` ≥ 1 (share with 4, 1–3, 0 earlier moves); constant-median floor; absolute errors and Spearman per test year; timing (`report_date` → `filing_date` → `close_after`) and `close_after > as_of`; move skew and its largest values
+- [X] T009 [US2] Run it under the cap; fix errors; record its duration
+- [X] T010 [US2] Write section 11, Findings (as T007), advice for 006
 
 ---
 
@@ -72,9 +72,9 @@ minutes and ends with its Findings.
 
 **Independent Test**: as US1.
 
-- [ ] T011 [P] [US3] Write notebooks/004-eda-dilution.ipynb sections 0–10: base rate overall and by year, sector, size, filer type; single-feature AUC and top-decile lift; simple rules (loss-making and short cash runway; recent offering or shelf) with their AUC and lift; Brier score of the base rate; share-count anomalies (`share_growth_12m` extremes, split months via `cum_split_after` changes) against the answer
-- [ ] T012 [US3] Run it under the cap; fix errors; record its duration
-- [ ] T013 [US3] Write section 11, Findings (as T007), advice for 007
+- [X] T011 [P] [US3] Write notebooks/004-eda-dilution.ipynb sections 0–10: base rate overall and by year, sector, size, filer type; single-feature AUC and top-decile lift; simple rules (loss-making and short cash runway; recent offering or shelf) with their AUC and lift; Brier score of the base rate; share-count anomalies (`share_growth_12m` extremes, split months via `cum_split_after` changes) against the answer
+- [X] T012 [US3] Run it under the cap; fix errors; record its duration
+- [X] T013 [US3] Write section 11, Findings (as T007), advice for 007
 
 ---
 
