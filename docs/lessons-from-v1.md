@@ -1,9 +1,10 @@
 # Lessons from v1
 
-v1 (21–29 October 2026, tag `v1-final`) built a pre-registered study of insider purchase clusters,
-then grew a risk panel and a product around it. This page lists what went wrong, what it cost, and
-the rule v2 follows so it does not happen again. Section numbers in v1 documents refer to
-`docs/initialplan.md` at tag `v1-final`.
+v1 (21–29 October 2026) built a pre-registered study of insider purchase clusters, then grew a
+risk panel and a product around it. This page lists what went wrong, what it cost, and the rule v2
+follows so it does not happen again. Section numbers refer to v1's `docs/initialplan.md`; v1's
+code and documents were removed from GitHub on 29 October (V2-2), and this page is what remains of
+them in the repository.
 
 ## Universe and companies
 

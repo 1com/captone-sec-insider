@@ -1,20 +1,24 @@
-"""Layer 2: every price file downloaded from Yahoo and Tiingo, complete per source, into schemas
-`stg_yahoo` and `stg_tiingo`.
+"""Layer 2: every price file downloaded from Yahoo and Tiingo, per source, into schemas `stg_yahoo`
+and `stg_tiingo`.
 
-- `stg_yahoo.price`: one row per ticker and day from every Yahoo file (`data/raw/yahoo/*.parquet`,
-  `data/raw/yahoo/panel/*.parquet`): as-traded open, high, low, close, adjusted close, volume,
-  dividend, split ratio.
-- `stg_tiingo.price`: the same from every Tiingo price file (`prices/`, `panel_prices/`,
-  `listed_prices/`), with Tiingo's adjusted columns, dividend and split factor. Tiingo's `[]`
-  answers (a ticker without prices) are counted and skipped.
+- `stg_yahoo.price`: one row per ticker and day: open, high, low, close (split-adjusted, as Yahoo
+  gives it), adjusted close, volume, dividend, split ratio.
+- `stg_tiingo.price`: the same from Tiingo, with its adjusted columns, dividend and split factor.
+  Tiingo's `[]` answers (a ticker without prices) are counted and skipped.
 - `stg_tiingo.meta`: Tiingo's description of each fetched ticker (company name, exchange, first and
   last date); a ticker Tiingo did not know has a row with no name.
 - `stg_tiingo.listing`: Tiingo's whole ticker list (`supported_tickers.zip`), every asset type.
 - `stg_tiingo.search`: each company-name search and its hits, in Tiingo's order.
 
+**Newest file wins** (specs/001-daily-data-refresh, data-model.md): a price file is a `history`
+(a ticker's full series: v1's downloads, and full series fetched again after a split or dividend,
+when the provider rewrites past adjusted values) or a `window` (the last days of many tickers,
+fetched daily). For each ticker, the files that count are its history files and the windows
+fetched after its newest history file; each day's row comes from the newest of them. The files and
+their fetch times come from the manifest, so staging is the same built at once or day by day.
+
 A ticker is not a company: tickers are reused, so matching prices to securities, with the date and
-name checks, happens in `core`. The same ticker can appear in several files (two folders); every
-row keeps its `raw_file`.
+name checks, happens in `core`. Every row keeps its `raw_file`, `file_kind` and `fetched_at`.
 """
 
 import csv
@@ -22,39 +26,89 @@ import gzip
 import io
 import json
 import zipfile
+from datetime import datetime
 from urllib.parse import parse_qs, urlparse
 
 import duckdb
+import pyarrow as pa
 
 from sentinel import db
 from sentinel.config import Paths
 from sentinel.raw import manifest
 
-TIINGO_PRICE_DIRS = ("prices", "panel_prices", "listed_prices")
 TIINGO_META_DIRS = ("meta", "panel_meta", "listed_meta")
+YAHOO_WINDOWS, TIINGO_WINDOWS = "yahoo/daily/", "tiingo/daily/"
+YAHOO_FIELDS = ('"Open" as open, "High" as high, "Low" as low, "Close" as close, '
+                '"Adj Close" as adj_close, "Volume"::DOUBLE as volume, "Dividends" as dividend, '
+                '"Stock Splits" as split_ratio')  # fmt: skip
+NEWEST = """
+    with tagged as (
+        select r.*, f.kind as file_kind, f.fetched_at from ({rows}) r join _files f using (raw_file)
+    ),
+    newest_history as (
+        select ticker, max(fetched_at) as fetched_at from tagged where file_kind = 'history'
+        group by ticker
+    )
+    select t.* from tagged t left join newest_history n on n.ticker = t.ticker
+    where t.file_kind = 'history' or n.fetched_at is null or t.fetched_at > n.fetched_at
+    qualify row_number() over (partition by t.ticker, t.session
+                               order by t.fetched_at desc, t.raw_file desc) = 1
+"""
+
+
+def stored_price_files(p: Paths, source: str, suffix: str, windows: str) -> list[tuple]:
+    """(path under data/raw, kind, fetched_at) of each stored price file of `source`: `window`
+    under the `windows` folder, `history` otherwise."""
+    return sorted(
+        (e.path, "window" if e.path.startswith(windows) else "history",
+         datetime.fromisoformat(e.fetched_at.replace("Z", "+00:00")).replace(tzinfo=None))
+        for e in manifest.read_all(p.manifest)
+        if e.source == source and e.role == "original" and e.path.endswith(suffix)
+    )  # fmt: skip
+
+
+def _register_files(con: duckdb.DuckDBPyConnection, files: list[tuple]) -> None:
+    con.register("_files", pa.table({
+        "raw_file": pa.array([f[0] for f in files], pa.string()),
+        "kind": pa.array([f[1] for f in files], pa.string()),
+        "fetched_at": pa.array([f[2] for f in files], pa.timestamp("s")),
+    }))  # fmt: skip
 
 
 def stage_yahoo(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
-    files = [f.as_posix() for f in sorted(p.yahoo.glob("*.parquet"))]
-    files += [f.as_posix() for f in sorted((p.yahoo / "panel").glob("*.parquet"))]
+    files = stored_price_files(p, "yahoo", ".parquet", YAHOO_WINDOWS)
     raw = p.raw.as_posix() + "/"
-    with db.transaction(con):
-        con.execute(
-            f"""
-            create or replace table stg_yahoo.price as
-            select regexp_extract(filename, '([^/]+)\\.parquet$', 1) as ticker,
-                   "Date"::DATE as session, "Open" as open, "High" as high, "Low" as low,
-                   "Close" as close, "Adj Close" as adj_close, "Volume"::DOUBLE as volume,
-                   "Dividends" as dividend, "Stock Splits" as split_ratio,
-                   replace(filename, '{raw}', '') as raw_file
-            from read_parquet($files, union_by_name = true, filename = true)
-            where "Date" is not null
-            """,
-            {"files": files},
-        )
+    args = {"history": [raw + f for f, kind, _ in files if kind == "history"],
+            "window": [raw + f for f, kind, _ in files if kind == "window"]}  # fmt: skip
+    parts = {
+        "history": f"""select regexp_extract(filename, '([^/]+)\\.parquet$', 1) as ticker,
+                              "Date"::DATE as session, {YAHOO_FIELDS},
+                              replace(filename, '{raw}', '') as raw_file
+                       from read_parquet($history, union_by_name = true, filename = true)
+                       where "Date" is not null""",
+        "window": f"""select ticker, "Date"::DATE as session, {YAHOO_FIELDS},
+                             replace(filename, '{raw}', '') as raw_file
+                      from read_parquet($window, union_by_name = true, filename = true)
+                      where "Date" is not null""",
+    }  # fmt: skip
+    used = [k for k in parts if args[k]]
+    if not used:
+        raise FileNotFoundError("no Yahoo price files in the manifest: run `sentinel fetch yahoo`")
+    _register_files(con, files)
+    try:
+        with db.transaction(con):
+            con.execute(
+                "create or replace table stg_yahoo.price as "
+                + NEWEST.format(rows=" union all ".join(parts[k] for k in used)),
+                {k: args[k] for k in used},
+            )
+    finally:
+        con.unregister("_files")
     n = db.count(con, "stg_yahoo.price")
-    echo(f"  yahoo: {len(files):,} files, {n:,} rows")
-    return {"files": len(files), "price": n}
+    counts = {"history_files": len(args["history"]), "window_files": len(args["window"]),
+              "price": n}  # fmt: skip
+    echo(f"  yahoo: {counts}")
+    return counts
 
 
 def _is_price_csv(path) -> bool:
@@ -65,36 +119,43 @@ def _is_price_csv(path) -> bool:
 
 
 def stage_tiingo(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
-    stored = [f for d in TIINGO_PRICE_DIRS for f in sorted((p.tiingo / d).glob("*.csv.gz"))]
-    files = [f.as_posix() for f in stored if _is_price_csv(f)]
+    stored = stored_price_files(p, "tiingo", ".csv.gz", TIINGO_WINDOWS)
+    files = [f for f in stored if _is_price_csv(p.raw / f[0])]
     raw = p.raw.as_posix() + "/"
     numeric = ["close", "high", "low", "open", "volume", "adjClose", "adjHigh", "adjLow", "adjOpen",
                "adjVolume", "divCash", "splitFactor"]  # fmt: skip
     types = {"date": "VARCHAR", **{c: "DOUBLE" for c in numeric}}
-    with db.transaction(con):
-        con.execute(
-            f"""
-            create or replace table stg_tiingo.price as
-            select regexp_extract(filename, '([^/]+)\\.csv\\.gz$', 1) as ticker,
-                   try_cast(left("date", 10) as DATE) as session, open, high, low, close, volume,
-                   "adjOpen" as adj_open, "adjHigh" as adj_high, "adjLow" as adj_low,
-                   "adjClose" as adj_close, "adjVolume" as adj_volume, "divCash" as dividend,
-                   "splitFactor" as split_factor, replace(filename, '{raw}', '') as raw_file
-            from read_csv($files, header = true, columns = $types, filename = true,
-                          union_by_name = true)
-            where try_cast(left("date", 10) as DATE) is not null
-            """,
-            {"files": files, "types": types},
-        )
+    rows = f"""
+        select regexp_extract(filename, '([^/]+)\\.csv\\.gz$', 1) as ticker,
+               try_cast(left("date", 10) as DATE) as session, open, high, low, close, volume,
+               "adjOpen" as adj_open, "adjHigh" as adj_high, "adjLow" as adj_low,
+               "adjClose" as adj_close, "adjVolume" as adj_volume, "divCash" as dividend,
+               "splitFactor" as split_factor, replace(filename, '{raw}', '') as raw_file
+        from read_csv($files, header = true, columns = $types, filename = true,
+                      union_by_name = true)
+        where try_cast(left("date", 10) as DATE) is not null
+    """
+    if not files:
+        raise FileNotFoundError("no Tiingo price files in the manifest: `sentinel fetch tiingo`")
+    _register_files(con, files)
+    try:
+        with db.transaction(con):
+            con.execute(
+                "create or replace table stg_tiingo.price as " + NEWEST.format(rows=rows),
+                {"files": [raw + f[0] for f in files], "types": types},
+            )
+    finally:
+        con.unregister("_files")
     n = db.count(con, "stg_tiingo.price")
     meta = _tiingo_meta(con, p)
     listing = _tiingo_listing(con, p)
     search = _tiingo_search(con, p)
     empty = len(stored) - len(files)
-    echo(f"  tiingo: {len(files):,} price files ({empty:,} without prices), {n:,} rows; "
-         f"{meta:,} meta, {listing:,} listed tickers, {search:,} search hits")  # fmt: skip
-    return {"files": len(files), "no_prices": empty, "price": n, "meta": meta, "listing": listing,
-            "search": search}  # fmt: skip
+    window = sum(1 for f in files if f[1] == "window")
+    echo(f"  tiingo: {len(files):,} price files ({window:,} daily, {empty:,} without prices), "
+         f"{n:,} rows; {meta:,} meta, {listing:,} listed, {search:,} search hits")  # fmt: skip
+    return {"files": len(files), "window_files": window, "no_prices": empty, "price": n,
+            "meta": meta, "listing": listing, "search": search}  # fmt: skip
 
 
 def _tiingo_meta(con, p: Paths) -> int:

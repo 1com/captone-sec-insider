@@ -17,6 +17,7 @@ sec:
     - "https://www.sec.gov/files/structureddata/data/insider-transactions-data-sets/{key}_form345.zip"
     - "https://www.sec.gov/files/datastandardsinnovation/data/insider-transactions-data-sets/{key}_form345.zip"
   form4_required_tables: [SUBMISSION, REPORTINGOWNER, NONDERIV_TRANS, FOOTNOTES]
+  form4_first_quarter: 2006q1  # the first data set (a fresh clone fetches from here)
   company_tickers_url: "https://www.sec.gov/files/company_tickers_exchange.json"
   companyfacts_url: "https://www.sec.gov/Archives/edgar/daily-index/xbrl/companyfacts.zip"
   submissions_url: "https://www.sec.gov/Archives/edgar/daily-index/bulkdata/submissions.zip"
@@ -24,12 +25,26 @@ sec:
   headers_url_pattern: "https://www.sec.gov/Archives/edgar/data/{cik}/{acc_nodash}/{acc}-index-headers.html"
   # used when the page above is HTTP 404, as for many 2012-2014 filings
   headers_fallback_url_pattern: "https://www.sec.gov/Archives/edgar/data/{cik}/{acc_nodash}/{acc}.hdr.sgml"
+  # Daily updates (feature 001): the nightly index of each filing day, and per-filing documents
+  daily_index_url: "https://www.sec.gov/Archives/edgar/daily-index/{year}/QTR{quarter}/master.{day}.idx"
+  filing_text_url: "https://www.sec.gov/Archives/{file_name}"
+  companyfacts_cik_url: "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik10}.json"
+  submissions_cik_url: "https://data.sec.gov/submissions/CIK{cik10}.json"
+  document_requests_per_second: 8
+  ownership_forms: ["3", "3/A", "4", "4/A", "5", "5/A"]
+  # forms whose header details (8-K items, period of report, acceptance time) the platform uses
+  detail_forms: ["8-K", "8-K/A", "10-Q", "10-Q/A", "10-K", "10-K/A", "10-KT", "10-KT/A", "20-F", "20-F/A", "40-F", "40-F/A", "6-K"]
+  # filers of these get their financial values (companyfacts) fetched the same day
+  periodic_forms: ["10-Q", "10-Q/A", "10-K", "10-K/A", "10-KT", "10-KT/A", "20-F", "20-F/A", "40-F", "40-F/A"]
 
 prices:
   history_start: 2010-01-01
   reference_symbols: [SPY, IWM]
   yahoo_batch_size: 50
   yahoo_pause_seconds: 2
+  # daily updates: the last days of every listed symbol, in larger batches (short histories)
+  yahoo_window_days: 10
+  yahoo_daily_batch_size: 200
 
 tiingo:
   # The one paid month (v1 decision D39). New Tiingo files may be written only inside [from, until).
@@ -41,6 +56,17 @@ tiingo:
   # every US venue in Tiingo's list, OTC included: a delisted company's history is often filed under
   # its final OTC ticker
   us_exchanges: [NYSE, NASDAQ, NYSE MKT, AMEX, NYSE ARCA, NYSE NAT, BATS, PINK, OTCMKTS, OTCGREY, EXPM, OTCBB, OTCQB, OTCQX, OTCCE, OTCD]
+
+update:
+  # The daily update (feature 001): refuse to start below this much free disk; the schedule's
+  # weekday start time (local: at 10:00 Berlin the previous US day is complete, its prices and the
+  # SEC index published around 04:00), its Windows Task Scheduler name, the WSL distribution it
+  # starts, and the memory cap a scheduled run puts itself under.
+  min_free_gb: 20
+  schedule_time: "10:00"
+  task_name: 'EDGAR-SENTINEL\daily update'
+  distro: Ubuntu
+  memory_max: 5G
 
 french:
   # Only the SIC-code ranges of the 12 and 49 industries (sectors). v1's factor and industry

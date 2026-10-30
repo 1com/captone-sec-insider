@@ -15,15 +15,21 @@ Tables:
 Rules (docs/spec.md §5, lessons from v1):
 - **Listed today** (in the newest SEC ticker list): Yahoo, under the company's main ticker (its
   first in the SEC's order with Yahoo data). If Yahoo has nothing, or its history starts more than
-  `LATE_DAYS` after the company needs it, the Tiingo series that passes the identity check is used.
+  `LATE_DAYS` after the company needs it, Tiingo's series of the same ticker is used. The SEC's
+  list is the authority on who holds a ticker today, so either source's series of a company's own
+  listed ticker is accepted on dates alone (it must still be trading), without comparing names:
+  companies renamed since they stopped filing keep their prices (specs/001-daily-data-refresh,
+  research R12).
 - **Disappeared:** Tiingo, under a ticker its own Form 4s printed (or the bankruptcy `Q` form),
   matched to Tiingo's listing by the longest date overlap with the company's use of it; for a
   company without Form 4 tickers, a hit of Tiingo's name search. The series is kept only if
   Tiingo's company name shares a significant word with one of the company's SEC names and its dates
   overlap the company's filings (v1's identity check).
-- **Trims:** no prices earlier than `WARMUP_DAYS` before the company's first SEC evidence (another
-  company's older use of the ticker); for a disappeared company, none later than `TAIL_DAYS` after
-  its last (a reused ticker's later prices).
+- **Trims:** a listed company's history starts at the latest of `prices.history_start`, the start
+  of its ticker's current listing (Tiingo's ticker list; else the series' first day) and the day
+  after another company last used the symbol; a disappeared company's starts `WARMUP_DAYS` before
+  its first SEC evidence (another company's older use of the ticker) and ends `TAIL_DAYS` after its
+  last (a reused ticker's later prices).
 - Yahoo's prices are split-adjusted: as-traded values are rebuilt by undoing later splits; Tiingo's
   unprefixed prices are already as traded. Products of split ratios are exact sums of logs, so a
   rerun gives the same digits (v1).
@@ -37,10 +43,12 @@ import duckdb
 from sentinel import db
 from sentinel.config import Paths, risk_params, sources
 from sentinel.reference.build import normalise
+from sentinel.staging.sec_form4_daily import union_sql
 
 WARMUP_DAYS = 400
 TAIL_DAYS = 90
 LATE_DAYS = 45
+TRADING_DAYS = 30  # a listed ticker's series must reach within this many days of the SEC list
 FAR_PAST, FAR_FUTURE = date(1900, 1, 1), date(2100, 1, 1)
 STOPWORDS = {
     "inc", "corp", "corporation", "co", "company", "ltd", "limited", "holdings", "holding",
@@ -78,6 +86,22 @@ def identity(meta: tuple | None, sec_names: list[str], span: tuple[date, date]) 
     return "ok"
 
 
+def listed_identity(stats: tuple | None, list_day: date) -> str:
+    """`ok` when a series of a company's own SEC-listed ticker is still trading (reaches within
+    `TRADING_DAYS` of the SEC list), else `no_data` or `dates`."""
+    if stats is None or not stats[2]:
+        return "no_data"
+    return "ok" if stats[1] >= list_day - timedelta(days=TRADING_DAYS) else "dates"
+
+
+def listing_start(entries: list[tuple], list_day: date) -> date | None:
+    """The start of a ticker's current listing in Tiingo's list: the latest-starting entry that
+    reaches the SEC list's day (or has no end); None when Tiingo has no such entry."""
+    trading = list_day - timedelta(days=TRADING_DAYS)
+    current = [a for a, b, _ex in entries if a is not None and (b is None or b >= trading)]
+    return max(current) if current else None
+
+
 def search_queries(names: list[str]) -> list[str]:
     """The name-search queries asked for a company: current and latest former name, no state
     suffix (v1's `universe.search_queries`, so the stored searches are found again)."""
@@ -99,7 +123,7 @@ def _companies(con) -> dict[str, dict]:
     ).fetchall()
     form4_names: dict[str, list[str]] = {}
     for cik, name in con.execute(
-        "select distinct issuercik, issuername from stg_sec_form4.submission "
+        f"select distinct issuercik, issuername from {union_sql(con, 'submission')} "
         "where issuercik is not null and issuername is not null"
     ).fetchall():
         form4_names.setdefault(cik, []).append(name)
@@ -115,8 +139,8 @@ def _companies(con) -> dict[str, dict]:
 
 def build_candidates(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
     db.require(con, ["ref.company", "ref.ticker_history", "stg_yahoo.price", "stg_tiingo.price",
-                     "stg_tiingo.meta", "stg_tiingo.listing", "stg_tiingo.search"],
-               "core.price_candidate")  # fmt: skip
+                     "stg_tiingo.meta", "stg_tiingo.listing", "stg_tiingo.search",
+                     "stg_sec_tickers.snapshot"], "core.price_candidate")  # fmt: skip
     settings = sources(p)
     exchanges = set(settings["tiingo"]["us_exchanges"])
     companies = _companies(con)
@@ -146,6 +170,10 @@ def build_candidates(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> di
     ).fetchall():
         if kind == "Stock" and (n := normalise(t)):
             hits.setdefault(q.lower(), []).append(n)
+    list_day = (
+        con.execute("select max(snapshot_date) from stg_sec_tickers.snapshot").fetchone()[0]
+        or FAR_PAST
+    )  # no list: no company is listed
     rows = []
     for cik, c in companies.items():
         first = c["first"] or FAR_PAST
@@ -154,13 +182,16 @@ def build_candidates(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> di
 
         def add(source, ticker, role, ev_from, ev_to, overlap=None, cik=cik, c=c, span=span):
             stats = (ystats if source == "yahoo" else tstats).get(ticker, (None, None, 0))
-            ident = (
-                "not_checked" if source == "yahoo"
-                else identity(meta.get(ticker), c["all_names"], span)
-            )  # fmt: skip
+            if source == "yahoo":
+                ident = "not_checked"
+            elif role == "tiingo_listed":
+                ident = listed_identity(stats, list_day)
+            else:
+                ident = identity(meta.get(ticker), c["all_names"], span)
             if ident == "ok" and not stats[2]:
                 ident = "no_data"
-            rows.append((cik, source, ticker, role, ev_from, ev_to, *stats, ident, overlap))
+            start = listing_start(listing.get(ticker, []), list_day) if ev_to is None else None
+            rows.append((cik, source, ticker, role, ev_from, ev_to, *stats, ident, overlap, start))
 
         if c["tickers"]:  # listed today
             for rank, t in enumerate(c["tickers"]):
@@ -191,11 +222,12 @@ def build_candidates(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> di
             "create or replace table core.price_candidate (cik VARCHAR, source VARCHAR, "
             "ticker VARCHAR, role VARCHAR, evidence_from DATE, evidence_to DATE, "
             "first_session DATE, last_session DATE, n_sessions INTEGER, identity VARCHAR, "
-            "overlap_days INTEGER)"
+            "overlap_days INTEGER, listing_start DATE)"
         )
         if rows:
             con.executemany(
-                "insert into core.price_candidate values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", rows
+                "insert into core.price_candidate values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                rows,
             )
     n = db.count(con, "core.price_candidate")
     echo(f"  price candidates: {n:,} for {len(companies):,} companies")
@@ -224,24 +256,45 @@ def choose(candidates: list[tuple], first_seen: date | None, listed: bool, start
     return (None, None, f"rejected_{rejected[5]}" if rejected else "no_ticker_found")
 
 
+def _other_use_ends(con) -> dict[tuple[str, str], date]:
+    """(cik, ticker) → the last day another company used the ticker before (closed spans of
+    `ref.ticker_history`, from Form 4 symbols and the SEC's lists)."""
+    rows = con.execute(
+        """
+        select a.cik, a.ticker, max(b.valid_to) from ref.ticker_history a
+        join ref.ticker_history b on b.ticker = a.ticker and b.cik <> a.cik
+             and b.valid_to is not null
+        group by 1, 2
+        """
+    ).fetchall()
+    return {(cik, ticker): end for cik, ticker, end in rows}
+
+
 def build_choice(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
-    db.require(con, ["core.price_candidate"], "core.price_choice")
+    db.require(con, ["core.price_candidate", "ref.ticker_history"], "core.price_choice")
     start = sources(p)["prices"]["history_start"]
     companies = _companies(con)
     by_cik: dict[str, list[tuple]] = {}
-    for cik, source, ticker, role, first, n, ident in con.execute(
-        "select cik, source, ticker, role, first_session, n_sessions, identity "
+    listing: dict[tuple[str, str, str], date | None] = {}
+    for cik, source, ticker, role, first, n, ident, list_start in con.execute(
+        "select cik, source, ticker, role, first_session, n_sessions, identity, listing_start "
         "from core.price_candidate order by cik, source desc, role"
     ).fetchall():
         by_cik.setdefault(cik, []).append((source, ticker, role, first, n, ident))
+        listing[(cik, source, ticker)] = list_start or first
+    others = _other_use_ends(con)
     rows = []
     for cik, c in companies.items():
         source, ticker, reason = choose(by_cik.get(cik, []), c["first"], bool(c["tickers"]), start)
-        first = c["first"] or start
-        trim_from = max(start, first - timedelta(days=WARMUP_DAYS))
-        trim_to = (
-            (c["last"] + timedelta(days=TAIL_DAYS)) if not c["tickers"] and c["last"] else None
-        )
+        if c["tickers"]:  # listed today: back to the ticker's current listing (research R12)
+            bounds = [start, listing.get((cik, source, ticker)) or start]
+            if (cik, ticker) in others:
+                bounds.append(others[(cik, ticker)] + timedelta(days=1))
+            trim_from, trim_to = max(bounds), None
+        else:
+            first = c["first"] or start
+            trim_from = max(start, first - timedelta(days=WARMUP_DAYS))
+            trim_to = c["last"] + timedelta(days=TAIL_DAYS) if c["last"] else None
         rows.append((cik, source, ticker, reason, trim_from, trim_to, bool(c["tickers"])))
     with db.transaction(con):
         con.execute(
@@ -416,3 +469,54 @@ def build_security(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict
     counts = dict(con.execute("select coverage, count(*) from ref.security group by 1").fetchall())
     echo(f"  securities: {counts}")
     return counts
+
+
+def build_coverage(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
+    """`core.price_coverage`: one row per listed company (funds and blank-check companies left
+    out, as the spec does): its price source, or why it has none; where its prices start; and
+    whether only Tiingo prices it (those stop updating when the paid plan ends)."""
+    db.require(con, ["ref.company", "ref.security", "core.price_choice", "core.price_candidate",
+                     "ref.calendar"], "core.price_coverage")  # fmt: skip
+    with db.transaction(con):
+        con.execute(
+            """
+            create or replace table core.price_coverage as
+            with listed as (
+                select cik, tickers[1] as ticker, filer_type from ref.company
+                where tickers is not null and not is_fund and not is_blank_check
+            ),
+            cand as (
+                select cik, bool_or(n_sessions > 0) as any_data,
+                       bool_or(source = 'yahoo' and n_sessions > 0) as yahoo_data,
+                       min(first_session) filter (where n_sessions > 0) as first_data,
+                       min(identity) filter (where source = 'tiingo'
+                                             and identity not in ('ok', 'no_data')) as rejected
+                from core.price_candidate group by cik
+            )
+            select l.cik, l.ticker, l.filer_type, coalesce(s.source, 'none') as source,
+                   case when s.security_id is not null then 'priced'
+                        when not coalesce(c.any_data, false) then 'no data in any source'
+                        when c.first_data > (select max(session) from ref.calendar)
+                            then 'listed after the calendar''s end'
+                        when c.rejected is not null then 'rejected: ' || c.rejected
+                        else 'not chosen: ' || ch.reason end as reason,
+                   s.first_session as priced_from,
+                   coalesce(s.source = 'tiingo' and not c.yahoo_data, false) as tiingo_only
+            from listed l
+            left join ref.security s on s.security_id = l.cik
+            left join cand c on c.cik = l.cik
+            left join core.price_choice ch on ch.cik = l.cik
+            order by l.cik
+            """
+        )
+    counts = dict(
+        con.execute(
+            "select reason, count(*) from core.price_coverage group by 1 order by 2 desc"
+        ).fetchall()
+    )
+    tiingo_only = con.execute(
+        "select count(*) from core.price_coverage where tiingo_only"
+    ).fetchone()[0]
+    echo(f"  price coverage of listed companies: {counts}; Tiingo only: {tiingo_only:,}")
+    return {"listed": sum(counts.values()), "priced": counts.get("priced", 0),
+            "tiingo_only": tiingo_only}  # fmt: skip

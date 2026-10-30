@@ -2,9 +2,12 @@
 company–ticker lists (`data/raw/sec/reference/company_tickers_exchange_<date>.json`), into schemas
 `stg_sec_headers` and `stg_sec_tickers`.
 
-A header gives a filing's exact acceptance time (US Eastern, as EDGAR states it) and the issuer's
-SIC code at the time; the parser is v1's (`ingest/sec_headers.py`), unchanged. Files that do not
-parse go to `stg_sec_headers.parse_failure`.
+A header gives a filing's exact acceptance time (US Eastern, as EDGAR states it), the issuer's SIC
+code at the time, an 8-K's items and the period of report; the parser is v1's
+(`ingest/sec_headers.py`) with the last two added for daily filings. EDGAR's readable headers name
+8-K items by their descriptions ("Results of Operations and Financial Condition"); `ITEM_CODES`
+turns them into codes ("2.02"), and a description it does not know is kept as text. Files that do
+not parse go to `stg_sec_headers.parse_failure`.
 """
 
 import html
@@ -22,6 +25,44 @@ from sentinel.raw import manifest
 
 HEADER_SOURCE = "sec_filing_header"
 TICKERS_PREFIX = "company_tickers_exchange_"
+# 8-K items by a distinctive part of their description (Form 8-K, items 1.01–9.01), most specific
+# first; descriptions are compared lower-case with spaces collapsed.
+ITEM_CODES = (
+    ("1.01", "entry into a material definitive agreement"),
+    ("1.02", "termination of a material definitive agreement"),
+    ("1.03", "bankruptcy or receivership"),
+    ("1.04", "mine safety"),
+    ("1.05", "material cybersecurity incident"),
+    ("2.01", "completion of acquisition or disposition"),
+    ("2.02", "results of operations and financial condition"),
+    ("2.03", "creation of a direct financial obligation"),
+    ("2.04", "triggering events"),
+    ("2.05", "costs associated with exit or disposal"),
+    ("2.06", "material impairments"),
+    ("3.01", "notice of delisting"),
+    ("3.02", "unregistered sales of equity securities"),
+    ("3.03", "material modification"),
+    ("4.01", "certifying accountant"),
+    ("4.02", "non-reliance on previously issued"),
+    ("5.01", "changes in control of registrant"),
+    ("5.02", "departure of directors"),
+    ("5.03", "amendments to articles of incorporation"),
+    ("5.04", "temporary suspension of trading"),
+    ("5.05", "code of ethics"),
+    ("5.06", "change in shell company status"),
+    ("5.07", "submission of matters to a vote"),
+    ("5.08", "shareholder director nominations"),
+    ("5.08", "shareholder nominations"),
+    ("6.01", "abs informational"),
+    ("6.02", "change of servicer or trustee"),
+    ("6.03", "change in credit enhancement"),
+    ("6.04", "failure to make a required distribution"),
+    ("6.05", "securities act updating disclosure"),
+    ("6.06", "static pool"),
+    ("7.01", "regulation fd disclosure"),
+    ("8.01", "other events"),
+    ("9.01", "financial statements and exhibits"),
+)
 
 
 class HeaderParseError(Exception):
@@ -37,6 +78,14 @@ class Header:
     issuer_cik: str | None
     sic: str | None
     sic_label: str | None
+    items: str | None = None  # 8-K items, comma-separated codes ("2.02,9.01")
+    period_of_report: date | None = None
+
+
+def item_code(description: str) -> str:
+    """An 8-K item's code from its description in a header; the description itself if unknown."""
+    text = " ".join(description.lower().replace("’", "'").split())
+    return next((code for code, phrase in ITEM_CODES if phrase in text), description.strip())
 
 
 def _first(text: str, *patterns: str) -> str | None:
@@ -64,6 +113,10 @@ def parse_header(text: str, expect_accession: str | None = None) -> Header:
     sic = _first(sgml, r"<ASSIGNED-SIC>\s*(\d{4})") or (classification and classification[2])
     label = classification[1].strip() if classification and classification[2] == sic else None
     cik = _first(sgml, r"<CIK>\s*(\d+)") or _first(readable, r"CENTRAL INDEX KEY:\s*(\d+)")
+    codes = re.findall(r"<ITEMS>\s*([\d.]+)", raw) or [
+        item_code(d) for d in re.findall(r"ITEM INFORMATION:[ \t]*([^\n]+)", raw)
+    ]
+    period = _first(raw, r"<PERIOD>\s*(\d{8})", r"CONFORMED PERIOD OF REPORT:\s*(\d{8})")
     return Header(
         accession=accession,
         form_type=form_type,
@@ -72,13 +125,16 @@ def parse_header(text: str, expect_accession: str | None = None) -> Header:
         issuer_cik=(cik.lstrip("0") or None) if cik else None,
         sic=sic or None,
         sic_label=label or None,
+        items=",".join(codes) or None,
+        period_of_report=datetime.strptime(period, "%Y%m%d").date() if period else None,
     )
 
 
 HEADER_SCHEMA = pa.schema([
     ("accession", pa.string()), ("issuer_cik", pa.string()), ("form_type", pa.string()),
     ("filed_as_of", pa.date32()), ("accepted_at_et", pa.timestamp("s")), ("sic", pa.string()),
-    ("sic_label", pa.string()), ("raw_file", pa.string()),
+    ("sic_label", pa.string()), ("items", pa.string()), ("period_of_report", pa.date32()),
+    ("raw_file", pa.string()),
 ])  # fmt: skip
 
 
@@ -94,7 +150,7 @@ def stage_headers(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
             failed.append((entry.key, str(e), entry.path))
             continue
         rows.append((h.accession, h.issuer_cik, h.form_type, h.filed_as_of, h.accepted_at_et,
-                     h.sic, h.sic_label, entry.path))  # fmt: skip
+                     h.sic, h.sic_label, h.items, h.period_of_report, entry.path))  # fmt: skip
     cols = list(zip(*rows, strict=True)) if rows else [[] for _ in HEADER_SCHEMA]
     table = pa.Table.from_arrays(
         [pa.array(c, f.type) for c, f in zip(cols, HEADER_SCHEMA, strict=True)],

@@ -6,7 +6,7 @@ import subprocess
 
 from sentinel.config import Paths
 
-TAG = "prereg-risk-v5"  # v5: D63 as amended; v4, v3, v2 (D61) and v1 stay as history
+TAG = "prereg-risk-v5"  # v5: D63 as amended; re-tagged on v2 with the same file (V2-2)
 
 
 class NotLocked(Exception):

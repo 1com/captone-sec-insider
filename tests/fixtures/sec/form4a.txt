@@ -1,0 +1,194 @@
+<SEC-DOCUMENT>0001493152-26-048811.txt : 20261028
+<SEC-HEADER>0001493152-26-048811.hdr.sgml : 20261028
+<ACCEPTANCE-DATETIME>20261028070840
+ACCESSION NUMBER:		0001493152-26-048811
+CONFORMED SUBMISSION TYPE:	4/A
+PUBLIC DOCUMENT COUNT:		1
+CONFORMED PERIOD OF REPORT:	20260416
+FILED AS OF DATE:		20261028
+DATE AS OF CHANGE:		20261028
+
+REPORTING-OWNER:	
+
+	OWNER DATA:	
+		COMPANY CONFORMED NAME:			Taylor Paul Richard
+		CENTRAL INDEX KEY:			0001746470
+		ORGANIZATION NAME:           	
+
+	FILING VALUES:
+		FORM TYPE:		4/A
+		SEC ACT:		1934 Act
+		SEC FILE NUMBER:	000-25753
+		FILM NUMBER:		261492415
+
+	MAIL ADDRESS:	
+		STREET 1:		6528 SOMERSET CIRCLE
+		CITY:			BOCA RATON
+		STATE:			FL
+		ZIP:			33496
+
+ISSUER:		
+
+	COMPANY DATA:	
+		COMPANY CONFORMED NAME:			VISIUM TECHNOLOGIES, INC.
+		CENTRAL INDEX KEY:			0001082733
+		STANDARD INDUSTRIAL CLASSIFICATION:	SERVICES-COMPUTER PROGRAMMING SERVICES [7371]
+		ORGANIZATION NAME:           	06 Technology
+		EIN:				870449667
+		STATE OF INCORPORATION:			FL
+		FISCAL YEAR END:			0630
+
+	BUSINESS ADDRESS:	
+		STREET 1:		401 E. LAS OLAS BOULEVARD,
+		STREET 2:		SUITE 1400
+		CITY:			FORT LAUDERDALE
+		STATE:			FL
+		ZIP:			33301
+		BUSINESS PHONE:		(954) 712-7487
+
+	MAIL ADDRESS:	
+		STREET 1:		401 E. LAS OLAS BOULEVARD,
+		STREET 2:		SUITE 1400
+		CITY:			FORT LAUDERDALE
+		STATE:			FL
+		ZIP:			33301
+
+	FORMER COMPANY:	
+		FORMER CONFORMED NAME:	NuSTATE ENERGY HOLDINGS, INC.
+		DATE OF NAME CHANGE:	20071227
+
+	FORMER COMPANY:	
+		FORMER CONFORMED NAME:	Fittipaldi Logistics, Inc.
+		DATE OF NAME CHANGE:	20061024
+
+	FORMER COMPANY:	
+		FORMER CONFORMED NAME:	POWER2SHIP INC
+		DATE OF NAME CHANGE:	20030516
+</SEC-HEADER>
+<DOCUMENT>
+<TYPE>4/A
+<SEQUENCE>1
+<FILENAME>ownership.xml
+<DESCRIPTION>4/A
+<TEXT>
+<XML>
+<?xml version="1.0"?>
+<ownershipDocument>
+
+    <schemaVersion>X0609</schemaVersion>
+
+    <documentType>4/A</documentType>
+
+    <periodOfReport>2026-04-16</periodOfReport>
+
+    <dateOfOriginalSubmission>2026-04-24</dateOfOriginalSubmission>
+
+    <notSubjectToSection16>1</notSubjectToSection16>
+
+    <issuer>
+        <issuerCik>0001082733</issuerCik>
+        <issuerName>VISIUM TECHNOLOGIES, INC.</issuerName>
+        <issuerTradingSymbol>VISM</issuerTradingSymbol>
+        <issuerForeignTradingSymbol></issuerForeignTradingSymbol>
+    </issuer>
+
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0001746470</rptOwnerCik>
+            <rptOwnerName>Taylor Paul Richard</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerAddress>
+            <rptOwnerNonUSAddressFlag>false</rptOwnerNonUSAddressFlag>
+            <rptOwnerStreet1>6528 SOMERSET CIRCLE</rptOwnerStreet1>
+            <rptOwnerStreet2></rptOwnerStreet2>
+            <rptOwnerCity>BOCA RATON</rptOwnerCity>
+            <rptOwnerState>FL</rptOwnerState>
+            <rptOwnerZipCode>33484</rptOwnerZipCode>
+            <rptOwnerStateDescription></rptOwnerStateDescription>
+        </reportingOwnerAddress>
+        <reportingOwnerRelationship>
+            <isDirector>0</isDirector>
+            <isOfficer>0</isOfficer>
+            <isTenPercentOwner>0</isTenPercentOwner>
+            <isOther>1</isOther>
+            <officerTitle></officerTitle>
+            <otherText>Former director and officer</otherText>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+
+    <aff10b5One>0</aff10b5One>
+
+    <derivativeTable>
+        <derivativeTransaction>
+            <securityTitle>
+                <value>Series E Convertible Preferred Stock</value>
+            </securityTitle>
+            <conversionOrExercisePrice>
+                <value>1500</value>
+            </conversionOrExercisePrice>
+            <transactionDate>
+                <value>2026-04-16</value>
+            </transactionDate>
+            <deemedExecutionDate></deemedExecutionDate>
+            <transactionCoding>
+                <transactionFormType>4</transactionFormType>
+                <transactionCode>A</transactionCode>
+                <equitySwapInvolved>0</equitySwapInvolved>
+                <footnoteId id="F2"/>
+            </transactionCoding>
+            <transactionTimeliness></transactionTimeliness>
+            <transactionAmounts>
+                <transactionShares>
+                    <value>0</value>
+                </transactionShares>
+                <transactionPricePerShare>
+                    <footnoteId id="F2"/>
+                </transactionPricePerShare>
+                <transactionAcquiredDisposedCode>
+                    <value>A</value>
+                </transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <exerciseDate>
+                <footnoteId id="F3"/>
+            </exerciseDate>
+            <expirationDate>
+                <footnoteId id="F3"/>
+            </expirationDate>
+            <underlyingSecurity>
+                <underlyingSecurityTitle>
+                    <value>Common Stock</value>
+                </underlyingSecurityTitle>
+                <underlyingSecurityShares>
+                    <value>0</value>
+                    <footnoteId id="F1"/>
+                </underlyingSecurityShares>
+            </underlyingSecurity>
+            <postTransactionAmounts>
+                <sharesOwnedFollowingTransaction>
+                    <value>0</value>
+                    <footnoteId id="F2"/>
+                </sharesOwnedFollowingTransaction>
+            </postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership>
+                    <value>D</value>
+                </directOrIndirectOwnership>
+            </ownershipNature>
+        </derivativeTransaction>
+    </derivativeTable>
+
+    <footnotes>
+        <footnote id="F1">Amended. The Series E Convertible Preferred Stock reported in the original Form 4 was never issued to the Reporting Person. The proposed acquisition of ConnexUS AI, Inc. under the Letter of Intent dated March 29, 2026 did not close and was terminated on June 8, 2026. No securities were acquired and no consideration was given.</footnote>
+        <footnote id="F2">The Reporting Person does not beneficially own, directly or indirectly, any securities of the Issuer. The as-converted figure of 34,452,488 shares and the percentages reported in the original Form 4 are withdrawn. On April 16, 2026, the reported transaction date, the Reporting Person was not a director, officer or 10% owner of the Issuer. He became Chairman of the Board, Chief Executive Officer and a director on April 27, 2026 and resigned from those positions on October 26, 2026. Amendment No. 1 to the Reporting Person's Schedule 13D is filed concurrently.</footnote>
+        <footnote id="F3">Any time / No expiration</footnote>
+    </footnotes>
+
+    <ownerSignature>
+        <signatureName>/s/ Paul Taylor</signatureName>
+        <signatureDate>2026-10-28</signatureDate>
+    </ownerSignature>
+</ownershipDocument>
+</XML>
+</TEXT>
+</DOCUMENT>
+</SEC-DOCUMENT>

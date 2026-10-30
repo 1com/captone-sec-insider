@@ -1,4 +1,4 @@
-# Insider tracker rules. The values are v1's registered ones (config/params.yaml at tag v1-final);
+# Insider tracker rules. The values are v1's registered ones (v1's config/params.yaml, retired);
 # v2 drops the insider study (V2-4), so they decide what the tracker shows, not a hypothesis test.
 # Regular expressions apply case-insensitively.
 

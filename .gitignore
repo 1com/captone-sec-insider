@@ -15,3 +15,11 @@ dist/
 # Values derived from Tiingo prices are private and never published.
 /data
 *.part
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
+.idea/
+.vscode/

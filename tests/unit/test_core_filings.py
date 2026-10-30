@@ -30,19 +30,29 @@ def _filing(cik, acc, form, filed, items=None, report=None):
             "report_date": report or filed, "items": items}  # fmt: skip
 
 
+def _header(acc, accepted, items=None, period=None):
+    return {"accession": acc, "accepted_at_et": accepted, "items": items,
+            "period_of_report": period}  # fmt: skip
+
+
 def test_a_filing_counts_the_same_day_only_if_accepted_before_the_close(con, tmp_data):
     _frame(con, "stg_sec_filings.filing", [
         _filing("1", "a", "8-K", date(2022, 4, 20)),  # header: 10:00, before the close
         _filing("1", "b", "8-K", date(2022, 4, 20)),  # header: 16:30, after the close
         _filing("1", "c", "8-K", date(2022, 4, 22)),  # no header: a Friday, so Monday
+        _filing("1", "d", "8-K", date(2022, 4, 22)) | {"report_date": None},  # from a daily index
     ])  # fmt: skip
     _frame(con, "stg_sec_headers.header", [
-        {"accession": "a", "accepted_at_et": datetime(2022, 4, 20, 10, 0)},
-        {"accession": "b", "accepted_at_et": datetime(2022, 4, 20, 16, 30)},
+        _header("a", datetime(2022, 4, 20, 10, 0)),
+        _header("b", datetime(2022, 4, 20, 16, 30)),
+        _header("d", datetime(2022, 4, 22, 17, 5), "2.02,9.01", date(2022, 4, 21)),
     ])  # fmt: skip
     filings.build_filing(con, tmp_data, **QUIET)
     got = dict(con.execute("select accession, known_at from core.filing").fetchall())
-    assert got == {"a": date(2022, 4, 20), "b": date(2022, 4, 21), "c": date(2022, 4, 25)}
+    assert got == {"a": date(2022, 4, 20), "b": date(2022, 4, 21), "c": date(2022, 4, 25),
+                   "d": date(2022, 4, 25)}  # fmt: skip
+    daily = con.execute("select items, report_date from core.filing where accession = 'd'")
+    assert daily.fetchone() == ("2.02,9.01", date(2022, 4, 21))  # from its header
 
 
 def test_filings_before_the_calendar_keep_their_order(con, tmp_data):
@@ -51,7 +61,7 @@ def test_filings_before_the_calendar_keep_their_order(con, tmp_data):
         _filing("1", "b", "10-Q", date(2021, 6, 8)),
     ])  # fmt: skip
     _frame(con, "stg_sec_headers.header",
-           [{"accession": "x", "accepted_at_et": datetime(2022, 1, 3, 9, 0)}])  # fmt: skip
+           [_header("x", datetime(2022, 1, 3, 9, 0), "8.01", date(2022, 1, 3))])  # fmt: skip
     filings.build_filing(con, tmp_data, **QUIET)
     got = dict(con.execute("select accession, known_at from core.filing").fetchall())
     assert got == {"a": date(2021, 6, 7), "b": date(2021, 6, 9)}  # not both 3 January 2022

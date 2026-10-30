@@ -153,3 +153,20 @@ def test_manifest_class_rejects_second_original_for_a_key(tmp_data):
         m.add(replace(_entry(1), path="sec/headers/2019/other.txt"))
     m.add(replace(_entry(1), path="sec/headers/2019/refetch.txt", role="refetch"))
     assert Manifest(tmp_data.manifest).has_path("sec/headers/2019/refetch.txt")
+
+
+def test_compressed_files_are_identical_for_the_same_answer_and_checked_on_read(tmp_data):
+    from sentinel.raw.manifest import Manifest, read_stored, store_gz
+
+    book = Manifest(tmp_data.manifest)
+    answer = b"CIK|Company Name|Form Type|Date Filed|File Name\n"
+    store_gz(tmp_data, book, "sec_index", "a/one.idx.gz", "one", answer, "https://x.test/1")
+    store_gz(tmp_data, book, "sec_index", "a/two.idx.gz", "two", answer, "https://x.test/2")
+    one, two = (tmp_data.raw / "a" / n for n in ("one.idx.gz", "two.idx.gz"))
+    assert one.read_bytes() == two.read_bytes()  # mtime=0: no timestamp inside the gzip file
+    entry = book.find_original("sec_index", "one")
+    assert read_stored(tmp_data, entry) == answer
+    one.chmod(0o644)
+    one.write_bytes(b"changed")
+    with pytest.raises(ManifestError, match="differs from its manifest line"):
+        read_stored(tmp_data, entry)

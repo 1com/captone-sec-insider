@@ -1,9 +1,11 @@
 """`sentinel build <layer>`: rebuild a layer of the build database from the layer below it
 (docs/architecture.md). Each step replaces its tables whole, so a rerun gives the same result."""
 
+import gc
 from collections.abc import Callable
 
 import duckdb
+import pyarrow as pa
 
 from sentinel.config import Paths
 from sentinel.core import filings as core_filings
@@ -19,8 +21,18 @@ from sentinel.features import price as feat_price
 from sentinel.features import rows as feat_rows
 from sentinel.features import snapshot as feat_snapshot
 from sentinel.labels import risk as risk_labels
+from sentinel.raw import manifest
 from sentinel.reference import build as ref
-from sentinel.staging import market, prices, sec_filings, sec_form4, sec_headers, sec_xbrl
+from sentinel.staging import (
+    market,
+    prices,
+    sec_filings,
+    sec_form4,
+    sec_form4_daily,
+    sec_headers,
+    sec_xbrl,
+)
+from sentinel.update import record
 
 Step = Callable[[duckdb.DuckDBPyConnection, Paths, Callable[[str], None]], dict]
 
@@ -42,6 +54,7 @@ def _sec_form4(con, p: Paths, echo) -> dict:
 
 STAGING: dict[str, Step] = {
     "sec_form4": _sec_form4,
+    "sec_form4_daily": sec_form4_daily.stage,
     "sec_filings": sec_filings.stage,
     "sec_xbrl": sec_xbrl.stage,
     "sec_headers": sec_headers.stage_headers,
@@ -50,6 +63,22 @@ STAGING: dict[str, Step] = {
     "tiingo": prices.stage_tiingo,
     "market": market.stage,
 }
+# The manifest sources each staging step reads: the update re-runs a step when one of them has a
+# stored file the step has not applied (`ops.staged_file`).
+STAGING_SOURCES: dict[str, tuple[str, ...]] = {
+    "sec_form4": ("sec_insider_bulk",),
+    "sec_form4_daily": ("sec_ownership_filing",),
+    "sec_filings": ("sec_company", "sec_submissions_cik", "sec_index"),
+    "sec_xbrl": ("sec_company", "sec_companyfacts_cik"),
+    "sec_headers": ("sec_filing_header",),
+    "sec_tickers": ("sec_company_tickers",),
+    "yahoo": ("yahoo",),
+    "tiingo": ("tiingo",),
+    "market": ("fred", "cboe", "finra_short", "french"),
+}
+# Staging steps that can apply only the files they have not staged (`update`; research R10). Each
+# returns None when it must stage in full (a new base).
+INCREMENTAL = {"sec_filings": sec_filings.stage_new, "sec_xbrl": sec_xbrl.stage_new}
 REFERENCE: dict[str, Step] = {
     "company": ref.build_company,
     "ticker_history": ref.build_ticker_history,
@@ -62,6 +91,7 @@ CORE: dict[str, Step] = {
     "price_daily": core_prices.build_daily,
     "price_check": core_prices.build_check,
     "security": core_prices.build_security,
+    "price_coverage": core_prices.build_coverage,
     "filing": core_filings.build_filing,
     "financial_fact": core_filings.build_financial_fact,
     "shares": core_filings.build_shares,
@@ -71,6 +101,7 @@ CORE: dict[str, Step] = {
     "insider_trade": core_insider.build_insider_trade,
     "insider_activity": core_insider.build_insider_activity,
     "insider_cluster": core_insider.build_insider_cluster,
+    "form4_reconciliation": core_insider.build_form4_reconciliation,
     "macro": core_market.build_macro,
     "ticker_span": core_market.build_ticker_span,
     "short_volume": core_market.build_short_volume,
@@ -90,17 +121,34 @@ LAYERS: dict[str, dict[str, Step]] = {"staging": STAGING, "reference": REFERENCE
                                       "features": FEATURES, "labels": LABELS}  # fmt: skip
 
 
-def run(con, p: Paths, layer: str, only: list[str] | None = None, echo=print) -> dict:
+def release_memory() -> None:
+    """Return the memory a step freed: Arrow keeps freed buffers for reuse, and a full build runs
+    every step in one process under the 5 GB cap."""
+    gc.collect()
+    pa.default_memory_pool().release_unused()
+
+
+def run(con, p: Paths, layer: str, only: list[str] | None = None, echo=print,
+        incremental: bool = False) -> dict:  # fmt: skip
     steps = LAYERS[layer]
     unknown = [s for s in only or [] if s not in steps]
     if unknown:
         raise UnknownStep(
             f"unknown {layer} step(s): {', '.join(unknown)}; known: {', '.join(steps)}"
         )
+    entries = None
     results = {}
     for name, step in steps.items():
         if only and name not in only:
             continue
         echo(f"{layer}: {name}")
-        results[name] = step(con, p, echo)
+        done = None
+        if incremental and name in INCREMENTAL:
+            done = INCREMENTAL[name](con, p, record.staged(con, name), echo)
+        results[name] = done if done is not None else step(con, p, echo)
+        release_memory()
+        if layer == "staging":
+            entries = entries or [e for e in manifest.read_all(p.manifest) if e.role == "original"]
+            sources = STAGING_SOURCES.get(name, ())
+            record.record_staged(con, name, [e for e in entries if e.source in sources])
     return results

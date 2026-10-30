@@ -1,6 +1,8 @@
 """The `sentinel` command. Commands are added layer by layer (docs/architecture.md)."""
 
+import sys
 import time
+from datetime import date
 
 import duckdb
 import typer
@@ -25,6 +27,49 @@ def _fail(message: str, code: int):
 def version() -> None:
     """Print the version."""
     typer.echo(__version__)
+
+
+def _day(value: str | None) -> date | None:
+    if value is None:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        _fail(f"not a date (YYYY-MM-DD): {value!r}", USAGE)
+
+
+@app.command()
+def fetch(
+    source: str = typer.Argument(..., help="sec-tickers, sec-daily, sec-bulk, form4, yahoo, "
+                                 "tiingo, fred, cboe, finra, or all (every daily source)."),
+    from_day: str = typer.Option(None, "--from", help="First filing or trading day, YYYY-MM-DD."),
+    to_day: str = typer.Option(None, "--to", help="Last filing or trading day, YYYY-MM-DD."),
+    full_missing: bool = typer.Option(False, "--full-missing",
+                                      help="yahoo: also full histories of symbols never asked."),
+    window_days: int = typer.Option(None, "--window-days", help="yahoo: days in the window."),
+    quarterly: bool = typer.Option(False, "--quarterly",
+                                   help="form4: the quarterly data sets instead."),
+) -> None:  # fmt: skip
+    """Download one source into data/raw/ (each file with a manifest line)."""
+    from sentinel import config, raw
+    from sentinel.raw.manifest import FetchLocked
+
+    known = raw.fetchers()
+    if source != "all" and source not in known:
+        _fail(f"unknown source {source!r}; known: {', '.join([*known, 'all'])}", USAGE)
+    options = {"from_day": _day(from_day), "to_day": _day(to_day), "full_missing": full_missing,
+               "window_days": window_days, "quarterly": quarterly}  # fmt: skip
+    options = {k: v for k, v in options.items() if v not in (None, False)}
+    try:
+        reports = raw.run(config.paths(), source, date.today(), typer.echo, **options)
+    except config.ConfigError as e:
+        _fail(f"fetch {source}: {e}", CONFIG)
+    except FetchLocked as e:
+        _fail(f"fetch {source}: {e}", FAILED)
+    for report in reports:
+        typer.echo(report.summary())
+    if any(r.status == "failed" for r in reports):
+        raise typer.Exit(FAILED)
 
 
 @app.command()
@@ -61,6 +106,97 @@ def build(
     for step, counts in results.items():
         typer.echo(f"  {step}: " + ", ".join(f"{k} {v:,}" for k, v in counts.items()))
     typer.echo(f"build {layer}: done in {time.monotonic() - started:,.0f}s")
+
+
+@app.command()
+def update(
+    scheduled: bool = typer.Option(False, "--scheduled", help="Started by the schedule."),
+    no_fetch: bool = typer.Option(False, "--no-fetch", help="Use the stored files only."),
+) -> None:
+    """The daily update: fetch what is new, rebuild, publish, record the run. Started by the
+    schedule, it runs itself again under the memory cap (`update.memory_max`)."""
+    from sentinel import config
+    from sentinel.update import run as updater
+    from sentinel.update import schedule as task
+
+    notes: list[str] = []
+    try:
+        if scheduled:
+            code = task.rerun_capped(config.paths(), sys.argv, notes.append)
+            if code is not None:
+                raise typer.Exit(code)
+            for note in notes:
+                typer.echo(note)
+        result = updater.update(config.paths(), scheduled=scheduled, fetch=not no_fetch,
+                                echo=typer.echo, notes=notes)  # fmt: skip
+    except config.ConfigError as e:
+        _fail(f"update: {e}", CONFIG)
+    except (updater.UpdateLocked, updater.DiskFull) as e:
+        _fail(f"update: {e}", FAILED)
+    except typer.Exit:
+        raise
+    except Exception as e:
+        _fail(f"update failed: {type(e).__name__}: {e}", FAILED)
+    if result["status"] in ("partial", "failed"):
+        raise typer.Exit(FAILED)
+
+
+@app.command()
+def status(runs: int = typer.Option(5, "--runs", help="How many recent runs to show.")) -> None:
+    """Recent update runs, each dataset's latest date, price coverage and the next scheduled run.
+    Reads only; works while an update is running."""
+    from sentinel import config
+    from sentinel.update import status as state
+
+    for line in state.lines(config.paths(), runs):
+        typer.echo(line)
+
+
+@app.command()
+def schedule(
+    action: str = typer.Argument(..., help="install, remove or show."),
+    at: str = typer.Option(None, "--time", help="install: HH:MM local time "
+                           "(default: update.schedule_time)."),
+) -> None:  # fmt: skip
+    """The weekday-evening update as a Windows scheduled task (runs `sentinel update --scheduled`
+    through WSL; a start missed while the computer was off runs when it is back on)."""
+    from sentinel import config
+    from sentinel.update import schedule as task
+
+    p = config.paths()
+    try:
+        if action == "install":
+            typer.echo(f"schedule: installed, weekdays at {task.install(p, at)}")
+        elif action == "remove":
+            typer.echo("schedule: removed" if task.remove(p) else "schedule: not installed")
+            return
+        elif action != "show":
+            _fail(f"unknown action {action!r}; known: install, remove, show", USAGE)
+        info = task.show(p)
+    except config.ConfigError as e:
+        _fail(f"schedule: {e}", CONFIG)
+    except ValueError as e:
+        _fail(f"schedule: {e}", USAGE)
+    except RuntimeError as e:
+        _fail(f"schedule: {e}", FAILED)
+    if info is None:
+        typer.echo("schedule: not installed")
+    for name, value in (info or {}).items():
+        typer.echo(f"  {name}: {value}")
+
+
+@app.command()
+def verify(keep: bool = typer.Option(False, "--keep", help="Keep data/verify.duckdb.")) -> None:
+    """Rebuild everything into a scratch database and compare it with the build database."""
+    from sentinel import config
+    from sentinel.update import verify as verifier
+
+    differ = verifier.verify(config.paths(), keep=keep, echo=typer.echo)
+    for line in differ:
+        typer.echo(f"  {line}")
+    typer.echo("verify: all tables identical" if not differ else
+               f"verify: {len(differ)} tables differ")  # fmt: skip
+    raise typer.Exit(OK if not differ else FAILED)
 
 
 def _serving(name: str, run) -> None:

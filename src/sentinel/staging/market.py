@@ -70,7 +70,7 @@ def _fred(con, p: Paths) -> int:
     rows = []
     for e in _newest(p, "fred").values():
         series, mode = e.key.split("-")[:2]
-        payload = (p.raw / e.path).read_bytes()
+        payload = manifest.read_stored(p, e)  # checked; daily copies are gzip-compressed
         rows += [(series, mode, *r, e.path) for r in fred_observations(payload, mode)]
     with db.transaction(con):
         con.execute(

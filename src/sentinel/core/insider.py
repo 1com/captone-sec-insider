@@ -1,11 +1,15 @@
-"""Layer 3b: the insider tracker's tables, from the Form 4 data sets (`stg_sec_form4`).
+"""Layer 3b: the insider tracker's tables, from the Form 4 data sets (`stg_sec_form4`) and the
+filings fetched since the last set (`stg_sec_form4_daily`), read as one (`union_sql`).
 
 The rules are v1's, now in `config/tracker.yaml`. v2 drops the study they were written for (V2-4),
 so here they decide what the tracker shows: who bought or sold, in which role, how much, when, and
 when several insiders bought together.
 
 - `core.insider_filing`: one row per Form 3/4/5 accession, from the first quarter that lists it,
-  with `known_at` (the `core.filing` rule).
+  with `known_at` (the `core.filing` rule, the acceptance time from the filing's header or its
+  daily copy).
+- `core.form4_reconciliation`: accessions in both a data set and the daily filings whose two
+  versions differ (owners, line counts, values), which checks the daily parser.
 - `core.insider_entity_member`: owners who appear together on any filing for an issuer (a fund and
   its general partner, a person and their trust) are one entity from that filing's date on.
   Components only merge, so the history is a short list of changes per issuer: a row whenever an
@@ -41,6 +45,7 @@ from sentinel import db
 from sentinel.config import Paths, tracker
 from sentinel.core.filings import same_day_or_next
 from sentinel.staging.sec_form4 import TABLE_SPECS
+from sentinel.staging.sec_form4_daily import has_daily, union_sql
 
 BATCH_ROWS = 200_000  # input rows turned into Python objects at a time
 FLUSH_ROWS = 500_000  # membership rows buffered before an insert
@@ -59,19 +64,25 @@ LINE_GATES = (
 FILING_GATE = "g6b_min_value"
 _FN_COLUMNS = [c.lower() for c in TABLE_SPECS["NONDERIV_TRANS"].columns if c.endswith("_FN")]
 
-FILING_OWNERS = """
-    select f.issuer_cik, f.filing_date, f.accession, o.rptownercik as owner_cik,
-           o.rptowner_relationship as relationship, o.rptowner_title as title
-    from core.insider_filing f
-    join stg_sec_form4.reportingowner o
-      on o.accession_number = f.accession and o.quarter = f.quarter
-    where o.rptownercik is not null and f.filing_date is not null and f.issuer_cik is not null
-"""
+
+def _filing_owners(con) -> str:
+    return f"""
+        select f.issuer_cik, f.filing_date, f.accession, o.rptownercik as owner_cik,
+               o.rptowner_relationship as relationship, o.rptowner_title as title
+        from core.insider_filing f
+        join {union_sql(con, "reportingowner")} o
+          on o.accession_number = f.accession and o.quarter = f.quarter
+        where o.rptownercik is not null and f.filing_date is not null and f.issuer_cik is not null
+    """
 
 
 def build_insider_filing(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
     db.require(con, ["stg_sec_form4.submission", "stg_sec_headers.header", "ref.calendar"],
                "core.insider_filing")  # fmt: skip
+    accepted = "select accession, accepted_at_et from stg_sec_headers.header"
+    if has_daily(con):
+        accepted += (" union all select accession_number, accepted_at_et "
+                     "from stg_sec_form4_daily.submission")  # fmt: skip
     with db.transaction(con):
         con.execute(
             f"""
@@ -80,13 +91,13 @@ def build_insider_filing(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -
                 select accession_number as accession, quarter, filing_date, document_type,
                        issuercik as issuer_cik, issuername as issuer_name,
                        issuertradingsymbol as symbol_raw, aff10b5one
-                from stg_sec_form4.submission
+                from {union_sql(con, "submission")}
                 where accession_number is not null
                 qualify row_number() over (partition by accession_number
                                            order by quarter, src_row) = 1
             ),
             h as (select accession, min(accepted_at_et) as accepted_at_et
-                  from stg_sec_headers.header group by 1),
+                  from ({accepted}) group by 1),
             base as (select f.*, h.accepted_at_et from f left join h using (accession))
             select b.*,
                    {same_day_or_next("b.filing_date", "b.accepted_at_et", "c.session")} as known_at
@@ -166,7 +177,7 @@ def _build_members(con: duckdb.DuckDBPyConnection) -> None:
     # Fully materialised (compact in Arrow) so the inserts below can use the same connection.
     table = con.execute(
         f"select distinct issuer_cik, filing_date, accession, owner_cik "
-        f"from ({FILING_OWNERS}) order by all"
+        f"from ({_filing_owners(con)}) order by all"
     ).to_arrow_table()
     out: list[tuple] = []
     for issuer, by_issuer in groupby(_rows(table), key=itemgetter(0)):
@@ -210,7 +221,7 @@ def _build_roles(con: duckdb.DuckDBPyConnection, ceo_re: str) -> None:
                    contains(rel, 'officer') as is_officer,
                    contains(rel, 'tenpercentowner') as is_ten_pct,
                    contains(rel, 'other') as is_other
-            from (select *, lower(coalesce(relationship, '')) as rel from ({FILING_OWNERS}))
+            from (select *, lower(coalesce(relationship, '')) as rel from ({_filing_owners(con)}))
         ),
         roles as (
             select *, case role {seniority} end as seniority
@@ -266,7 +277,7 @@ def _entity_problems(con: duckdb.DuckDBPyConnection) -> list[str]:
         f"""
         with resolved as (
             select fo.accession, m.entity_id
-            from ({FILING_OWNERS}) fo asof left join core.insider_entity_member m
+            from ({_filing_owners(con)}) fo asof left join core.insider_entity_member m
               on fo.issuer_cik = m.issuer_cik and fo.owner_cik = m.owner_cik
              and fo.filing_date >= m.valid_from
         )
@@ -395,7 +406,7 @@ def build_insider_trade(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) ->
                                           x -> trim(x)),
                            x -> x <> ''
                        ))) as fn_ids
-                from stg_sec_form4.nonderiv_trans t
+                from {union_sql(con, "nonderiv_trans")} t
                 join core.insider_filing f on f.accession = t.accession_number
                 qualify row_number() over (
                     partition by t.accession_number, t.nonderiv_trans_sk
@@ -406,7 +417,7 @@ def build_insider_trade(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) ->
                 select n.accession_number as accession, n.footnote_id,
                        regexp_matches(n.footnote_txt, $plan_re, 'i') as plan_fn,
                        regexp_matches(n.footnote_txt, $offer_re, 'i') as offering_fn
-                from stg_sec_form4.footnotes n
+                from {union_sql(con, "footnotes")} n
                 join core.insider_filing f
                   on f.accession = n.accession_number and f.quarter = n.quarter
             ),
@@ -452,7 +463,7 @@ def build_insider_trade(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) ->
     return counts
 
 
-def _holdings_sql() -> str:
+def _holdings_sql(con) -> str:
     """SQL: per accession in `_side`, the owners' common-stock holdings before and after the
     filing. Every common-stock line counts, whatever its code or gates: per holding
     (`direct_indirect`, `nature_of_ownership`), after = the last line's shares owned, and before =
@@ -490,7 +501,7 @@ def _holdings_sql() -> str:
             select h.accession_number as accession,
                    {db.exact_sum("h.shrs_ownd_folwng_trans")} as shares,
                    bool_or(h.shrs_ownd_folwng_trans is null) as broken
-            from stg_sec_form4.nonderiv_holding h
+            from {union_sql(con, "nonderiv_holding")} h
             join acc a on a.accession = h.accession_number and a.quarter = h.quarter
             where {_common("h.security_title")}
             group by 1
@@ -564,20 +575,20 @@ def build_insider_activity(con: duckdb.DuckDBPyConnection, p: Paths, echo=print)
             """
         )
         con.execute(
-            """
+            f"""
             create or replace temp table _side_owner as
             select a.accession, a.issuer_cik, a.filing_date as t,
                    min(o.rptownercik) as owner_cik,
                    list_sort(list_distinct(list(o.rptownercik))) as owner_ciks,
                    list_sort(list_distinct(list(o.rptownername))) as owner_names
             from (select distinct accession, issuer_cik, filing_date, quarter from _side) a
-            left join stg_sec_form4.reportingowner o
+            left join {union_sql(con, "reportingowner")} o
               on o.accession_number = a.accession and o.quarter = a.quarter
             group by all
             """
         )
         resolve_entities(con, "_side_owner", "_side_entity")
-        con.execute(f"create or replace temp table _holding as {_holdings_sql()}",
+        con.execute(f"create or replace temp table _holding as {_holdings_sql(con)}",
                     _title_args(rules))  # fmt: skip
         con.execute(
             f"""
@@ -696,3 +707,88 @@ def build_insider_cluster(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) 
         "order by 1").fetchall())  # fmt: skip
     echo(f"  insider events by group: {counts}")
     return {f"events_{g}": n for g, n in counts.items()}
+
+
+# --- The daily parser against the data sets --------------------------------------------------
+
+_LINE_TABLES = ("nonderiv_trans", "nonderiv_holding", "deriv_trans", "deriv_holding")
+
+
+# The quarterly data sets keep shares and prices to two decimals (half up), the filings in full:
+# values are compared at the data sets' precision.
+_CENTS = "round(cast({} as DECIMAL(38, 6)), 2)"
+
+
+def _version(schema: str, chosen: str) -> str:
+    """SQL: per accession of `chosen` (accession, quarter), its owners, line count and the value of
+    its non-derivative lines (shares × price) in `schema`, in full and at two decimals."""
+    cents = _CENTS.format
+    lines = " union all ".join(f"select accession_number, quarter from {schema}.{t}"
+                               for t in _LINE_TABLES)  # fmt: skip
+    on = "on x.accession_number = a.accession and x.quarter = a.quarter"
+    return f"""
+        select a.accession, a.quarter, coalesce(o.owners, []) as owners,
+               coalesce(n.lines, 0) as lines, v.value, v.value_cents
+        from {chosen} a
+        left join (select a.accession, list_sort(list_distinct(list(x.rptownercik))) as owners
+                   from {chosen} a join {schema}.reportingowner x {on} group by 1) o
+          using (accession)
+        left join (select a.accession, count(*) as lines
+                   from {chosen} a join ({lines}) x {on} group by 1) n using (accession)
+        left join (select a.accession, {db.exact_sum("x.trans_shares * x.trans_pricepershare")}
+                          as value,
+                          sum({cents("x.trans_shares")} * {cents("x.trans_pricepershare")})
+                          as value_cents
+                   from {chosen} a join {schema}.nonderiv_trans x {on} group by 1) v
+          using (accession)
+    """
+
+
+def build_form4_reconciliation(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
+    """`core.form4_reconciliation`: the accessions in a quarterly data set (its first quarter) and
+    in the daily filings whose versions differ in owners, line count or value (at the data sets'
+    two decimals; `value_daily` is the filing's full-precision value)."""
+    db.require(con, ["stg_sec_form4.submission"], "core.form4_reconciliation")
+    columns = ("accession VARCHAR, quarter VARCHAR, owners_quarterly VARCHAR[], "
+               "owners_daily VARCHAR[], lines_quarterly BIGINT, lines_daily BIGINT, "
+               "value_quarterly DOUBLE, value_daily DOUBLE, owners_differ BOOLEAN, "
+               "lines_differ BOOLEAN, value_differ BOOLEAN")  # fmt: skip
+    with db.transaction(con):
+        if not has_daily(con):
+            con.execute(f"create or replace table core.form4_reconciliation ({columns})")
+            echo("  form 4 reconciliation: no daily filings")
+            return {"compared": 0, "differ": 0}
+        con.execute(
+            """
+            create or replace temp table _both as
+            select accession_number as accession, quarter from stg_sec_form4.submission
+            where accession_number in (select accession_number from stg_sec_form4_daily.submission)
+            qualify row_number() over (partition by accession_number order by quarter, src_row) = 1
+            """
+        )
+        con.execute(
+            "create or replace temp table _daily as select accession_number as accession, quarter "
+            "from stg_sec_form4_daily.submission "
+            "where accession_number in (select accession from _both)"
+        )
+        con.execute(
+            f"""
+            create or replace table core.form4_reconciliation as
+            select accession, q.quarter, q.owners as owners_quarterly, d.owners as owners_daily,
+                   q.lines as lines_quarterly, d.lines as lines_daily,
+                   q.value as value_quarterly, d.value as value_daily,
+                   q.owners <> d.owners as owners_differ, q.lines <> d.lines as lines_differ,
+                   coalesce(q.value_cents, 0) <> coalesce(d.value_cents, 0) as value_differ
+            from ({_version("stg_sec_form4", "_both")}) q
+            join ({_version("stg_sec_form4_daily", "_daily")}) d using (accession)
+            where q.owners <> d.owners or q.lines <> d.lines
+               or coalesce(q.value_cents, 0) <> coalesce(d.value_cents, 0)
+            order by accession
+            """
+        )
+        compared = db.count(con, "_both")
+        for name in ("_both", "_daily"):
+            con.execute(f"drop table {name}")
+    differ = db.count(con, "core.form4_reconciliation")
+    echo(f"  form 4 reconciliation: {compared:,} accessions in both, {differ:,} differ")
+    return {"compared": compared, "differ": differ}

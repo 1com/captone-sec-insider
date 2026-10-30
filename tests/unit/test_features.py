@@ -89,3 +89,16 @@ def test_rows_are_eligible_once_the_floors_and_history_are_met(con):
     assert _row(con, "1", date(2019, 1, 31), "eligible")[0] is False  # 21 price days so far
     assert _row(con, "1", date(2019, 6, 28), "eligible", "active_filer") == (True, True)
     assert _row(con, "2", date(2019, 1, 31), "active_filer")[0] is False  # no filing yet
+
+
+def test_values_filed_on_the_calendars_last_day_wait_for_the_next_session(tmp_data):
+    # their next trading day is not in the calendar yet, so they have no `known_at`
+    con = db.connect(tmp_data)
+    build_world(con)
+    for table, end in (("core.financial_fact", "period_end"), ("core.shares_outstanding", "as_of")):
+        con.execute(f"insert into {table} select * replace (null as known_at, "
+                    f"({end} + interval 5 year)::date as {end}) from {table} "
+                    "where cik = '1' limit 1")  # fmt: skip
+    build.run(con, tmp_data, "features", **QUIET)
+    assert con.execute("select count(*) from feature.fundamental where cik = '1'").fetchone()[0]
+    con.close()

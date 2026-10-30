@@ -128,3 +128,21 @@ def test_stream_failure_leaves_no_part_file(tmp_path, limiter, fc):
             make_client(UA, 5), URL, part, limiter, RetryPolicy(2, 0.01, 0.02, sleep=fc.sleep)
         )
     assert not part.exists()
+
+
+S3_MISSING = ('<?xml version="1.0" encoding="UTF-8"?>\n<Error><Code>AccessDenied</Code>'
+              "<Message>Access Denied</Message></Error>")  # fmt: skip
+
+
+@respx.mock
+def test_a_file_not_yet_on_edgar_is_returned_only_when_asked_and_a_refusal_still_stops(
+    limiter, policy
+):
+    respx.get(URL).mock(return_value=httpx.Response(403, text=S3_MISSING))
+    resp = request_with_retry(make_client(UA, 5), "GET", URL, limiter, policy, allow_missing=True)
+    assert resp.status_code == 403  # the store's "not here": a daily index not yet published
+    with pytest.raises(SecForbidden):
+        request_with_retry(make_client(UA, 5), "GET", URL, limiter, policy)
+    respx.get(URL).mock(return_value=httpx.Response(403, text="<html>Undeclared Automated Tool"))
+    with pytest.raises(SecForbidden):  # the SEC refusing the client is never "missing"
+        request_with_retry(make_client(UA, 5), "GET", URL, limiter, policy, allow_missing=True)

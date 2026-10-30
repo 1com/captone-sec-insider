@@ -9,6 +9,9 @@ decided in `core.financial_fact` (as first filed, with `known_at`).
 
 `ITEMS` maps each financial item to its tags, main tag first; a later tag fills only the periods
 the earlier ones lack (v1's rule).
+
+The daily update replaces only the companies with new documents while the base is unchanged
+(`stage_new`, research R10), with the same result.
 """
 
 import json
@@ -20,6 +23,7 @@ import pyarrow as pa
 
 from sentinel import db
 from sentinel.config import Paths
+from sentinel.raw import manifest
 
 SCHEMA = "stg_sec_xbrl"
 USD, SHARES = "USD", "shares"
@@ -84,7 +88,7 @@ def facts(doc: dict, raw_file: str, cik: str | None = None) -> list[tuple]:
     return rows
 
 
-def _flush(con, rows: list[tuple]) -> None:
+def _insert(con, rows: list[tuple], table: str = "_new_fact") -> None:
     if not rows:
         return
     cols = list(zip(*rows, strict=True))
@@ -96,17 +100,26 @@ def _flush(con, rows: list[tuple]) -> None:
             arrays.append(pa.array(values, f.type))
     con.register("_batch", pa.Table.from_arrays(arrays, schema=FACT_SCHEMA))
     try:
-        with db.transaction(con):
-            con.execute(f"insert into {SCHEMA}._new_fact select * from _batch")
+        con.execute(f"insert into {SCHEMA}.{table} select * from _batch")
     finally:
         con.unregister("_batch")
 
 
+def _flush(con, rows: list[tuple]) -> None:
+    with db.transaction(con):
+        _insert(con, rows)
+
+
 def stage(con: duckdb.DuckDBPyConnection, p: Paths, echo: Callable[[str], None] = print) -> dict:
-    path = p.sec_company / "companyfacts.zip"
-    if not path.exists():
-        raise FileNotFoundError(f"{path} not found: run `sentinel fetch company`")
-    rel = path.relative_to(p.raw).as_posix()
+    """Each company's facts from its newest document: the newest bulk zip, or a per-company file
+    fetched after it (`sec/companyfacts/<date>/`; specs/001-daily-data-refresh, research R5). Each
+    document holds the company's whole history, so the newest one is complete."""
+    from sentinel.staging.sec_filings import newest_bulk, newest_per_cik
+
+    base = newest_bulk(p, "companyfacts")
+    path, rel = p.raw / base.path, base.path
+    newer = {cik: e for cik, e in newest_per_cik(p, "sec_companyfacts_cik").items()
+             if e.fetched_at > base.fetched_at}  # fmt: skip
     con.register("_empty", pa.Table.from_pylist([], schema=FACT_SCHEMA))
     con.execute(f"create or replace table {SCHEMA}._new_fact as select * from _empty")
     con.unregister("_empty")
@@ -115,14 +128,43 @@ def stage(con: duckdb.DuckDBPyConnection, p: Paths, echo: Callable[[str], None] 
         names = sorted(n for n in z.namelist() if n.startswith("CIK"))
         for i, name in enumerate(names, 1):
             cik = str(int(name.removeprefix("CIK").removesuffix(".json")))
-            rows += facts(json.loads(z.read(name)), f"{rel}!{name}", cik)
+            if cik not in newer:
+                rows += facts(json.loads(z.read(name)), f"{rel}!{name}", cik)
             if len(rows) >= BATCH_ROWS:
                 _flush(con, rows)
                 rows = []
             if i % 5000 == 0:
                 echo(f"  companyfacts: {i:,}/{len(names):,} companies read")
+    for cik, entry in sorted(newer.items()):
+        rows += facts(json.loads(manifest.read_stored(p, entry)), entry.path, cik)
+        if len(rows) >= BATCH_ROWS:
+            _flush(con, rows)
+            rows = []
+    if newer:
+        echo(f"  companyfacts: {len(newer):,} companies from documents newer than the bulk file")
     _flush(con, rows)
     with db.transaction(con):
         con.execute(f"drop table if exists {SCHEMA}.fact")
         con.execute(f"alter table {SCHEMA}._new_fact rename to fact")
+    return {"fact": db.count(con, f"{SCHEMA}.fact")}
+
+
+def stage_new(con: duckdb.DuckDBPyConnection, p: Paths, staged: set[str],
+              echo: Callable[[str], None] = print) -> dict | None:  # fmt: skip
+    """Apply only the stored documents not in `staged`, with the same result as `stage`: each
+    company with a document newer than the base gets its rows from its newest one. None (stage in
+    full) when the newest bulk file is not staged or the table is missing."""
+    from sentinel.staging.sec_filings import newest_bulk, newest_per_cik, staged_tables
+
+    base = newest_bulk(p, "companyfacts")
+    if base.path not in staged or not staged_tables(con, SCHEMA, ("fact",)):
+        return None
+    new = {cik: e for cik, e in newest_per_cik(p, "sec_companyfacts_cik").items()
+           if e.fetched_at > base.fetched_at and e.path not in staged}  # fmt: skip
+    rows = [r for cik, e in sorted(new.items())
+            for r in facts(json.loads(manifest.read_stored(p, e)), e.path, cik)]  # fmt: skip
+    with db.transaction(con):
+        con.execute(f"delete from {SCHEMA}.fact where list_contains(?, cik)", [sorted(new)])
+        _insert(con, rows, "fact")
+    echo(f"  companyfacts: {len(new):,} companies from documents newer than the bulk file")
     return {"fact": db.count(con, f"{SCHEMA}.fact")}

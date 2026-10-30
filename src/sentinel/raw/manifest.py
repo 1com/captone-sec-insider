@@ -6,9 +6,11 @@ fetched_at, bytes, sha256, the HTTP Last-Modified and ETag, tool.
 """
 
 import fcntl
+import gzip
 import hashlib
 import json
 import os
+import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -62,8 +64,11 @@ class Manifest:
     """The manifest with its index loaded once, for writers that add thousands of entries.
 
     `append()` re-reads the whole file on every call; this class reads it once and keeps the
-    path and (source, key) indexes up to date as it writes .
+    path and (source, key) indexes up to date as it writes. Sources fetched in parallel threads
+    each hold their own instance; one lock keeps their lines whole.
     """
+
+    _write_lock = threading.Lock()
 
     def __init__(self, manifest_path: Path):
         self.path = manifest_path
@@ -83,13 +88,17 @@ class Manifest:
     def find_original(self, source: str, key: str) -> ManifestEntry | None:
         return self._originals.get((source, key))
 
+    def originals(self, source: str) -> list[ManifestEntry]:
+        """Every stored file of `source`, in the order they were added."""
+        return [e for (s, _), e in self._originals.items() if s == source]
+
     def add(self, entry: ManifestEntry) -> None:
         if entry.path in self._paths:
             raise ManifestError(f"manifest already lists {entry.path}")
         if entry.role == "original" and (entry.source, entry.key) in self._originals:
             raise ManifestError(f"manifest already has an original for {entry.source}/{entry.key}")
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.path, "a", encoding="utf-8") as f:
+        with self._write_lock, open(self.path, "a", encoding="utf-8") as f:
             f.write(json.dumps(asdict(entry), ensure_ascii=False) + "\n")
             f.flush()
             os.fsync(f.fileno())
@@ -184,3 +193,20 @@ def store_bytes(
         )
     )  # fmt: skip
     return final
+
+
+def store_gz(
+    paths: Paths, book: Manifest, source: str, rel: str, key: str, data: bytes, url: str
+) -> Path:
+    """`store_bytes` of `data` gzip-compressed with `mtime=0`: the same answer always gives the same
+    file, and decompressing returns the bytes received."""
+    return store_bytes(paths, book, source, rel, key, gzip.compress(data, mtime=0), url)
+
+
+def read_stored(paths: Paths, entry: ManifestEntry) -> bytes:
+    """A stored file's bytes as received: checked against its manifest line (size and SHA-256), then
+    decompressed when its path ends in `.gz`. For small files; large archives are read by path."""
+    data = (paths.raw / entry.path).read_bytes()
+    if len(data) != entry.bytes or hashlib.sha256(data).hexdigest() != entry.sha256:
+        raise ManifestError(f"{entry.path} differs from its manifest line")
+    return gzip.decompress(data) if entry.path.endswith(".gz") else data

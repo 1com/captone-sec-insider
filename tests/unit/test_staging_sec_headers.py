@@ -92,3 +92,15 @@ def test_stage_tickers_keeps_every_snapshot_in_the_secs_order(tmp_data):
     ).fetchall()
     assert got == [(date(2026, 10, 22), "320193", "AAPL", 0), (date(2026, 10, 23), "1045810",
                     "NVDA", 0), (date(2026, 10, 23), "320193", "AAPL", 1)]  # fmt: skip
+
+
+def test_8k_items_become_codes_and_the_period_of_report_is_read():
+    fixtures = Path(__file__).parents[1] / "fixtures" / "sec"
+    h = sec_headers.parse_header((fixtures / "header_8k.html").read_text(), "0001437749-26-033798")
+    assert (h.items, h.period_of_report) == ("2.02,9.01", date(2026, 10, 28))
+    h = sec_headers.parse_header((fixtures / "header_10q.html").read_text(),
+                                 "0001193125-26-436148")  # fmt: skip
+    assert (h.items, h.period_of_report) == (None, date(2026, 9, 30))
+    assert sec_headers.item_code("Departure of Directors or Certain Officers; Election of "
+                                 "Directors") == "5.02"  # fmt: skip
+    assert sec_headers.item_code("Something New") == "Something New"  # kept as text
