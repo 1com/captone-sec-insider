@@ -21,10 +21,12 @@ when several insiders bought together.
   an open-market purchase (`g2_sale`: an open-market sale); G3 common stock; G4a no 10b5-1
   checkbox; G4b no plan footnote; G5 no offering footnote; G6a filed on time, with a value.
   Footnote screens read only the footnotes the line itself cites. A line has a typo in its price
-  or shares when its price per share is more than 10 times above or below the stock's as-traded
-  close on or before the filing date, or when it is worth more than the whole company (that close
-  times the share count known by the filing date): its `value_usd` is missing and `value_typo` is
-  set (V2-24); the line itself stays.
+  or shares (V2-24) when it is worth more than the whole company (the stock's as-traded close on
+  or before the filing date times the share count known by then), or when it is an open-market
+  purchase or sale (code P or S, price above 0) priced `PRICE_TYPO` times or more above or below
+  that close: a moved decimal point, not another share class (Berkshire's class A trades at about
+  1,500 times its class B, the price series here). Its `value_usd` is missing and `value_typo` is
+  set; the line itself stays.
 - `core.insider_activity`: per filing and side (buy or sell), its open-market lines (G1, G2, G3,
   G6a): value, shares, trade dates, whether any line was planned or part of an offering, the
   entity and its role at the filing date, and the holdings before and after the filing. `clean`
@@ -66,6 +68,7 @@ LINE_GATES = (
     "g6a_timely_valued",
 )
 FILING_GATE = "g6b_min_value"
+PRICE_TYPO = 5000  # an open-market price this many times from the stock's close is a typo (V2-24)
 _FN_COLUMNS = [c.lower() for c in TABLE_SPECS["NONDERIV_TRANS"].columns if c.endswith("_FN")]
 
 
@@ -438,8 +441,11 @@ def build_insider_trade(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) ->
                   on f.accession = n.accession_number and f.quarter = n.quarter
             ),
             valued as (
-                select *, coalesce(price > 10 * market_price or price * 10 < market_price
-                                   or shares * price > company_value, false) as typo
+                select *, coalesce(shares * price > company_value
+                                   or (trans_code in ('P', 'S') and price > 0
+                                       and (price > {PRICE_TYPO} * market_price
+                                            or price * {PRICE_TYPO} < market_price)),
+                                   false) as typo
                 from (select l.*, {company_value})
             ),
             hits as (
