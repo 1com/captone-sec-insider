@@ -15,8 +15,8 @@
 ## Phase 3: User Story 2 — rules (P1)
 
 - [X] T005 [US2] Log each problem as a proposal in docs/decisions.md (V2-28 onwards) with counts and a named example; ask the researcher
-- [ ] T006 [US2] Implement the accepted rules with tests (point-in-time), rebuild under the cap, re-run the EDA and validation notebooks, update findings
+- [X] T006 [US2] Implement the accepted rules with tests (point-in-time), rebuild under the cap, re-run the EDA and validation notebooks, update findings
 
 ## Phase 4: Polish
 
-- [ ] T007 Update docs/plan.md, AGENTS.md (where things stand), README; ruff, format, tests; commit and push the branch
+- [X] T007 Update docs/plan.md, AGENTS.md (where things stand), README; ruff, format, tests; commit and push the branch (merge after 001 and 004)
