@@ -5,7 +5,7 @@ Commands are in [contracts/cli.md](contracts/cli.md); tables in [data-model.md](
 Heavy steps run under the memory cap:
 
 ```sh
-cap() { systemd-run --user --scope -p MemoryMax=5G "$@"; }
+cap() { systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 "$@"; }
 ```
 
 ## Prerequisites

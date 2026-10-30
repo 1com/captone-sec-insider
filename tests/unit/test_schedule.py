@@ -92,7 +92,8 @@ def test_a_scheduled_run_caps_its_memory_or_says_it_cannot(tmp_data, windows, mo
     monkeypatch.delenv(schedule.CAPPED, raising=False)
     said = []
     assert schedule.rerun_capped(tmp_data, ["sentinel", "update", "--scheduled"], said.append) == 0
-    scope = ["systemd-run", "--user", "--scope", "--quiet", "-p", "MemoryMax=5G"]
+    scope = ["systemd-run", "--user", "--scope", "--quiet", "-p", "MemoryMax=5G",
+             "-p", "MemorySwapMax=0"]  # fmt: skip
     assert calls == [[*scope, "true"], [*scope, "sentinel", "update", "--scheduled"]]
     answers["systemd-run"] = (1, "")
     assert schedule.rerun_capped(tmp_data, ["sentinel"], said.append) is None
@@ -100,6 +101,17 @@ def test_a_scheduled_run_caps_its_memory_or_says_it_cannot(tmp_data, windows, mo
     monkeypatch.setenv(schedule.CAPPED, "1")  # already inside the scope
     calls.clear()
     assert schedule.rerun_capped(tmp_data, ["sentinel"], said.append) is None and calls == []
+
+
+def test_a_run_stopped_at_the_cap_is_noted_in_the_days_log(tmp_data, monkeypatch):
+    monkeypatch.delenv(schedule.CAPPED, raising=False)
+    codes = iter([0, -9])  # the probe succeeds; the run is killed at the cap
+    monkeypatch.setattr(schedule.subprocess, "run",
+                        lambda args, **kw: subprocess.CompletedProcess(args, next(codes), "", ""))
+    said = []
+    assert schedule.rerun_capped(tmp_data, ["sentinel", "update", "--scheduled"], said.append) == -9
+    log = (tmp_data.logs / f"update-{date.today()}.log").read_text()
+    assert said == ["run stopped at the memory cap (5G): status: failed"] and said[0] in log
 
 
 def test_show_reads_a_german_windows(tmp_data, windows):

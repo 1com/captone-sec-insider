@@ -125,7 +125,7 @@ every feature's track, dates and status.
 
 **This machine** (WSL2 on Windows).
 
-- Heavy jobs run under a memory cap: `systemd-run --user --scope -p MemoryMax=5G uv run sentinel …`.
+- Heavy jobs run under a memory cap: `systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 uv run sentinel …`.
   DuckDB is capped at 3 GB.
 - `data/sentinel.duckdb` has one writer at a time. Browse `data/serving.duckdb`, read-only.
 - Port 8000 belongs to another application; do not stop it.

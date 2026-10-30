@@ -22,7 +22,7 @@ tested on its own.
 - **[P]**: can run in parallel (different files, no dependency on unfinished tasks)
 - **[Story]**: the user story (US1–US5 of spec.md)
 - Paths are from the repository root (single project: `src/sentinel/`, `tests/`)
-- Heavy real-data runs use the memory cap: `systemd-run --user --scope -p MemoryMax=5G uv run …`
+- Heavy real-data runs use the memory cap: `systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 uv run …`
 
 ---
 

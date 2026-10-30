@@ -8,8 +8,9 @@ while the user is logged on, as WSL needs. The definition is written as XML in U
 Scheduler expects, and imported with `schtasks.exe`.
 
 Started by the task, `sentinel update --scheduled` runs itself again inside a systemd scope capped
-at `update.memory_max`, like every heavy job on this machine; when the user's systemd cannot make
-the scope, it runs uncapped and says so in its log.
+at `update.memory_max`, like every heavy job on this machine. The scope may not swap: a run past the
+cap is stopped, and the day's log says so, rather than swapping until WSL stops responding. When
+the user's systemd cannot make the scope, it runs uncapped and says so in its log.
 """
 
 import os
@@ -20,8 +21,10 @@ from datetime import date
 from xml.sax.saxutils import escape
 
 from sentinel.config import ConfigError, Paths, sources
+from sentinel.update import record
 
 CAPPED = "SENTINEL_MEMORY_CAPPED"  # set inside the capped scope, so the run does not cap twice
+KILLED = (-9, 137)  # SIGKILL, as Python and a shell report it: the scope's out-of-memory kill
 WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
 # the fields `show` reports, by their English and German names in `schtasks /Query /V /FO LIST`
 SHOWN = {"Status": "Status", "Next Run Time": "Next Run Time", "Last Run Time": "Last Run Time",
@@ -136,12 +139,14 @@ def show(p: Paths) -> dict[str, str] | None:
 
 
 def rerun_capped(p: Paths, argv: list[str], echo: Callable[[str], None]) -> int | None:
-    """Run this command again inside a systemd scope capped at `update.memory_max`; its exit code,
-    or None (with a warning) when the scope cannot be made and the caller should run uncapped."""
+    """Run this command again inside a systemd scope capped at `update.memory_max`, without swap;
+    its exit code, or None (with a warning) when the scope cannot be made and the caller should run
+    uncapped. A run stopped at the cap is noted in the day's log, which it never reached."""
     if os.environ.get(CAPPED):
         return None
     cap = sources(p)["update"]["memory_max"]
-    scope = ["systemd-run", "--user", "--scope", "--quiet", "-p", f"MemoryMax={cap}"]
+    scope = ["systemd-run", "--user", "--scope", "--quiet", "-p", f"MemoryMax={cap}",
+             "-p", "MemorySwapMax=0"]  # fmt: skip
     try:
         probe = subprocess.run([*scope, "true"], capture_output=True, text=True, timeout=60)
     except (OSError, subprocess.TimeoutExpired) as e:
@@ -150,4 +155,9 @@ def rerun_capped(p: Paths, argv: list[str], echo: Callable[[str], None]) -> int 
         echo(f"warning: no memory cap ({(probe.stderr or 'systemd-run failed').strip()}); "
              "running uncapped")  # fmt: skip
         return None
-    return subprocess.run([*scope, *argv], env={**os.environ, CAPPED: "1"}).returncode
+    code = subprocess.run([*scope, *argv], env={**os.environ, CAPPED: "1"}).returncode
+    if code in KILLED:
+        note = f"run stopped at the memory cap ({cap}): status: failed"
+        echo(note)
+        record.write_log(p.logs / f"update-{date.today()}.log", [note])
+    return code
