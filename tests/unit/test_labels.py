@@ -57,3 +57,21 @@ def test_the_three_labels_follow_their_registered_definitions(con, tmp_data, mon
         "select max(close_after) from label.results_move"
     ).fetchall()
     assert all(d <= date(2022, 12, 31) for (d,) in latest)
+
+
+def test_a_split_is_applied_where_the_share_counts_show_it():
+    # V2-29, on three real cases read in their filings (notebooks/022-validation.ipynb)
+    from sentinel.labels.risk import split_adjusted_before
+
+    def ratio(counts, cums):
+        c, s = np.array(counts, float), np.array(cums, float)
+        return c[-1] / split_adjusted_before(c, s, 0, len(c) - 1)
+
+    # Blackstone Mortgage Trust 2013: 1-for-10 reverse split in May, then a large share sale
+    assert ratio([29.27e6, 2.93e6, 28.80e6], [0.1, 0.1, 1.0]) > 9
+    # LookSmart 2013: 17,308,059 shares in every filing; the price series has a 1-for-3 split
+    assert ratio([17.3e6, 17.3e6, 17.3e6], [1 / 3, 1 / 3, 1.0]) == 1.0
+    # Medical Innovation 2016: counts already after the split the price series dates later
+    assert abs(ratio([38.07e6, 38.42e6, 38.76e6], [0.1, 1.0, 1.0]) - 1.018) < 0.001
+    # an ordinary split shown by both: no change in value
+    assert ratio([100e6, 200e6], [2.0, 1.0]) == 1.0  # a 2-for-1 split

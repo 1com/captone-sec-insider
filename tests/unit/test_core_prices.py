@@ -190,3 +190,36 @@ def test_listed_tickers_are_trusted_on_dates_and_reach_back_to_their_listing(con
     assert coverage["7"] == ("tiingo", "priced", True)
     assert coverage["1"] == ("yahoo", "priced", False)
     assert coverage["10"] == ("none", "no data in any source", False)
+
+
+def test_placeholder_prices_and_unexplained_jumps_are_glitches(tmp_data):
+    # V2-28: Tiingo's $0.0001 before a listing; a jump to a level 2,000 times higher that stays
+    # three days, then the price is back: only the placeholder and the junk days are flagged
+    con = db.connect(tmp_data)
+    days = SESSIONS[:10]
+    _frame(con, "ref.calendar", [{"session": d, "session_no": i} for i, d in enumerate(days)])
+    row = {"open": 1.0, "high": 1.0, "low": 1.0, "volume": 100.0, "dividend": 0.0, "raw_file": "x"}
+    closes_a = [0.0001] * 3 + [20.0] * 7
+    closes_b = [1.0] * 5 + [2000.0] * 3 + [1.5] * 2
+    _frame(con, "stg_tiingo.price", [
+        row | {"ticker": "AAA", "session": d, "close": c, "adj_close": c, "split_factor": 1.0}
+        for d, c in zip(days, closes_a, strict=True)])  # fmt: skip
+    _frame(con, "stg_yahoo.price", [
+        row | {"ticker": "BBB", "session": d, "close": c, "adj_close": c, "split_ratio": 0.0}
+        for d, c in zip(days, closes_b, strict=True)])  # fmt: skip
+    _frame(con, "core.price_choice", [
+        {"cik": cik, "source": src, "ticker": t, "reason": "x", "trim_from": days[0],
+         "trim_to": days[-1], "listed": True}
+        for cik, src, t in (("A", "tiingo", "AAA"), ("B", "yahoo", "BBB"))])  # fmt: skip
+    prices.build_daily(con, tmp_data, **QUIET)
+    flagged = con.execute("select cik, session from core.price_daily where glitch "
+                          "order by 1, 2").fetchall()  # fmt: skip
+    assert flagged == [("A", d) for d in days[:3]] + [("B", d) for d in days[5:8]]
+
+
+def test_tiingo_is_matched_only_under_the_main_ticker():
+    # V2-31: a listed company's other tickers are warrants, preferred shares or notes
+    warrant = ("tiingo", "ABCW", "tiingo_other", date(2015, 1, 2), 500, "ok")
+    assert prices.choose([warrant], None, True, date(2012, 1, 1))[2] == "no_price"
+    main = ("tiingo", "ABC", "tiingo_listed", date(2015, 1, 2), 500, "ok")
+    assert prices.choose([warrant, main], None, True, date(2012, 1, 1))[1] == "ABC"

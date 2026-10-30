@@ -36,6 +36,7 @@ from sentinel.staging.sec_xbrl import ITEMS
 CLOSE_HOUR = 16
 QUARTER_DAYS = (80, 100)  # a quarterly weighted average, not a year-to-date one
 SHARE_JUMP = 100.0  # a share count this many times above or below its reference is a typo (V2-23)
+SHARE_FLOOR = 1000.0  # no listed company has fewer shares: a placeholder or a typo (V2-30)
 SHARE_COLUMNS = ["cik", "as_of", "shares", "filed", "known_at", "source"]
 LATE_END_DAYS = 31  # a cover-page count may be dated a little after the filing date
 EARLIEST_PERIOD = "1950-01-01"
@@ -161,7 +162,7 @@ def share_typos(counts: pd.DataFrame) -> list[str | None]:
     date) is in the order the counts became known per company.
 
     Each count is judged only by what was known when it was filed (constitution I):
-    - zero or below: not a count;
+    - zero or below: not a count; below 1,000 shares: a placeholder or a typo (V2-30);
     - a cover-page count with a same-filing average: a typo when 100 times or more away from it;
     - otherwise, a count 100 times or more away from the company's last accepted count (adjusted
       for splits in the price series between the two) is a typo unless the company's market value
@@ -181,6 +182,8 @@ def share_typos(counts: pd.DataFrame) -> list[str | None]:
         reason = None
         if shares is None or shares <= 0:
             reason = "not positive"
+        elif shares < SHARE_FLOOR:
+            reason = "below 1,000 shares"
         elif source == "cover_page" and basic and basic > 0:
             if far(shares / basic):
                 reason = "far from the same filing's average count"
