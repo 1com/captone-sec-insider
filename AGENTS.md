@@ -147,7 +147,12 @@ do it, show a plain summary, tick it here.
   `001-daily-data-refresh` then `004-eda` into `main`, delete both branches, comment on and close
   issues #68 and #76.
 
-### Step 3 · Validation round on named cases (new feature 022, before the models)
+### Step 3 · Validation round on named cases (feature 022, branch `022-validation`)
+**Status (30 Oct):** checks run, verdicts in `notebooks/022-validation.ipynb` section 8, five
+proposals V2-28 to V2-32 in `docs/decisions.md` waiting for the researcher. Next: implement the
+accepted ones together with tests (T006), rebuild once, re-run the EDA and validation notebooks.
+
+Original description:
 The EDA checks what statistics can show; this checks values against the SEC filings and Yahoo.
 Pick 20–30 named companies on purpose: disappeared companies priced from Tiingo (right company?
 right last day?), small companies with reverse splits, rows with a split inside a dilution
