@@ -46,14 +46,17 @@ branch `NNN-name`), so two people specifying at once never collide.
 
 ## Notebooks and code
 
-- **Notebooks** (`notebooks/NNN-topic.ipynb`, numbered by feature) are for EDA, exploration and
-  trying model ideas. They read the private Parquet export in `data/exports/`, never commit their
+- **Notebooks** (`notebooks/NNN-topic.ipynb`, numbered by feature) are where the EDA is done and
+  where each model is built, run and tuned, with its tables and charts, so the researcher can
+  follow and approve each choice (researcher, 30 Oct). They read the private Parquet export in
+  `data/exports/`, run start to finish by one command, never commit their
   outputs (stripped by `nbstripout`; CI rejects a notebook with outputs: the repository is public
   and an output cell could publish Tiingo-derived values), and never write to `data/`.
-- **The chosen models live in `src/sentinel/models/`** and run by command: training, the
-  walk-forward test, calibration and daily scoring, with fixed seeds and MLflow logging, because
-  `sentinel update` scores every company each night without a notebook. A notebook may import and
-  call this code.
+- **Once the researcher approves a model, its code moves to `src/sentinel/models/`** and runs by
+  command: training, the walk-forward test, calibration and daily scoring, with fixed seeds and
+  MLflow logging, because `sentinel update` scores every company each night without a notebook
+  and the repository must run from a clone. The model's notebook then imports this code and gives
+  the same numbers.
 - **Reports** (004, 008) may be notebooks if one command runs them start to finish
   (`jupyter nbconvert --execute`), so they regenerate from the data.
 - **The app reads `data/serving.duckdb`** (read-only, reopened after each night's update), not the
