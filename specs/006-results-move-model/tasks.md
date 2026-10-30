@@ -41,11 +41,11 @@ insider/macro ablations), log runs to MLflow, and inspect feature importance/coe
 **Independent Test**: Execute `notebooks/006-results-move-model.ipynb` under the 5 GB memory cap;
 sections 1–7 and 9 complete without error and print the walk-forward comparison table.
 
-- [ ] T002 [US1] Implement Section 1 (Setup and data) and Section 2 (Walk-forward folds with purge on `close_after`) in `notebooks/006-results-move-model.ipynb`
-- [ ] T003 [US1] Implement Section 3 (Level 0 naive baseline `prev4_mean` and constant median floor) and Section 4 (Level 1 shrunk company history + volatility rule) in `notebooks/006-results-move-model.ipynb`
-- [ ] T004 [US1] Implement Section 5 (Level 2 classic `Ridge` model on log-move with redundant-pair pruning, 1st/99th percentile clipping, median imputation + missing flags, standardisation) in `notebooks/006-results-move-model.ipynb`
-- [ ] T005 [US1] Implement Section 6 (Level 3 `LightGBM` model on log-move with inner time-ordered validation and 2012+ training start check) in `notebooks/006-results-move-model.ipynb`
-- [ ] T006 [US1] Implement Section 7 (Comparison table across 2019–2022, 1-SE selection rule, < 5 day window check, 5-seed insider & macro family ablations, MLflow logging) and Section 9 (What the model uses: feature importance and Ridge coefficients) in `notebooks/006-results-move-model.ipynb`
+- [X] T002 [US1] Implement Section 1 (Setup and data) and Section 2 (Walk-forward folds with purge on `close_after`) in `notebooks/006-results-move-model.ipynb`
+- [X] T003 [US1] Implement Section 3 (Level 0 naive baseline `prev4_mean` and constant median floor) and Section 4 (Level 1 shrunk company history + volatility rule) in `notebooks/006-results-move-model.ipynb`
+- [X] T004 [US1] Implement Section 5 (Level 2 classic `Ridge` model on log-move with redundant-pair pruning, 1st/99th percentile clipping, median imputation + missing flags, standardisation) in `notebooks/006-results-move-model.ipynb`
+- [X] T005 [US1] Implement Section 6 (Level 3 `LightGBM` model on log-move with inner time-ordered validation and 2012+ training start check) in `notebooks/006-results-move-model.ipynb`
+- [X] T006 [US1] Implement Section 7 (Comparison table across 2019–2022, 1-SE selection rule, < 5 day window check, 5-seed insider & macro family ablations, MLflow logging) and Section 9 (What the model uses: feature importance and Ridge coefficients) in `notebooks/006-results-move-model.ipynb`
 
 ---
 
@@ -63,9 +63,9 @@ cap; predictions are identical, all band hit rates increase monotonically from B
 dry run produces 0 unexpected NaNs on eligible rows, and Section 10 summarises every result in plain
 words.
 
-- [ ] T007 [US2] Implement Section 8 (Isotonic probability calibration for >5%, >10%, >20% moves, 5 risk bands with hit rates, reliability plots, and holdout-readiness dry run on `latest.parquet` and 2023+ `feature_snapshot.parquet`) in `notebooks/006-results-move-model.ipynb`
-- [ ] T008 [US2] Execute `notebooks/006-results-move-model.ipynb` start to finish under the 5 GB memory cap (`systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 uv run jupyter nbconvert --to notebook --execute --inplace notebooks/006-results-move-model.ipynb`) and verify determinism on a second run
-- [ ] T009 [US2] Write Section 10 (Findings) in `notebooks/006-results-move-model.ipynb` quoting the executed aggregate results in plain English, re-execute, and present the summary to the researcher for approval
+- [X] T007 [US2] Implement Section 8 (Isotonic probability calibration for >5%, >10%, >20% moves, 5 risk bands with hit rates, reliability plots, and holdout-readiness dry run on `latest.parquet` and 2023+ `feature_snapshot.parquet`) in `notebooks/006-results-move-model.ipynb`
+- [X] T008 [US2] Execute `notebooks/006-results-move-model.ipynb` start to finish under the 5 GB memory cap (`systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 uv run jupyter nbconvert --to notebook --execute --inplace notebooks/006-results-move-model.ipynb`) and verify determinism on a second run
+- [X] T009 [US2] Write Section 10 (Findings) in `notebooks/006-results-move-model.ipynb` quoting the executed aggregate results in plain English, re-execute, and present the summary to the researcher for approval
 
 **Checkpoint (Researcher Approval Gate)**: Stop and show the researcher the executed notebook and
 plain-English summary (`AGENTS.md` Step 5.3). Proceed to Phase 4 only after the researcher approves
@@ -91,3 +91,4 @@ reproduce identical numbers.
 ## Phase 5: Polish & Cross-Cutting Concerns
 
 - [ ] T013 Update `docs/plan.md`, `README.md` and `AGENTS.md` status for 006, run `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run pytest -q`, verify no notebook outputs are staged, and ask the researcher before merging `006-results-move-model` into `main`
+
