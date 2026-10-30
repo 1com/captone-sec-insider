@@ -100,3 +100,15 @@ def test_a_scheduled_run_caps_its_memory_or_says_it_cannot(tmp_data, windows, mo
     monkeypatch.setenv(schedule.CAPPED, "1")  # already inside the scope
     calls.clear()
     assert schedule.rerun_capped(tmp_data, ["sentinel"], said.append) is None and calls == []
+
+
+def test_show_reads_a_german_windows(tmp_data, windows):
+    _, answers = windows
+    answers["schtasks.exe"] = (
+        0,
+        "Nächste Laufzeit:      31.10.2026 10:00:00\nStatus:    Bereit\n"
+        "Letzte Laufzeit:   30.10.2026 10:00:02\nLetztes Ergebnis:  0\n",
+    )
+    assert schedule.show(tmp_data) == {"Next Run Time": "31.10.2026 10:00:00", "Status": "Bereit",
+                                       "Last Run Time": "30.10.2026 10:00:02",
+                                       "Last Result": "0"}  # fmt: skip

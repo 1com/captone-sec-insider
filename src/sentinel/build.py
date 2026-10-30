@@ -1,9 +1,11 @@
 """`sentinel build <layer>`: rebuild a layer of the build database from the layer below it
 (docs/architecture.md). Each step replaces its tables whole, so a rerun gives the same result."""
 
+import gc
 from collections.abc import Callable
 
 import duckdb
+import pyarrow as pa
 
 from sentinel.config import Paths
 from sentinel.core import filings as core_filings
@@ -116,6 +118,13 @@ LAYERS: dict[str, dict[str, Step]] = {"staging": STAGING, "reference": REFERENCE
                                       "features": FEATURES, "labels": LABELS}  # fmt: skip
 
 
+def release_memory() -> None:
+    """Return the memory a step freed: Arrow keeps freed buffers for reuse, and a full build runs
+    every step in one process under the 5 GB cap."""
+    gc.collect()
+    pa.default_memory_pool().release_unused()
+
+
 def run(con, p: Paths, layer: str, only: list[str] | None = None, echo=print) -> dict:
     steps = LAYERS[layer]
     unknown = [s for s in only or [] if s not in steps]
@@ -130,6 +139,7 @@ def run(con, p: Paths, layer: str, only: list[str] | None = None, echo=print) ->
             continue
         echo(f"{layer}: {name}")
         results[name] = step(con, p, echo)
+        release_memory()
         if layer == "staging":
             entries = entries or [e for e in manifest.read_all(p.manifest) if e.role == "original"]
             sources = STAGING_SOURCES.get(name, ())

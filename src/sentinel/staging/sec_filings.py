@@ -71,7 +71,7 @@ FILING_SCHEMA = pa.schema(
     [("cik", pa.string())] + [(n, t) for n, t in FILING_COLS.values()]
     + [("origin", pa.string()), ("raw_file", pa.string())]
 )  # fmt: skip
-FLUSH_ROWS = 250_000  # filing rows held in memory at most: some filers have 100,000+ filings
+FLUSH_ROWS = 100_000  # filing rows held in memory at most (some filers have 100,000+ filings)
 
 
 def _text(v) -> str | None:

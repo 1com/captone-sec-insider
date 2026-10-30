@@ -59,10 +59,11 @@ tiingo:
 
 update:
   # The daily update (feature 001): refuse to start below this much free disk; the schedule's
-  # weekday start time (local, after the US close), its Windows Task Scheduler name, the WSL
-  # distribution it starts, and the memory cap a scheduled run puts itself under.
+  # weekday start time (local: at 10:00 Berlin the previous US day is complete, its prices and the
+  # SEC index published around 04:00), its Windows Task Scheduler name, the WSL distribution it
+  # starts, and the memory cap a scheduled run puts itself under.
   min_free_gb: 20
-  schedule_time: "23:00"
+  schedule_time: "10:00"
   task_name: 'EDGAR-SENTINEL\daily update'
   distro: Ubuntu
   memory_max: 5G

@@ -77,6 +77,7 @@ def _build(con, p: Paths, layers, echo, errors: list[str]) -> None:
             echo(f"{layer}: {name}")
             try:
                 step(con, p, echo)
+                build.release_memory()
             except db.StepFailed as e:  # the step's own check: keep its table, go on
                 errors.append(f"{layer}.{name}: {e}")
                 echo(f"  {layer}.{name} kept as it was: {e}")

@@ -23,7 +23,10 @@ from sentinel.config import ConfigError, Paths, sources
 
 CAPPED = "SENTINEL_MEMORY_CAPPED"  # set inside the capped scope, so the run does not cap twice
 WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
-SHOWN = ("Status", "Next Run Time", "Last Run Time", "Last Result")
+# the fields `show` reports, by their English and German names in `schtasks /Query /V /FO LIST`
+SHOWN = {"Status": "Status", "Next Run Time": "Next Run Time", "Last Run Time": "Last Run Time",
+         "Last Result": "Last Result", "Nächste Laufzeit": "Next Run Time",
+         "Letzte Laufzeit": "Last Run Time", "Letztes Ergebnis": "Last Result"}  # fmt: skip
 
 
 def _tool(name: str) -> str:
@@ -93,8 +96,9 @@ def _check_time(at: str) -> str:
 
 
 def _schtasks(*args: str) -> subprocess.CompletedProcess:
+    """Run `schtasks.exe`; its output is in the console code page (cp850 on German Windows)."""
     return subprocess.run([_tool("schtasks.exe"), *args], capture_output=True, text=True,
-                          errors="replace")  # fmt: skip
+                          encoding="cp850", errors="replace")  # fmt: skip
 
 
 def install(p: Paths, at: str | None = None) -> str:
@@ -125,8 +129,9 @@ def show(p: Paths) -> dict[str, str] | None:
     out = {}
     for line in done.stdout.splitlines():
         name, sep, value = line.partition(":")
-        if sep and name.strip() in SHOWN and name.strip() not in out:
-            out[name.strip()] = value.strip()
+        key = SHOWN.get(name.strip())
+        if sep and key and key not in out:
+            out[key] = value.strip()
     return out
 
 
