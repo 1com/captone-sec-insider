@@ -123,7 +123,7 @@ def update(p: Paths, today: date | None = None, scheduled: bool = False, fetch: 
                 con.execute("update ops.update_run set status = 'staging' where run_id = ?",
                             [run_id])  # fmt: skip
                 if steps:
-                    build.run(con, p, "staging", only=steps, echo=say)
+                    build.run(con, p, "staging", only=steps, echo=say, incremental=True)
                 con.execute("update ops.update_run set status = 'building' where run_id = ?",
                             [run_id])  # fmt: skip
                 _build(con, p, layers, say, errors)

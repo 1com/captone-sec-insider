@@ -80,6 +80,13 @@ def record_staged(con, step: str, entries: list) -> None:
         con.unregister("_staged")
 
 
+def staged(con, step: str) -> set[str]:
+    """The stored files staging step `step` has applied."""
+    create(con)
+    rows = con.execute("select raw_file from ops.staged_file where step = ?", [step]).fetchall()
+    return {f for (f,) in rows}
+
+
 def unstaged_steps(con, entries: list, step_sources: dict[str, tuple[str, ...]]) -> list[str]:
     """The staging steps with stored files they have not applied yet, in `step_sources` order."""
     create(con)

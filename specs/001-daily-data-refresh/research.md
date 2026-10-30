@@ -166,8 +166,21 @@ the serving copy and the export are rebuilt in full each run (about 15 minutes *
 by an order-independent checksum of every table (row count and XOR of row hashes) between the
 updated database and a full rebuild into a scratch database (`sentinel verify`).
 
+**Amendment (30 October 2026)**: re-staging a source re-read its whole base. A new daily index
+re-read all of `submissions.zip` (about 900,000 company documents, 13.4 million filings), and a
+new per-company `companyfacts` document re-read all of `companyfacts.zip`. On the first scheduled
+run this held the 5 GB memory cap and took most of an hour. The two SEC steps now apply only the
+files they have not staged while their base is unchanged. `stg_sec_filings`: a per-company
+submissions document of a CIK the base lacks adds that filer or replaces its earlier document's
+rows; the `daily` filings are then re-added from every stored index, as a full staging adds them
+(30 stored indexes so far, a few thousand rows each). `stg_sec_xbrl`: each company with a document
+newer than the base gets its rows replaced from its newest document. Each step re-reads its base
+only when a new bulk copy is newer than the staged one, or its tables are missing. The result is
+the same rows as a full staging, which the unit tests and `sentinel verify` check.
+
 **Rationale**: a full rebuild above staging is exact by construction and fits the time budget;
-making features incremental can come later if needed.
+making features incremental can come later if needed. Staging is incremental where re-reading the
+base costs most.
 
 **Alternatives considered**: incremental core and features (faster, but each step then needs its
 own proof of equality); a full rebuild of everything each night (re-staging 83 Form 4 quarters and

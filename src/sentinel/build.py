@@ -76,6 +76,9 @@ STAGING_SOURCES: dict[str, tuple[str, ...]] = {
     "tiingo": ("tiingo",),
     "market": ("fred", "cboe", "finra_short", "french"),
 }
+# Staging steps that can apply only the files they have not staged (`update`; research R10). Each
+# returns None when it must stage in full (a new base).
+INCREMENTAL = {"sec_filings": sec_filings.stage_new, "sec_xbrl": sec_xbrl.stage_new}
 REFERENCE: dict[str, Step] = {
     "company": ref.build_company,
     "ticker_history": ref.build_ticker_history,
@@ -125,7 +128,8 @@ def release_memory() -> None:
     pa.default_memory_pool().release_unused()
 
 
-def run(con, p: Paths, layer: str, only: list[str] | None = None, echo=print) -> dict:
+def run(con, p: Paths, layer: str, only: list[str] | None = None, echo=print,
+        incremental: bool = False) -> dict:  # fmt: skip
     steps = LAYERS[layer]
     unknown = [s for s in only or [] if s not in steps]
     if unknown:
@@ -138,7 +142,10 @@ def run(con, p: Paths, layer: str, only: list[str] | None = None, echo=print) ->
         if only and name not in only:
             continue
         echo(f"{layer}: {name}")
-        results[name] = step(con, p, echo)
+        done = None
+        if incremental and name in INCREMENTAL:
+            done = INCREMENTAL[name](con, p, record.staged(con, name), echo)
+        results[name] = done if done is not None else step(con, p, echo)
         release_memory()
         if layer == "staging":
             entries = entries or [e for e in manifest.read_all(p.manifest) if e.role == "original"]

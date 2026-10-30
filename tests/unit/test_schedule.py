@@ -106,8 +106,11 @@ def test_a_scheduled_run_caps_its_memory_or_says_it_cannot(tmp_data, windows, mo
 def test_a_run_stopped_at_the_cap_is_noted_in_the_days_log(tmp_data, monkeypatch):
     monkeypatch.delenv(schedule.CAPPED, raising=False)
     codes = iter([0, -9])  # the probe succeeds; the run is killed at the cap
-    monkeypatch.setattr(schedule.subprocess, "run",
-                        lambda args, **kw: subprocess.CompletedProcess(args, next(codes), "", ""))
+
+    def run(args, **kwargs):
+        return subprocess.CompletedProcess(args, next(codes), "", "")
+
+    monkeypatch.setattr(schedule.subprocess, "run", run)
     said = []
     assert schedule.rerun_capped(tmp_data, ["sentinel", "update", "--scheduled"], said.append) == -9
     log = (tmp_data.logs / f"update-{date.today()}.log").read_text()

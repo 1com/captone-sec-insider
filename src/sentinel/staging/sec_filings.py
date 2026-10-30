@@ -12,7 +12,8 @@ Sources (specs/001-daily-data-refresh, research R4): the newest stored bulk `sub
 base (its `recent` blocks and older-filings pages); a per-company submissions document fetched for
 a CIK the base lacks adds that filer; each stored daily index adds the filings of company-like
 filers that the base does not hold. An index row has no report date or 8-K items: `core.filing`
-takes them from the filing's header.
+takes them from the filing's header. The daily update applies only new files while the base is
+unchanged (`stage_new`, research R10), with the same result.
 
 A filer is company-like if it has an SIC code or a ticker, is a Form 4 issuer, is typed operating or
 investment, or has filed any company form. The SEC types individuals and many foreign companies
@@ -143,7 +144,7 @@ def filing_rows(cik: str, blocks: list[tuple[dict, str]]) -> dict[str, list]:
     return out
 
 
-def _flush(con, table: str, schema: pa.Schema, columns: dict[str, list]) -> None:
+def _flush(con, table: str, schema: pa.Schema, columns: dict[str, list], prefix="_new_") -> None:
     if not columns[schema.names[0]]:
         return
     arrays = []
@@ -155,7 +156,7 @@ def _flush(con, table: str, schema: pa.Schema, columns: dict[str, list]) -> None
             arrays.append(pa.array(values, f.type))
     con.register("_batch", pa.Table.from_arrays(arrays, schema=schema))
     try:
-        con.execute(f"insert into {SCHEMA}._new_{table} select * from _batch")
+        con.execute(f"insert into {SCHEMA}.{prefix}{table} select * from _batch")
     finally:
         con.unregister("_batch")
 
@@ -180,27 +181,34 @@ def newest_per_cik(p: Paths, source: str) -> dict[str, manifest.ManifestEntry]:
     return out
 
 
+def _add_filer(con, p: Paths, entry: manifest.ManifestEntry, prefix: str = "_new_") -> None:
+    """The filer of a per-company submissions document and its filings, replacing any rows of
+    that CIK."""
+    doc = json.loads(manifest.read_stored(p, entry))
+    row, is_company = filer_row(doc, [], entry.path)
+    filers = {k: [v] for k, v in row.items()}
+    filings = (filing_rows(row["cik"], [(doc.get("filings", {}).get("recent", {}),
+                                         entry.path)]) if is_company
+               else {n: [] for n in FILING_SCHEMA.names})  # fmt: skip
+    with db.transaction(con):
+        for table in ("filer", "filing"):
+            con.execute(f"delete from {SCHEMA}.{prefix}{table} where cik = ?", [row["cik"]])
+        _flush(con, "filer", FILER_SCHEMA, filers, prefix)
+        _flush(con, "filing", FILING_SCHEMA, filings, prefix)
+
+
 def _add_new_filers(con, p: Paths) -> int:
     """Filers from per-company submissions documents of CIKs the base lacks."""
     known = {c for (c,) in con.execute(f"select cik from {SCHEMA}._new_filer").fetchall()}
     added = 0
     for cik, entry in sorted(newest_per_cik(p, "sec_submissions_cik").items()):
-        if cik in known:
-            continue
-        doc = json.loads(manifest.read_stored(p, entry))
-        row, is_company = filer_row(doc, [], entry.path)
-        filers = {k: [v] for k, v in row.items()}
-        filings = (filing_rows(row["cik"], [(doc.get("filings", {}).get("recent", {}),
-                                             entry.path)]) if is_company
-                   else {n: [] for n in FILING_SCHEMA.names})  # fmt: skip
-        with db.transaction(con):
-            _flush(con, "filer", FILER_SCHEMA, filers)
-            _flush(con, "filing", FILING_SCHEMA, filings)
-        added += 1
+        if cik not in known:
+            _add_filer(con, p, entry)
+            added += 1
     return added
 
 
-def _add_index_rows(con, p: Paths) -> int:
+def _add_index_rows(con, p: Paths, prefix: str = "_new_") -> int:
     """The filings of company-like filers in each stored daily index that no submissions document
     holds (same CIK and accession)."""
     from sentinel.raw.sec import parse_index
@@ -219,21 +227,21 @@ def _add_index_rows(con, p: Paths) -> int:
         "raw_file": pa.array(raw, pa.string())}))  # fmt: skip
     try:
         with db.transaction(con):
-            before = db.count(con, f"{SCHEMA}._new_filing")
+            before = db.count(con, f"{SCHEMA}.{prefix}filing")
             con.execute(
                 f"""
-                insert into {SCHEMA}._new_filing (cik, accession, filing_date, form, origin,
+                insert into {SCHEMA}.{prefix}filing (cik, accession, filing_date, form, origin,
                                                   raw_file)
                 select distinct i.cik, i.accession, i.filing_date, i.form, 'daily', i.raw_file
                 from _index i
-                join {SCHEMA}._new_filer f on f.cik = i.cik and f.is_company
-                where not exists (select 1 from {SCHEMA}._new_filing x
+                join {SCHEMA}.{prefix}filer f on f.cik = i.cik and f.is_company
+                where not exists (select 1 from {SCHEMA}.{prefix}filing x
                                   where x.cik = i.cik and x.accession = i.accession)
                 qualify row_number() over (partition by i.cik, i.accession
                                            order by i.raw_file) = 1
                 """
             )
-            return db.count(con, f"{SCHEMA}._new_filing") - before
+            return db.count(con, f"{SCHEMA}.{prefix}filing") - before
     finally:
         con.unregister("_index")
 
@@ -288,3 +296,32 @@ def stage(con: duckdb.DuckDBPyConnection, p: Paths, echo: Callable[[str], None] 
             con.execute(f"alter table {SCHEMA}._new_{table} rename to {table}")
     return {"filer": db.count(con, f"{SCHEMA}.filer"), "filing": db.count(con, f"{SCHEMA}.filing"),
             "new_filers": new_filers, "daily_filings": daily}  # fmt: skip
+
+
+def staged_tables(con, schema: str, tables: tuple[str, ...]) -> bool:
+    """Whether every table of `schema` is there (a step's base is staged)."""
+    rows = con.execute("select table_name from duckdb_tables() where schema_name = ?", [schema])
+    return set(tables) <= {t for (t,) in rows.fetchall()}
+
+
+def stage_new(con: duckdb.DuckDBPyConnection, p: Paths, staged: set[str],
+              echo: Callable[[str], None] = print) -> dict | None:  # fmt: skip
+    """Apply only the stored files not in `staged`, with the same result as `stage`; None (stage
+    in full) when the newest bulk file is not staged or the tables are missing. A per-company
+    document of a CIK the base lacks adds or replaces that filer; the `daily` filings are then
+    re-added from every stored index, as `stage` adds them."""
+    base = newest_bulk(p, "submissions")
+    if base.path not in staged or not staged_tables(con, SCHEMA, ("filer", "filing")):
+        return None
+    rows = con.execute(f"select cik from {SCHEMA}.filer where starts_with(raw_file, ?)",
+                       [f"{base.path}!"]).fetchall()  # fmt: skip
+    in_base = {c for (c,) in rows}
+    new = [e for cik, e in sorted(newest_per_cik(p, "sec_submissions_cik").items())
+           if e.path not in staged and cik not in in_base]  # fmt: skip
+    for entry in new:
+        _add_filer(con, p, entry, prefix="")
+    con.execute(f"delete from {SCHEMA}.filing where origin = 'daily'")
+    daily = _add_index_rows(con, p, prefix="")
+    echo(f"  daily: {len(new):,} new filers, {daily:,} filings from the daily indexes")
+    return {"filer": db.count(con, f"{SCHEMA}.filer"), "filing": db.count(con, f"{SCHEMA}.filing"),
+            "new_filers": len(new), "daily_filings": daily}  # fmt: skip
