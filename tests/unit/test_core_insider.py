@@ -63,7 +63,7 @@ def build(archives, tmp_data):
     filings, then runs every insider step."""
     cons = []
 
-    def run(quarters, daily=None):
+    def run(quarters, daily=None, market=None):
         archives(quarters)
         book = Manifest(tmp_data.manifest)
         for acc, data in (daily or {}).items():
@@ -83,6 +83,16 @@ def build(archives, tmp_data):
         con.unregister("_s")
         con.execute("create or replace table stg_sec_headers.header "
                     "(accession VARCHAR, accepted_at_et TIMESTAMP)")  # fmt: skip
+        if market:  # (close, shares): issuer 100's price all year and share count
+            close, shares = market
+            con.execute(
+                f"create or replace table core.price_daily as select '100' as cik, "
+                f"session, {close}::DOUBLE as close from ref.calendar"
+            )
+            con.execute(
+                f"create or replace table core.shares_outstanding as select '100' as cik, "
+                f"DATE '2019-01-02' as known_at, {shares}::DOUBLE as shares"
+            )
         for step in STEPS:
             step(con, tmp_data, **QUIET)
         return con
@@ -263,3 +273,23 @@ def test_a_reconciliation_lists_different_owners_and_line_counts(build):
         "lines_differ, value_differ from core.form4_reconciliation"
     ).fetchall()
     assert row == (["9001"], ["9001", "9009"], 1, 2, True, True, False)
+
+
+def test_a_line_with_a_typed_in_price_or_size_loses_its_value(build):
+    filings = {
+        "big": [line("big", "1", shares="1000000", price="25")],  # more than the company
+        "fine": [line("fine", "1", shares="100", price="25")],  # $2,500
+        "pricey": [line("pricey", "1", shares="1", price="200000")],  # 10,000 times the close
+        "class_a": [line("class_a", "1", shares="1", price="30000")],  # 1,500 times: a share class
+        "award": [line("award", "1", code="A", price="0")],  # an award at $0: not a typo
+    }
+    con = build({"2019q1": {
+        "SUBMISSION": [sub(acc) for acc in filings],
+        "REPORTINGOWNER": [owner(acc) for acc in filings],
+        "NONDERIV_TRANS": [row for rows in filings.values() for row in rows],
+    }}, market=(20, 1_000_000))  # $20 a share, worth $20 million  # fmt: skip
+    got = con.execute("select accession, shares, value_usd, value_typo, open_market "
+                      "from core.insider_trade order by 1").fetchall()  # fmt: skip
+    assert got == [("award", 1000.0, 0.0, False, False), ("big", 1e6, None, True, True),
+                   ("class_a", 1.0, 30000.0, False, True), ("fine", 100.0, 2500.0, False, True),
+                   ("pricey", 1.0, None, True, True)]  # fmt: skip

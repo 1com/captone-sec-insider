@@ -15,7 +15,8 @@ stands in for the next trading day.
   Values with impossible dates (a typed year such as 2201) stay in staging but not here.
 - `core.shares_outstanding`: the cover-page share count (first filed); a company with no cover-page
   count at all (several share classes, tagged per class) uses its quarterly weighted-average basic
-  shares instead, for all its periods (risk_params v5).
+  shares instead, for all its periods (risk_params v5). Typed-in errors are left out (V2-23,
+  `share_typos`) and kept with their reason in `core.shares_rejected`.
 - `core.results_release`: results releases by the risk_params v5 rule: item 2.02 8-Ks within
   `same_announcement_days` of each other are one announcement, dated by the first; each belongs to
   the company's first 10-Q or 10-K filed from `report_before_days` before it to
@@ -23,7 +24,10 @@ stands in for the next trading day.
   the later of the release and its report (only then is it known to be the release).
 """
 
+import math
+
 import duckdb
+import pandas as pd
 
 from sentinel import db
 from sentinel.config import Paths, risk_params
@@ -31,6 +35,8 @@ from sentinel.staging.sec_xbrl import ITEMS
 
 CLOSE_HOUR = 16
 QUARTER_DAYS = (80, 100)  # a quarterly weighted average, not a year-to-date one
+SHARE_JUMP = 100.0  # a share count this many times above or below its reference is a typo (V2-23)
+SHARE_COLUMNS = ["cik", "as_of", "shares", "filed", "known_at", "source"]
 LATE_END_DAYS = 31  # a cover-page count may be dated a little after the filing date
 EARLIEST_PERIOD = "1950-01-01"
 
@@ -144,13 +150,74 @@ def build_financial_fact(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -
     return counts
 
 
+def _num(x) -> float | None:
+    return float(x) if x is not None and not pd.isna(x) and math.isfinite(float(x)) else None
+
+
+def share_typos(counts: pd.DataFrame) -> list[str | None]:
+    """V2-23: why each share count is a typed-in error, or None. `counts` (cik, shares, source,
+    `basic`: the weighted-average basic count of the same filing, `cum`: the price series'
+    `cum_split_after` on the count's date, `close`: the as-traded close on or before its filing
+    date) is in the order the counts became known per company.
+
+    Each count is judged only by what was known when it was filed (constitution I):
+    - zero or below: not a count;
+    - a cover-page count with a same-filing average: a typo when 100 times or more away from it;
+    - otherwise, a count 100 times or more away from the company's last accepted count (adjusted
+      for splits in the price series between the two) is a typo unless the company's market value
+      stayed within 10 times of its value then: a real issue of shares or a reverse split moves
+      the price the other way, a typo does not. Without both prices, two filings in a row at about
+      the same level (within a factor of 2) confirm the change instead."""
+    reasons: list[str | None] = []
+    last: dict[str, tuple[float, float | None, float | None]] = {}  # count, `cum`, `close`
+    jumped: dict[str, float] = {}  # the count just rejected as a jump
+
+    def far(ratio: float) -> bool:
+        return ratio >= SHARE_JUMP or ratio <= 1 / SHARE_JUMP
+
+    columns = [counts[c] for c in ("cik", "shares", "source", "basic", "cum", "close")]
+    for cik, shares, source, basic, cum, close in zip(*columns, strict=True):
+        shares, basic, cum, close = _num(shares), _num(basic), _num(cum), _num(close)
+        reason = None
+        if shares is None or shares <= 0:
+            reason = "not positive"
+        elif source == "cover_page" and basic and basic > 0:
+            if far(shares / basic):
+                reason = "far from the same filing's average count"
+        elif cik in last:
+            prev, prev_cum, prev_close = last[cik]
+            ref = prev * prev_cum / cum if prev_cum and cum else prev
+            if far(shares / ref):
+                if close and prev_close:
+                    kept_value = 0.1 <= shares * close / (prev * prev_close) <= 10
+                else:
+                    kept_value = cik in jumped and 0.5 <= shares / jumped[cik] <= 2
+                if not kept_value:
+                    reason = "jump from the last accepted count"
+                    jumped[cik] = shares
+        reasons.append(reason)
+        if reason is None:
+            last[cik] = (shares, cum, close)
+            jumped.pop(cik, None)
+    return reasons
+
+
 def build_shares(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
     db.require(con, ["core.financial_fact"], "core.shares_outstanding")
     lo, hi = QUARTER_DAYS
-    with db.transaction(con):
-        con.execute(
-            f"""
-            create or replace table core.shares_outstanding as
+    has_prices = con.execute(
+        "select count(*) from duckdb_tables() where schema_name = 'core' "
+        "and table_name = 'price_daily'"
+    ).fetchone()[0]
+    split = (  # the split factor on the count's date; the close known when it was filed
+        "asof left join core.price_daily p on p.cik = c.cik and p.session <= c.as_of "
+        "asof left join core.price_daily q on q.cik = c.cik and q.session <= c.filed"
+        if has_prices
+        else ""
+    )
+    counts = con.execute(
+        f"""
+        with c as (
             select cik, period_end as as_of, value as shares, filed, known_at,
                    'cover_page' as source
             from core.financial_fact where item = 'shares_outstanding' and first_filed
@@ -160,13 +227,38 @@ def build_shares(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
             where item = 'shares_basic_avg' and first_filed and period_days between {lo} and {hi}
               and cik not in (select cik from core.financial_fact
                               where item = 'shares_outstanding')
-            """
+        ),
+        basic as (
+            select cik, filed, median(value) as basic from core.financial_fact
+            where item = 'shares_basic_avg' and value > 0 group by cik, filed
+        ),
+        priced as (
+            select c.*, {"p.cum_split_after" if has_prices else "null::DOUBLE"} as cum,
+                   {"q.close" if has_prices else "null::DOUBLE"} as close
+            from c {split}
         )
+        select priced.*, b.basic from priced left join basic b using (cik, filed)
+        order by cik, known_at, as_of, filed
+        """
+    ).df()
+    counts["reason"] = share_typos(counts)
+    kept = counts[counts["reason"].isna()][SHARE_COLUMNS]
+    rejected = counts[counts["reason"].notna()][[*SHARE_COLUMNS, "reason"]]
+    with db.transaction(con):
+        for table, frame in (("shares_outstanding", kept), ("shares_rejected", rejected)):
+            con.register("_counts", frame)
+            con.execute(
+                f"create or replace table core.{table} as select * replace "
+                "(as_of::DATE as as_of, filed::DATE as filed, known_at::DATE as known_at) "
+                "from _counts"
+            )
+            con.unregister("_counts")
     counts = dict(
         con.execute(
             "select source, count(distinct cik) from core.shares_outstanding group by 1"
         ).fetchall()
     )
+    counts |= {f"rejected: {r}": n for r, n in rejected["reason"].value_counts().items()}
     echo(f"  shares outstanding (companies): {counts}")
     return counts
 

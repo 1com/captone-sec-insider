@@ -6,6 +6,10 @@ of `config/risk_params.yaml` (v1's `assemble`).
 - `excluded`: funds and blank-check companies (`ref.company`, and the excluded SIC codes).
 - `eligible`: an active filer, close and 20-day dollar volume at the floors, at least
   `min_price_history_sessions` price days, not excluded: the rows the risk models learn from.
+- Per question (decided 30 Oct 2026, before any model result; risk_params v5 unchanged):
+  `eligible_volatility` also admits price-only stocks that pass the price rules, as volatility
+  needs only prices (V2-26, constitution II); `eligible_dilution` leaves out foreign filers
+  (V2-27). The results move uses `eligible` (foreign filers file no 8-K item 2.02).
 - Foreign private issuers (`foreign_filer`): their insiders did not file Form 4 and they report on
   6-K, not 8-K, so the insider and 8-K features are missing, not zero; their share counts are of
   ordinary shares while the price is often an ADR's, so market value is missing too.
@@ -48,6 +52,11 @@ def build_snapshot(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict
         for alias, cols in families
         for c in cols
     )  # fmt: skip
+    floors = (  # the price rules of every question
+        f"p.close >= {float(rules['min_close'])} "
+        f"and coalesce(p.addv20 >= {float(rules['min_addv20_usd'])}, false) "
+        f"and p.sessions_listed >= {int(rules['min_price_history_sessions'])} and not x.excluded"
+    )
     with db.transaction(con):
         con.execute(
             """
@@ -81,15 +90,16 @@ def build_snapshot(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict
             select x.cik, x.as_of, x.month_end, x.release_eve, x.latest, x.coverage,
                    x.filer_type, x.foreign_filer, x.sector,
                    {", ".join(f"p.{c}" for c in PRICE_FEATURES + PRICE_EXTRAS)},
-                   f.market_cap, f.shares_outstanding, {columns},
+                   case when x.foreign_filer then null else f.market_cap end as market_cap,
+                   f.shares_outstanding, {columns},
                    case when x.foreign_filer then null
                         else (i.buy_value_12m - i.sell_value_12m) / nullif(f.market_cap, 0)
                    end as net_buy_to_mcap_12m,
                    x.active_filer, x.excluded,
-                   x.active_filer and p.close >= {float(rules["min_close"])}
-                       and coalesce(p.addv20 >= {float(rules["min_addv20_usd"])}, false)
-                       and p.sessions_listed >= {int(rules["min_price_history_sessions"])}
-                       and not x.excluded as eligible
+                   x.active_filer and {floors} as eligible,
+                   (x.active_filer or x.coverage = 'price_only') and {floors}
+                       as eligible_volatility,
+                   x.active_filer and {floors} and not x.foreign_filer as eligible_dilution
             from x
             join feature.price p using (cik, as_of)
             left join feature.fundamental f using (cik, as_of)
