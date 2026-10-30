@@ -37,7 +37,7 @@ three are updated together.
 |---|---|---|---|
 | *done 29 Oct* | steps 0–4: v2 started, every data layer built (#62–#66) | agent | done |
 | 1 Data platform (30 Oct) | 001 daily data refresh (#68) · 002 reference datasets (#73) · 003 team workflow and CI (#75) | agent | 001 in progress; 002, 003 next |
-| 2 Data science (13 Nov) | 004 EDA (#76) · 005 volatility (#67) · 006 results-day move (#77) · 007 dilution (#78) · 008 model report (#79) · 009 daily scores (#74) | teammate, with the agent | not started |
+| 2 Data science (13 Nov) | 004 EDA (#76) · 005 volatility (#67) · 006 results-day move (#77) · 007 dilution (#78) · 008 model report (#79) · 009 daily scores (#74) | teammate, with the agent (004: agent) | 004 done on its branch; the rest not started |
 | 3 App (16 Nov) | 011 design and forecast contract (#80) · 012 API (#81) · 013 stock page (#70) · 014 insider tracker (#82) · 015 dilution check (#83) · 016 screeners (#84) · 017 forecasts and model card (#85) · 018 hosting (#86) | researcher, with the agent | not started |
 | 4 Holdout and hand-in (18 Nov) | 010 holdout test (#69) · 019 report and hand-in (#71): product 17 Nov, report 18 Nov | all | not started |
 | 5 Before Tiingo ends (25 Nov) | 020 offline rebuild and raw backup (#72) | agent | not started |
@@ -151,3 +151,15 @@ uv run sentinel schedule install  # run the update on weekday evenings (Windows 
 
 Other commands: `sentinel fetch <source>`, `sentinel build <layer>`, `sentinel publish`,
 `sentinel export` (see `docs/architecture.md`).
+
+## Notebooks
+
+The EDA of each training set (feature 004) ends with its findings:
+`notebooks/004-eda-volatility.ipynb`, `004-eda-results-move.ipynb`, `004-eda-dilution.ipynb`. They
+read `data/exports/ml/` and run start to finish with one command each, under the memory cap:
+
+```bash
+uv run nbstripout --install --attributes .gitattributes   # once per clone: commits never hold outputs
+systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 \
+  uv run jupyter nbconvert --to notebook --execute --inplace notebooks/004-eda-volatility.ipynb
+```

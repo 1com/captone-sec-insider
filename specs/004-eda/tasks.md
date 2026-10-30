@@ -91,8 +91,8 @@ rows affected.
 
 ## Phase 7: Polish & cross-cutting
 
-- [ ] T015 [P] Update docs/plan.md (004 owner: coding agent with the researcher; status; next steps) and README.md (how to run the notebooks)
-- [ ] T016 Run `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run pytest -q`; confirm the staged notebooks hold no outputs (quickstart check 3)
+- [X] T015 [P] Update docs/plan.md (004 owner: coding agent with the researcher; status; next steps) and README.md (how to run the notebooks)
+- [X] T016 Run `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run pytest -q`; confirm the staged notebooks hold no outputs (quickstart check 3)
 - [ ] T017 Mark tasks done here, merge `004-eda` into `main`, delete the branch, comment on issue #76
 
 ---
