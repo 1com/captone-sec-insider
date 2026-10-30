@@ -113,7 +113,8 @@ file in step.
     T062–T064 (docs, final checks, merge).
   - `004-eda` (on top of 001): the EDA notebooks, the cleaning rules V2-22 to V2-24 in the
     pipeline, and the empty model notebooks for 005–007. Left: T023, T024, T017.
-  - Local commits not yet pushed to GitHub: 3 on 001, all of 004 (ask the researcher, then push).
+  - Both branches are pushed to GitHub (30 Oct, the researcher's go-ahead); push new commits to
+    them as work goes on. Merging into `main` waits for step 2.
 - **Data**: every source current to 29 October 2026; the build, serving copy and export were
   rebuilt with the cleaning rules on 30 October.
 - **Decisions waiting for the researcher** (`docs/decisions.md`, "Proposed by the EDA"):
