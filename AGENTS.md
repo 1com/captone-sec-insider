@@ -120,7 +120,9 @@ file in step.
   rebuilt with the cleaning rules V2-22 to V2-24 on 30 October.
 - **Decisions waiting for the researcher** (`docs/decisions.md`, "Proposed by the EDA"):
   V2-25 (named cases for the validation round, listed there), V2-26 (price-only stocks and
-  volatility eligibility), V2-27 (foreign filers and the dilution question).
+  volatility eligibility). Decided on 30 October: V2-27, foreign filers are left out of the
+  dilution question (007 trains, tests and scores without them; the app shows no dilution chance
+  for them).
 
 ## 8. What to do next, step by step
 
