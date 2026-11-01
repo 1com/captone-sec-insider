@@ -140,9 +140,9 @@ then has no test result.
   "was missing" indicators in the classic model, not by dropping the rows.
 - **Extreme ratios** (e.g. leverage up to 1.8 million): cut at the 1st and 99th percentiles of each
   fold's training rows, never using the test year's values.
-- **Share growth capped at 20×** and the 46 split-like "yes" answers: the 46 doubtful answers may be
-  left out of training with the existing split-dilution check; the choice is stated in the
-  notebook.
+- **Share growth capped at 20×** and the 46 split-like "yes" answers: the check that finds them
+  needs the full database, which the teammate's machine does not have; they stay in (0.12% of the
+  "yes" answers) and the researcher is asked for the list before 010 (research R2).
 - **The 2022 test year is half a year** (22,597 rows, January–June): its results are reported with
   that caveat.
 - **A company appears in many rows over time**: rows are never split at random; every split is by
@@ -157,7 +157,8 @@ then has no test result.
 - **FR-001**: The model MUST learn and be tested only on rows with `eligible_dilution` true and a
   present answer, dated 2022 or earlier, read through the project's development-row loader.
 - **FR-002**: The model MUST NOT use as inputs the answer, its window end, the company identifier,
-  the row date or any eligibility/coverage flag.
+  the row date, any eligibility/coverage flag, or `cum_split_after` (the product of split ratios
+  *after* the row's day: look-ahead, research R1).
 - **FR-003**: The model MUST NOT read the private reference copies (`data/exports/reference/`) or
   compute or read any answer whose window starts in 2023 or later.
 - **FR-004**: Every evaluation MUST be walk-forward by date: for each test year 2019–2022, train on
@@ -230,8 +231,7 @@ then has no test result.
 - The classic model is a regularised logistic regression; the trees are LightGBM, both already in
   the project.
 - Run logging uses MLflow, already a project dependency.
-- The 46 split-like "yes" answers are left out of training by default and kept in testing, so the
-  test years stay as registered; the notebook states the effect.
+- The 46 split-like "yes" answers stay in for now (research R2).
 - The notebook runs on the teammate's Mac; it does not need the full database, only the export.
 - Out of scope: changing the pre-registered definition, the offering-event question (roadmap 024),
   the daily scoring (009), the report (008) and the holdout test itself (010).
