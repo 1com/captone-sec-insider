@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Market-Wide Insider Feed · EDGAR-SENTINEL{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                    <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                    </svg>
+                    Market-Wide Insider Signal Feed
+                </h1>
+                <p class="text-xs text-slate-400 mt-1">Real-time stream of cluster buying (multiple insiders) and senior C-suite acquisitions parsed from SEC Form 4.</p>
+            </div>
+            <div class="text-xs text-slate-400 font-mono">
+                {{ feed|length }} Events Tracked
+            </div>
+        </div>
+    </div>
+
+    <!-- Feed Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for item in feed %}
+        <div class="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl p-4 flex flex-col justify-between transition-colors shadow-sm">
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <a href="/stock/{{ item.ticker or item.cik }}" class="text-sm font-bold text-cyan-400 hover:underline">
+                        {{ item.ticker or item.cik }}
+                    </a>
+                    <span class="text-[10px] px-2 py-0.5 rounded font-semibold 
+                        {% if item.event_kind == 'cluster' %}bg-emerald-950 text-emerald-400 border border-emerald-800
+                        {% elif item.event_kind == 'ceo_cfo_buy' %}bg-cyan-950 text-cyan-400 border border-cyan-800
+                        {% else %}bg-slate-800 text-slate-300 border border-slate-700{% endif %}">
+                        {{ item.event_kind|upper|replace('_', ' ') }}
+                    </span>
+                </div>
+
+                <div class="text-xs text-slate-300 font-medium truncate mb-2">
+                    {{ item.company_name }}
+                </div>
+
+                <div class="text-xs text-slate-400 space-y-1 font-mono">
+                    <div class="flex justify-between">
+                        <span class="font-sans text-slate-400">Total Purchase:</span>
+                        <span class="font-bold text-emerald-400">${{ "{:,.0f}".format(item.value) if item.value else '—' }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-sans text-slate-400">Shares Acquired:</span>
+                        <span class="text-slate-200">{{ "{:,}".format(item.shares|int) if item.shares else '—' }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-sans text-slate-400">Buyers Count:</span>
+                        <span class="text-slate-200">{{ item.buyers or 1 }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="font-sans text-slate-400">Sector:</span>
+                        <span class="font-sans text-slate-300 text-[11px] truncate max-w-[140px]">{{ item.sector or 'Unclassified' }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                <span>{{ item.session }}</span>
+                <a href="/stock/{{ item.ticker or item.cik }}" class="font-sans text-cyan-400 hover:underline">
+                    View Stock →
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}

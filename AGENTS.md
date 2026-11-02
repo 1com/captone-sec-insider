@@ -221,10 +221,12 @@ For each, in order 005 → 006 → 007:
   changes nothing; `sentinel verify` identical. (Implemented on branch `009-daily-scores`).
 
 ### Step 7 · The app (011–018), with the researcher
-011 design and the forecast contract (`specs/011-app-design/contracts/`), 012 FastAPI read-only
-API over `data/serving.duckdb` (never port 8000), 013 stock page, 014 insider tracker, 015
-dilution check, 016 screeners, 017 forecasts and model card, 018 hosting with no Tiingo-derived
-value on a public page. Details and done-when in `docs/plan.md`.
+- [X] 011–017: Implemented on branch `011-app-design`. Design and forecast contract (`specs/011-app-design/contracts/`),
+  FastAPI read-only API over `data/serving.duckdb` (`src/sentinel/app/`, protected against port 8000), stock research terminal
+  with the four Sentinel intelligence panels, live interactive price chart, reported financials, Form 4 insider activity,
+  and SEC filings. Multi-factor screener, market insider feed, and model card view. Tested with 8 unit tests in
+  `tests/unit/test_app_api.py`. CLI entrypoint: `sentinel serve --port 8080`.
+- [ ] 018: Hosting / production deployment configuration with no Tiingo-derived value on a public page.
 
 ### Step 8 · 010 Holdout test (16 November)
 **Already true (checked 30 Oct):** the holdout rows (`feature_snapshot` from 2023 on, built from

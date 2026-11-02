@@ -367,3 +367,24 @@ def score(
                 merged = merged.join(df_pred[cols_to_add])
             merged.to_parquet(out_p, index=False)
         typer.echo(f"Saved predictions to {output_file}")
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host", help="Host interface to bind to."),
+    port: int = typer.Option(
+        8080, "--port", help="Port number (default 8080, port 8000 is reserved)."
+    ),
+    reload: bool = typer.Option(False, "--reload", help="Enable auto-reload for development."),
+) -> None:
+    """Launch the EDGAR-SENTINEL web application and API."""
+    import uvicorn
+
+    if port == 8000:
+        _fail(
+            "Port 8000 is reserved for another application on this machine. "
+            "Use port 8080 or another port.",
+            USAGE,
+        )
+    typer.echo(f"Starting EDGAR-SENTINEL on http://{host}:{port} ...")
+    uvicorn.run("sentinel.app.main:app", host=host, port=port, reload=reload)

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Market Screener · EDGAR-SENTINEL{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header & Filter Form -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+            <div>
+                <h1 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                    <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                    </svg>
+                    Market Screener & Forecast Matrix
+                </h1>
+                <p class="text-xs text-slate-400 mt-1">Screen 11,282 US-traded stocks across volatility, earnings jumps, dilution risk, and momentum.</p>
+            </div>
+            <div class="text-xs text-slate-400 font-mono">
+                Showing top {{ stocks|length }} matches
+            </div>
+        </div>
+
+        <!-- Filter Controls -->
+        <form method="get" action="/screener" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div>
+                <label class="block text-slate-400 mb-1 font-medium">GICS Sector</label>
+                <select name="sector" onchange="this.form.submit()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500">
+                    <option value="all" {% if sector == 'all' %}selected{% endif %}>All Sectors</option>
+                    <option value="Technology" {% if sector == 'Technology' %}selected{% endif %}>Technology</option>
+                    <option value="Healthcare" {% if sector == 'Healthcare' %}selected{% endif %}>Healthcare</option>
+                    <option value="Financials" {% if sector == 'Financials' %}selected{% endif %}>Financials</option>
+                    <option value="Consumer Discretionary" {% if sector == 'Consumer Discretionary' %}selected{% endif %}>Consumer Discretionary</option>
+                    <option value="Industrials" {% if sector == 'Industrials' %}selected{% endif %}>Industrials</option>
+                    <option value="Energy" {% if sector == 'Energy' %}selected{% endif %}>Energy</option>
+                    <option value="Communication Services" {% if sector == 'Communication Services' %}selected{% endif %}>Communication Services</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-slate-400 mb-1 font-medium">Expected Volatility Band</label>
+                <select name="vol_band" onchange="this.form.submit()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500">
+                    <option value="">Any Volatility</option>
+                    <option value="1" {% if vol_band == 1 %}selected{% endif %}>Band 1 · Lowest (< 20%)</option>
+                    <option value="2" {% if vol_band == 2 %}selected{% endif %}>Band 2 · Moderate (20%–30%)</option>
+                    <option value="3" {% if vol_band == 3 %}selected{% endif %}>Band 3 · Elevated (30%–45%)</option>
+                    <option value="4" {% if vol_band == 4 %}selected{% endif %}>Band 4 · High (45%–70%)</option>
+                    <option value="5" {% if vol_band == 5 %}selected{% endif %}>Band 5 · Extreme (> 70%)</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-slate-400 mb-1 font-medium">Dilution Risk Band</label>
+                <select name="dil_band" onchange="this.form.submit()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 focus:outline-none focus:border-cyan-500">
+                    <option value="">Any Dilution Risk</option>
+                    <option value="1" {% if dil_band == 1 %}selected{% endif %}>Band 1 · Very Low Risk (< 2%)</option>
+                    <option value="2" {% if dil_band == 2 %}selected{% endif %}>Band 2 · Low Risk (2%–5%)</option>
+                    <option value="3" {% if dil_band == 3 %}selected{% endif %}>Band 3 · Moderate (5%–10%)</option>
+                    <option value="4" {% if dil_band == 4 %}selected{% endif %}>Band 4 · Elevated (10%–20%)</option>
+                    <option value="5" {% if dil_band == 5 %}selected{% endif %}>Band 5 · Imminent (> 20%)</option>
+                </select>
+            </div>
+
+            <div class="flex items-end">
+                <a href="/screener" class="w-full text-center bg-slate-800 hover:bg-slate-700 text-slate-300 py-1.5 rounded-lg transition-colors font-medium">
+                    Reset Filters
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Results Table -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+                <thead>
+                    <tr class="text-slate-500 border-b border-slate-800 bg-slate-950/50 font-sans">
+                        <th class="py-3 px-4 font-semibold">Ticker / Company</th>
+                        <th class="py-3 px-4 font-semibold">Sector</th>
+                        <th class="py-3 px-4 font-semibold text-right">Price</th>
+                        <th class="py-3 px-4 font-semibold text-right">Mkt Cap</th>
+                        <th class="py-3 px-4 font-semibold text-right">3M Vol (005)</th>
+                        <th class="py-3 px-4 font-semibold text-center">Vol Band</th>
+                        <th class="py-3 px-4 font-semibold text-right">Dilution Prob (007)</th>
+                        <th class="py-3 px-4 font-semibold text-center">Dil Band</th>
+                        <th class="py-3 px-4 font-semibold text-right">Next ER Move (006)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60">
+                    {% for s in stocks %}
+                    <tr class="hover:bg-slate-850/60 transition-colors">
+                        <td class="py-3 px-4">
+                            <a href="/stock/{{ s.ticker or s.cik }}" class="group block">
+                                <span class="font-bold text-cyan-400 group-hover:underline text-sm">{{ s.ticker or s.cik }}</span>
+                                <span class="block text-[11px] font-sans text-slate-300 truncate max-w-[200px]">{{ s.name }}</span>
+                            </a>
+                        </td>
+                        <td class="py-3 px-4 font-sans text-slate-300">
+                            {{ s.sector or 'Unclassified' }}
+                        </td>
+                        <td class="py-3 px-4 text-right text-white font-bold">
+                            ${{ "%.2f"|format(s.close) if s.close else '—' }}
+                        </td>
+                        <td class="py-3 px-4 text-right text-slate-300">
+                            {% if s.market_cap %}
+                                {% if s.market_cap >= 1e12 %}${{ "%.2fT"|format(s.market_cap / 1e12) }}
+                                {% elif s.market_cap >= 1e9 %}${{ "%.2fB"|format(s.market_cap / 1e9) }}
+                                {% else %}${{ "%.1fM"|format(s.market_cap / 1e6) }}{% endif %}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="py-3 px-4 text-right text-slate-200">
+                            {{ "%.1f%%"|format(s.vol_forecast * 100) if s.vol_forecast else '—' }}
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            {% if s.vol_band %}
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold
+                                    {% if s.vol_band <= 2 %}bg-emerald-950 text-emerald-400 border border-emerald-800
+                                    {% elif s.vol_band == 3 %}bg-amber-950 text-amber-400 border border-amber-800
+                                    {% else %}bg-rose-950 text-rose-400 border border-rose-800{% endif %}">
+                                    Band {{ s.vol_band }}
+                                </span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="py-3 px-4 text-right text-slate-200">
+                            {{ "%.1f%%"|format(s.dil_prob * 100) if s.dil_prob else '—' }}
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            {% if s.dil_band %}
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold
+                                    {% if s.dil_band <= 2 %}bg-emerald-950 text-emerald-400 border border-emerald-800
+                                    {% elif s.dil_band == 3 %}bg-amber-950 text-amber-400 border border-amber-800
+                                    {% else %}bg-rose-950 text-rose-400 border border-rose-800{% endif %}">
+                                    Band {{ s.dil_band }}
+                                </span>
+                            {% else %}
+                                <span class="text-slate-600">Foreign/Price</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 text-right font-medium {% if s.res_move %}text-cyan-400{% else %}text-slate-600{% endif %}">
+                            {{ "±" ~ "%.1f%%"|format(s.res_move * 100) if s.res_move else '—' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
