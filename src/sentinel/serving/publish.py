@@ -142,7 +142,21 @@ def publish(p: Paths, echo=print) -> dict:
     with duckdb.connect(str(tmp), config={"memory_limit": db.MEMORY_LIMIT}) as con:
         con.execute(f"attach '{p.build_db.as_posix()}' as b (read_only)")
         con.execute("create schema app")
-        for name, sql in TABLES.items():
+        all_tables = dict(TABLES)
+        existing_b = {
+            f"{r[0]}.{r[1]}"
+            for r in con.execute(
+                "select schema_name, table_name from duckdb_tables() where database_name = 'b'"
+            ).fetchall()
+        }
+        if "score.daily" in existing_b:
+            all_tables["daily_score"] = "select * from b.score.daily order by cik, as_of, question"
+        if "score.outcome" in existing_b:
+            all_tables["live_outcomes"] = (
+                "select * from b.score.outcome order by cik, as_of, question"
+            )
+
+        for name, sql in all_tables.items():
             con.execute(f"create table app.{name} as {sql.format(kinds=kinds)}")
             counts[name] = db.count(con, f"app.{name}")
             echo(f"  app.{name}: {counts[name]:,} rows")

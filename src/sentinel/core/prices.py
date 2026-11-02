@@ -419,6 +419,7 @@ def build_daily(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
             """,
             glitch,
         )
+    con.execute("drop table _rows")
     counts = dict(zip(["rows", "companies", "glitches"], con.execute(
         "select count(*), count(distinct cik), count(*) filter (where glitch) "
         "from core.price_daily").fetchone(), strict=True))  # fmt: skip

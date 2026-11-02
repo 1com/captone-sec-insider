@@ -17,9 +17,10 @@ import os
 import shutil
 import subprocess
 from collections.abc import Callable
-from datetime import date
+from datetime import date, datetime
 from xml.sax.saxutils import escape
 
+from sentinel import db
 from sentinel.config import ConfigError, Paths, sources
 from sentinel.update import record
 
@@ -160,4 +161,11 @@ def rerun_capped(p: Paths, argv: list[str], echo: Callable[[str], None]) -> int 
         note = f"run stopped at the memory cap ({cap}): status: failed"
         echo(note)
         record.write_log(p.logs / f"update-{date.today()}.log", [note])
+        if p.build_db.exists():
+            try:
+                with db.connect(p) as con:
+                    con.execute("update ops.update_run set finished_at = ?, status = 'failed' "
+                                "where finished_at is null", [datetime.now()])  # fmt: skip
+            except Exception:
+                pass
     return code

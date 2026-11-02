@@ -1,12 +1,15 @@
 """`sentinel build <layer>`: rebuild a layer of the build database from the layer below it
 (docs/architecture.md). Each step replaces its tables whole, so a rerun gives the same result."""
 
+import contextlib
+import ctypes
 import gc
 from collections.abc import Callable
 
 import duckdb
 import pyarrow as pa
 
+from sentinel import db
 from sentinel.config import Paths
 from sentinel.core import filings as core_filings
 from sentinel.core import insider as core_insider
@@ -121,11 +124,17 @@ LAYERS: dict[str, dict[str, Step]] = {"staging": STAGING, "reference": REFERENCE
                                       "features": FEATURES, "labels": LABELS}  # fmt: skip
 
 
-def release_memory() -> None:
-    """Return the memory a step freed: Arrow keeps freed buffers for reuse, and a full build runs
-    every step in one process under the 5 GB cap."""
+def release_memory(con: duckdb.DuckDBPyConnection | None = None) -> None:
+    """Return the memory a step freed: evict unpinned DuckDB buffer pages, release Arrow buffers,
+    and trim glibc heap arenas so a full build runs every step in one process under the 5 GB cap."""
+    if con is not None:
+        with contextlib.suppress(duckdb.Error):
+            con.execute("set memory_limit='64MB'")
+            con.execute(f"set memory_limit='{db.MEMORY_LIMIT}'")
     gc.collect()
     pa.default_memory_pool().release_unused()
+    with contextlib.suppress(OSError, AttributeError):
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
 
 
 def run(con, p: Paths, layer: str, only: list[str] | None = None, echo=print,
@@ -146,7 +155,7 @@ def run(con, p: Paths, layer: str, only: list[str] | None = None, echo=print,
         if incremental and name in INCREMENTAL:
             done = INCREMENTAL[name](con, p, record.staged(con, name), echo)
         results[name] = done if done is not None else step(con, p, echo)
-        release_memory()
+        release_memory(con)
         if layer == "staging":
             entries = entries or [e for e in manifest.read_all(p.manifest) if e.role == "original"]
             sources = STAGING_SOURCES.get(name, ())

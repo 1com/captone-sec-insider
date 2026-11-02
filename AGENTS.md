@@ -108,7 +108,34 @@ done, merge it into `main` (pull request, after the researcher agrees), delete t
 close its GitHub issue (#67–#87, one per feature). Keep `docs/plan.md`, `README.md` and this
 file in step.
 
-## 7. Where things stand (30 October 2026, evening)
+## 7. Where things stand (2 November 2026; updated after modeling & pipeline fixes)
+
+**Status summary (2 November):**
+- **Daily update fixed & verified.** Data current to 30 Oct. Memory leaks caused by DuckDB buffer pool
+  retention, glibc heap fragmentation, and non-streaming staging payloads were resolved via
+  DuckDB memory ceiling eviction, `ctypes malloc_trim(0)`, smaller fundamental batching (400),
+  and per-batch garbage collection. End-to-end `sentinel update --no-fetch` completed in 15 minutes
+  under ~1.28 GB peak RSS (far below the 5 GB cap). Same-day rerun immediately reported `nothing_new`.
+  All 164 unit tests pass (`pytest -q`), and `ruff check / format` pass cleanly.
+- **Leakage check resolved:** `cum_split_after` was removed from `FAMILIES` in `src/sentinel/eda.py`
+  to guarantee future split factors never leak into any model feature set.
+- **The 46 Split Dilution Cases:** Generated and exported to `data/exports/share/dilution_split_46_cases.csv`.
+- **All Three Forecasting Models Built & Evaluated in Notebooks (Folds 2019–2022, 5 GB cap):**
+  1. `notebooks/006-results-move-model.ipynb`: Level 3 evaluated with both **LightGBM** (Spearman $\rho = 0.4262$, Log MAE $0.8744$)
+     and **XGBoost** ($\rho = 0.4249$, Log MAE $0.8759$). Both beat Ridge ($\rho = 0.4133$) and naive baseline ($\rho = 0.3332$).
+  2. `notebooks/007-dilution-model.ipynb`: Level 3 evaluated with **HistGradientBoosting** (AUC $0.8905$, Log Loss $0.2250$),
+     **LightGBM** (AUC $0.8915$, Log Loss $0.2257$), and **XGBoost** (AUC $0.8887$, Log Loss $0.2268$), all with a top-decile lift of $4.97\times$
+     over base rate (AUC $0.5000$, Log Loss $0.3431$). Calibrated into 5 risk bands (Band 1 actual 0.3% vs Band 5 actual 34.3%).
+     Holdout dry-run scored 240,303 rows (2023+) cleanly.
+  3. `notebooks/005-volatility-model.ipynb`: Level 3 evaluated with **XGBoost** (Log MAE $0.3119$) and **LightGBM** (Log MAE $0.3233$,
+     Spearman $\rho = 0.7371$), beating Level 1 mean reversion ($0.3263$) and Level 0 past volatility ($0.3457$). 80% prediction range
+     calibrated out-of-sample. Price-only stocks score Log MAE $0.3162$. Holdout dry-run scored 279,039 rows (2023+) cleanly.
+- **Production Models Moved to Package (`src/sentinel/models/`):**
+  Created `src/sentinel/models/results_move.py`, `src/sentinel/models/dilution.py`, and `src/sentinel/models/volatility.py`
+  with unified `fit`, `predict`, `save`, and `load` interfaces, along with CLI commands `sentinel train` and `sentinel score`
+  in `src/sentinel/cli.py`. Added unit tests in `tests/unit/test_models.py`. All 169 unit tests pass.
+
+**State as of 30 October (evening):**
 
 - **Branches**: everything is merged into `main` (30 Oct: #88 001, #89 004, #90 022); only
   `main` exists. Still open in 001: T046 (check a weekday 10:00 run's log, a same-day rerun that
@@ -189,9 +216,9 @@ For each, in order 005 → 006 → 007:
 ### Step 6 · 008 Model report, 009 Daily scores
 - [ ] 008 (#79): one command regenerates the report (data, methods, results per test year
   against the baselines, calibration, the choices) and the hit rates for `app.model_card`.
-- [ ] 009 (#74): `sentinel update` scores every covered company daily into `score.daily` and
+- [X] 009 (#74): `sentinel update` scores every covered company daily into `score.daily` and
   records outcomes in `score.outcome`, in the columns of the forecast contract (011); a rerun
-  changes nothing; `sentinel verify` identical.
+  changes nothing; `sentinel verify` identical. (Implemented on branch `009-daily-scores`).
 
 ### Step 7 · The app (011–018), with the researcher
 011 design and the forecast contract (`specs/011-app-design/contracts/`), 012 FastAPI read-only

@@ -228,3 +228,142 @@ def export() -> None:
     from sentinel.serving import export as serving
 
     _serving("export", serving.export)
+
+
+@app.command()
+def train(
+    question: str = typer.Argument(..., help="results_move, dilution, volatility, or all."),
+    level: str = typer.Option(
+        "lightgbm", "--level", help="lightgbm, xgboost, or hist_gradient_boosting."
+    ),
+) -> None:
+    """Train and freeze forecasting model(s) into data/models/."""
+    import pandas as pd
+
+    from sentinel import config, eda
+    from sentinel.models import dilution, results_move, volatility
+
+    p = config.paths()
+    p.models.mkdir(parents=True, exist_ok=True)
+    known = ("results_move", "dilution", "volatility", "all")
+    if question not in known:
+        _fail(f"unknown question {question!r}; known: {', '.join(known)}", USAGE)
+
+    targets = [question] if question != "all" else ["results_move", "dilution", "volatility"]
+
+    for q in targets:
+        typer.echo(f"Training {q} model (level: {level})...")
+        started = time.monotonic()
+        raw_df = eda.load(q)
+        dev_df = raw_df[pd.to_datetime(raw_df["as_of"]) <= pd.Timestamp(eda.DEV_END)].copy()
+
+        if q == "results_move":
+            model = results_move.fit(dev_df, level=level)
+            model_path = p.models / "results_move.joblib"
+            results_move.save(model, model_path)
+            typer.echo(
+                f"  Saved {q} model to {model_path} ({len(model.features)} features) "
+                f"in {time.monotonic() - started:.1f}s"
+            )
+        elif q == "dilution":
+            lvl = "hist_gradient_boosting" if level == "hist_gradient_boosting" else level
+            model = dilution.fit(dev_df, level=lvl)
+            model_path = p.models / "dilution.joblib"
+            dilution.save(model, model_path)
+            typer.echo(
+                f"  Saved {q} model to {model_path} ({len(model.features)} features) "
+                f"in {time.monotonic() - started:.1f}s"
+            )
+        elif q == "volatility":
+            model = volatility.fit(dev_df, level=level)
+            model_path = p.models / "volatility.joblib"
+            volatility.save(model, model_path)
+            typer.echo(
+                f"  Saved {q} model to {model_path} ({len(model.features)} features) "
+                f"in {time.monotonic() - started:.1f}s"
+            )
+
+
+@app.command()
+def score(
+    question: str = typer.Argument(..., help="results_move, dilution, volatility, or all."),
+    input_file: str = typer.Option(
+        None, "--input", help="Parquet file to score (default: data/exports/latest.parquet)."
+    ),
+    output_file: str = typer.Option(
+        None, "--output", help="Parquet file to save output predictions."
+    ),
+) -> None:
+    """Score covered stocks using frozen model(s) from data/models/."""
+    from pathlib import Path
+
+    import pandas as pd
+
+    from sentinel import config
+    from sentinel.models import dilution, results_move, volatility
+
+    p = config.paths()
+    known = ("results_move", "dilution", "volatility", "all")
+    if question not in known:
+        _fail(f"unknown question {question!r}; known: {', '.join(known)}", USAGE)
+
+    if input_file:
+        in_path = Path(input_file)
+    elif (p.exports / "ml" / "latest.parquet").exists():
+        in_path = p.exports / "ml" / "latest.parquet"
+    else:
+        in_path = p.exports / "latest.parquet"
+    if not in_path.exists():
+        _fail(f"input file does not exist: {in_path}", FAILED)
+
+    rows = pd.read_parquet(in_path)
+    typer.echo(f"Loaded {len(rows):,} rows from {in_path.name}")
+
+    targets = [question] if question != "all" else ["results_move", "dilution", "volatility"]
+    preds = {}
+
+    for q in targets:
+        model_path = p.models / f"{q}.joblib"
+        if not model_path.exists():
+            _fail(f"model file not found: {model_path}. Run 'sentinel train {q}' first.", FAILED)
+
+        if q == "results_move":
+            m_res = results_move.load(model_path)
+            res = results_move.predict(m_res, rows)
+            preds[q] = res
+            el = res[res["eligible"]]
+            typer.echo(
+                f"  results_move: scored {len(el):,} eligible rows "
+                f"(median pred move: {el['pred_move'].median():.2%})"
+            )
+        elif q == "dilution":
+            m_dil = dilution.load(model_path)
+            res = dilution.predict(m_dil, rows)
+            preds[q] = res
+            el = res[res["eligible"]]
+            typer.echo(
+                f"  dilution: scored {len(el):,} eligible rows "
+                f"(mean prob: {el['dilution_prob'].mean():.2%})"
+            )
+        elif q == "volatility":
+            m_vol = volatility.load(model_path)
+            res = volatility.predict(m_vol, rows)
+            preds[q] = res
+            el = res[res["eligible"]]
+            typer.echo(
+                f"  volatility: scored {len(el):,} eligible rows "
+                f"(median vol forecast: {el['vol_forecast'].median():.2%})"
+            )
+
+    if output_file:
+        out_p = Path(output_file)
+        out_p.parent.mkdir(parents=True, exist_ok=True)
+        if len(targets) == 1:
+            preds[targets[0]].to_parquet(out_p, index=False)
+        else:
+            merged = rows[["cik", "as_of"]].copy()
+            for _q, df_pred in preds.items():
+                cols_to_add = [c for c in df_pred.columns if c not in ("cik", "as_of")]
+                merged = merged.join(df_pred[cols_to_add])
+            merged.to_parquet(out_p, index=False)
+        typer.echo(f"Saved predictions to {output_file}")

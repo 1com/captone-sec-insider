@@ -23,7 +23,7 @@ import pandas as pd
 from sentinel import db
 from sentinel.config import Paths
 
-BATCH = 1000  # companies per batch
+BATCH = 400  # companies per batch
 INSTANT = ["shares_outstanding", "equity", "assets", "liabilities", "cash", "current_assets",
            "current_liabilities", "receivables", "long_term_debt"]  # fmt: skip
 FLOW = ["revenue", "gross_profit", "operating_income", "operating_cash_flow", "capex",
@@ -206,6 +206,10 @@ def build_fundamentals(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> 
             con.register("_chunk", out[["cik", "as_of", *FUND_FEATURES, *extra]])
             con.execute("insert into feature.fundamental select * from _chunk")
             con.unregister("_chunk")
+            del rows, facts, reports, splits, out
+            from sentinel.build import release_memory
+
+            release_memory(con)
             done = min(i + BATCH, len(ciks))
             if done % 4000 < BATCH or done == len(ciks):
                 echo(f"  financial-statement features: {done:,}/{len(ciks):,} companies")

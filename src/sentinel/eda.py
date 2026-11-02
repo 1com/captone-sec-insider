@@ -31,7 +31,7 @@ DATES = ("as_of", "window_end", "filing_date", "report_date", "close_after")
 WINDOW_END = {"volatility": "window_end", "results_move": "close_after", "dilution": "window_end"}
 FAMILIES: list[tuple[str, str]] = [
     ("price", r"ret_\w+|vol_(21|63|252)|range_vol_21|max_drawdown_252|near_high_252|beta_252"
-              r"|idio_vol_252|log_close|close|cum_split_after"),
+              r"|idio_vol_252|log_close|close"),
     ("trading", r"log_addv20|addv20|zero_volume_63|sessions_listed"),
     ("size", r"market_cap|log_market_cap|shares_outstanding"),
     ("financials", r"book_to_market|leverage|cash_to_assets|cash_runway_years|loss_making"
