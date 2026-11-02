@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-01
 
-**Status**: Draft
+**Status**: Second version after the researcher's answers (2 Nov: V2-34 to V2-38)
 
 **Input**: User description: "Feature 007 · Dilution model (roadmap 007, issue #78, owner: the
 teammate `sonson033`, with the coding agent): the chance that a company's shares outstanding rise
@@ -141,8 +141,9 @@ then has no test result.
 - **Extreme ratios** (e.g. leverage up to 1.8 million): cut at the 1st and 99th percentiles of each
   fold's training rows, never using the test year's values.
 - **Share growth capped at 20×** and the 46 split-like "yes" answers: the check that finds them
-  needs the full database, which the teammate's machine does not have; they stay in (0.12% of the
-  "yes" answers) and the researcher is asked for the list before 010 (research R2).
+  needs the full database, which the teammate's machine does not have; the researcher exports the
+  list and the model drops them in its preprocessing (V2-38; until then they stay in, 0.12% of the
+  "yes" answers, research R2).
 - **The 2022 test year is half a year** (22,597 rows, January–June): its results are reported with
   that caveat.
 - **A company appears in many rows over time**: rows are never split at random; every split is by
@@ -226,12 +227,12 @@ then has no test result.
 - The export of 30 October 2026 (`data/exports/ml/dilution.parquet`, cleaning V2-22 to V2-32) is
   the data of record; a later export means re-running the notebook.
 - The primary measure for the one-standard-error rule is log loss (a proper score for chances), with
-  AUC, Brier score and lift reported alongside; if the researcher prefers another, the comparison
-  table already holds it.
+  AUC, Brier score and lift reported alongside (confirmed by the researcher, V2-36).
 - The classic model is a regularised logistic regression; the trees are LightGBM, both already in
   the project.
 - Run logging uses MLflow, already a project dependency.
-- The 46 split-like "yes" answers stay in for now (research R2).
+- The trees leave out the insider and macro families (V2-35). The 46 split-like "yes" answers
+  are dropped once the researcher's list arrives (V2-38, research R2).
 - The notebook runs on the teammate's Mac; it does not need the full database, only the export.
 - Out of scope: changing the pre-registered definition, the offering-event question (roadmap 024),
   the daily scoring (009), the report (008) and the holdout test itself (010).

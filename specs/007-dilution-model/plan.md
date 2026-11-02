@@ -21,9 +21,9 @@ researcher's approval and is not part of this plan's notebook work.
 **Language/Version**: Python 3.14 (uv, `uv.lock`)
 
 **Primary Dependencies**: pandas, numpy, scikit-learn (logistic regression, preprocessing,
-metrics, `HistGradientBoostingClassifier` as the stand-in for LightGBM, research R10), MLflow, matplotlib; project helpers `sentinel.eda` (`load`, `features`,
-`redundant_pairs`, `purge_table`, `auc`, `top_decile_lift`). No new Python dependency; LightGBM
-replaces the stand-in once `libomp` is installed (research R10).
+metrics), LightGBM (level 3; on macOS it needs the `libomp` runtime, installed 2 Nov, research
+R10), MLflow, matplotlib; project helpers `sentinel.eda` (`load`, `features`,
+`redundant_pairs`, `purge_table`, `auc`, `top_decile_lift`). No new Python dependency.
 
 **Storage**: reads `data/exports/ml/dilution.parquet`, `latest.parquet`, `feature_snapshot.parquet`
 (private, git-ignored); writes only the MLflow store `data/mlflow.db` and `data/mlartifacts/`.

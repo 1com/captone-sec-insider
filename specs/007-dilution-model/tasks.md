@@ -26,7 +26,7 @@ files.
 
 ## Phase 1: Setup
 
-- [X] T001 Level-3 estimator decided (research R10): scikit-learn `HistGradientBoostingClassifier` for now, LightGBM after `brew install libomp` later; threads limited to 4
+- [X] T001 Level-3 estimator decided (research R10): scikit-learn `HistGradientBoostingClassifier` in the first version; LightGBM since 2 Nov (T027); threads limited to 4
 - [X] T002 [P] Check the export: `data/exports/ml/dilution.parquet`, `latest.parquet`, `feature_snapshot.parquet` present; nbstripout installed (`uv run nbstripout --status`)
 
 ---
@@ -100,6 +100,16 @@ a named choice.
 - [X] T021 Section 10 markdown: findings in plain words (chosen level and why, skill per year vs base rate and rule, bands, what moves to `src/sentinel/models/`, open questions); update the title cell (status, Brier 0.0867)
 - [X] T022 Run the notebook start to finish with `uv run jupyter nbconvert --to notebook --execute --inplace notebooks/007-dilution-model.ipynb`; check quickstart.md items 1–7
 - [X] T023 [P] Update `PROJEKT_STATUS.md` (local) and tick tasks here; commit the notebook (outputs stripped) and specs; push branch `007-dilution-model`
+
+---
+
+## Phase 7b: The researcher's answers (2 Nov, V2-34 to V2-38)
+
+- [X] T027 Install `libomp` (Homebrew) and switch section 6 of `notebooks/007-dilution-model.ipynb` to `lightgbm.LGBMClassifier` (grid `num_leaves` {15, 63} × `min_child_samples` {100, 500}, early stopping on the validation year, `deterministic=True`); section 9 uses LightGBM gain importance
+- [X] T028 Trees on `TREE_FEATURES` (95 minus insider and macro); family check in section 9 re-adds each family (seeds 0–4, every fold)
+- [X] T029 [P] Record V2-34 to V2-38 in `docs/decisions.md`; update spec.md, plan.md, research.md (R2, R4, R7, R10)
+- [ ] T030 Re-run the notebook start to finish; rewrite the findings cell with the new numbers; commit (outputs stripped) and push; tell the researcher
+- [ ] T031 When the researcher's list of the 46 split-like answers (`cik`, `as_of`) arrives: drop them in section 1, re-run, update the findings
 
 ---
 
