@@ -77,3 +77,4 @@ Primary Key / Idempotency Key: `(cik, as_of, question, model_version)`
 - `error`: DOUBLE (forecast_val - actual_val or absolute error)
 - `is_hit`: BOOLEAN (whether outcome matched predicted direction / band / interval)
 - `evaluated_at`: TIMESTAMP
+

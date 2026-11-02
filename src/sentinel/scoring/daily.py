@@ -33,7 +33,7 @@ def _load_model(p: Paths, question: str):
 
     p.models.mkdir(parents=True, exist_ok=True)
     raw_df = eda.load(question)
-    dev_df = raw_df[raw_df["as_of"] <= eda.DEV_END].copy()
+    dev_df = raw_df[pd.to_datetime(raw_df["as_of"]) <= pd.Timestamp(eda.DEV_END)].copy()
 
     if question == "results_move":
         model = results_move.fit(dev_df, level="lightgbm")

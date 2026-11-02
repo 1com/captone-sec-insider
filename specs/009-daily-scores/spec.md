@@ -73,3 +73,4 @@ When `sentinel publish` is invoked, it copies `score.daily` and `score.outcome` 
 **Acceptance Scenarios**:
 1. **Given** updated tables in `sentinel.duckdb`, **When** `sentinel publish` runs, **Then** `serving.duckdb` is atomically replaced or updated with fresh tables.
 2. **Given** `sentinel verify`, **When** executed, **Then** all tables match identically.
+

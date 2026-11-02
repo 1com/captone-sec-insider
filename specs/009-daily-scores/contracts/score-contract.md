@@ -58,3 +58,4 @@ CREATE TABLE IF NOT EXISTS model.registry (
 The web API and UI consume:
 - `app.daily_score`: View or copy of latest active forecasts from `score.daily`.
 - `app.live_outcomes`: Out-of-sample evaluated track record from `score.outcome`.
+

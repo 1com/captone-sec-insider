@@ -238,6 +238,8 @@ def train(
     ),
 ) -> None:
     """Train and freeze forecasting model(s) into data/models/."""
+    import pandas as pd
+
     from sentinel import config, eda
     from sentinel.models import dilution, results_move, volatility
 
@@ -253,7 +255,7 @@ def train(
         typer.echo(f"Training {q} model (level: {level})...")
         started = time.monotonic()
         raw_df = eda.load(q)
-        dev_df = raw_df[raw_df["as_of"] <= eda.DEV_END].copy()
+        dev_df = raw_df[pd.to_datetime(raw_df["as_of"]) <= pd.Timestamp(eda.DEV_END)].copy()
 
         if q == "results_move":
             model = results_move.fit(dev_df, level=level)
@@ -305,7 +307,12 @@ def score(
     if question not in known:
         _fail(f"unknown question {question!r}; known: {', '.join(known)}", USAGE)
 
-    in_path = Path(input_file) if input_file else p.exports / "latest.parquet"
+    if input_file:
+        in_path = Path(input_file)
+    elif (p.exports / "ml" / "latest.parquet").exists():
+        in_path = p.exports / "ml" / "latest.parquet"
+    else:
+        in_path = p.exports / "latest.parquet"
     if not in_path.exists():
         _fail(f"input file does not exist: {in_path}", FAILED)
 
