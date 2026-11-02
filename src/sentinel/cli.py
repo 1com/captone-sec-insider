@@ -371,7 +371,7 @@ def score(
 
 @app.command()
 def serve(
-    host: str = typer.Option("127.0.0.1", "--host", help="Host interface to bind to."),
+    host: str = typer.Option("0.0.0.0", "--host", help="Host interface to bind to."),
     port: int = typer.Option(
         8080, "--port", help="Port number (default 8080, port 8000 is reserved)."
     ),
@@ -386,5 +386,5 @@ def serve(
             "Use port 8080 or another port.",
             USAGE,
         )
-    typer.echo(f"Starting EDGAR-SENTINEL on http://{host}:{port} ...")
+    typer.echo(f"Starting EDGAR-SENTINEL on http://localhost:{port} (binding to {host}:{port}) ...")
     uvicorn.run("sentinel.app.main:app", host=host, port=port, reload=reload)

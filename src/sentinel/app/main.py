@@ -3,6 +3,7 @@
 Serves equity research views and REST API endpoints over data/serving.duckdb.
 """
 
+import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,22 @@ from sentinel.app import db
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+
+def to_json_filter(val: Any) -> str:
+    """Safe JSON encoder handling date and numpy types."""
+
+    def default_serializer(o: Any) -> Any:
+        if hasattr(o, "isoformat"):
+            return o.isoformat()
+        if hasattr(o, "item"):
+            return o.item()
+        return str(o)
+
+    return json.dumps(val, default=default_serializer)
+
+
+templates.env.filters["tojson"] = to_json_filter
 
 
 @asynccontextmanager

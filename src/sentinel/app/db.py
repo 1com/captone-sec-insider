@@ -123,8 +123,17 @@ def get_price_history(
         [cik, limit],
     ).fetchall()
 
-    cols = ["date", "close", "adj_close", "volume"]
-    return [dict(zip(cols, r, strict=True)) for r in reversed(rows)]
+    result = []
+    for r in reversed(rows):
+        result.append(
+            {
+                "date": str(r[0]) if r[0] is not None else "",
+                "close": float(r[1]) if r[1] is not None else 0.0,
+                "adj_close": float(r[2]) if r[2] is not None else 0.0,
+                "volume": float(r[3]) if r[3] is not None else 0.0,
+            }
+        )
+    return result
 
 
 def get_financials(con: duckdb.DuckDBPyConnection, cik: str) -> list[dict[str, Any]]:
@@ -148,7 +157,7 @@ def get_filings(con: duckdb.DuckDBPyConnection, cik: str, limit: int = 30) -> li
     """Retrieve recent SEC submissions with EDGAR links."""
     rows = con.execute(
         """
-        select filing_date, form, description, items, link
+        select filing_date, form, items as description, items, url as link
         from app.filings
         where cik = ?
         order by filing_date desc
@@ -167,11 +176,20 @@ def get_insider_activity(
     """Retrieve Form 4 open-market transactions."""
     rows = con.execute(
         """
-        select transaction_date, insider_name, role, is_buy, shares, price, value,
-               holdings_after, is_10b5_1, link
+        select
+            coalesce(min_trade_date, filing_date) as transaction_date,
+            owner_names as insider_name,
+            coalesce(entity_role, 'Officer/Director') as role,
+            (side = 'buy') as is_buy,
+            shares,
+            avg_price as price,
+            value_usd as value,
+            shares_after as holdings_after,
+            coalesce(planned, false) as is_10b5_1,
+            url as link
         from app.insider_activity
         where cik = ?
-        order by transaction_date desc
+        order by filing_date desc, min_trade_date desc
         limit ?
     """,
         [cik, limit],

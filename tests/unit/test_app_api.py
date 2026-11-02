@@ -91,6 +91,12 @@ def test_html_views(client):
     assert res_mc.status_code == 200
     assert "Model Card" in res_mc.text
 
+    # 5. Stock view (AAPL)
+    res_stock = client.get("/stock/AAPL")
+    assert res_stock.status_code == 200
+    assert "Apple Inc." in res_stock.text
+    assert "Volatility" in res_stock.text
+
 
 def test_cli_serve_protects_port_8000():
     runner = CliRunner()
