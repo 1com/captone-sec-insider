@@ -55,6 +55,7 @@ class Paths:
     serving_prev: Path
     verify_db: Path
     exports: Path
+    models: Path
     logs: Path
     update_lock: Path
     mlflow_db: Path
@@ -93,6 +94,7 @@ class Paths:
             serving_prev=data / "serving.prev.duckdb",
             verify_db=data / "verify.duckdb",
             exports=data / "exports",
+            models=data / "models",
             logs=data / "logs",
             update_lock=data / ".update.lock",
             mlflow_db=data / "mlflow.db",

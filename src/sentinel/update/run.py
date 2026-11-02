@@ -77,7 +77,7 @@ def _build(con, p: Paths, layers, echo, errors: list[str]) -> None:
             echo(f"{layer}: {name}")
             try:
                 step(con, p, echo)
-                build.release_memory()
+                build.release_memory(con)
             except db.StepFailed as e:  # the step's own check: keep its table, go on
                 errors.append(f"{layer}.{name}: {e}")
                 echo(f"  {layer}.{name} kept as it was: {e}")
@@ -107,11 +107,14 @@ def update(p: Paths, today: date | None = None, scheduled: bool = False, fetch: 
             con.execute("insert into ops.update_run values (?, ?, ?, null, 'fetching', 0, ?)",
                         [run_id, "scheduled" if scheduled else "manual", datetime.now(),
                          log_file.as_posix()])  # fmt: skip
-            before = record.checksums(con)
+            before = {}
             if fetch:
                 reports = raw.run(p, "all", today, say, con=con)
                 for r in reports:
                     say(r.summary())
+                build.release_memory(con)
+            before = record.checksums(con)
+            build.release_memory(con)
             entries = [e for e in manifest.read_all(p.manifest) if e.role == "original"]
             steps = record.unstaged_steps(con, entries, build.STAGING_SOURCES)
             stored = sum(r.files_stored for r in reports)
@@ -136,13 +139,17 @@ def update(p: Paths, today: date | None = None, scheduled: bool = False, fetch: 
             _finish(p, run_id, status, reports, {}, {}, {}, lines + errors, log_file)
             raise
         con.close()
+        build.release_memory()
         if status != "nothing_new" and not (status == "partial" and not steps and not stored):
             try:
                 if p.serving_db.exists():
                     shutil.copy2(p.serving_db, p.serving_prev)
                 publish(p, say)
+                build.release_memory()
                 export(p, say)
+                build.release_memory()
                 app = record.app_changes(p.serving_prev, p.serving_db)
+                build.release_memory()
             except BaseException as e:
                 errors.append(f"publish: {type(e).__name__}: {e}")
                 _finish(p, run_id, "failed", reports, before, after, {}, lines + errors, log_file)

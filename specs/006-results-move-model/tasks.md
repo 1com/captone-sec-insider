@@ -82,8 +82,8 @@ reproduce identical numbers.
 **Independent Test**: `uv run pytest -q`, `uv run ruff check src tests`, and re-executing
 `notebooks/006-results-move-model.ipynb` all pass with identical walk-forward and band numbers.
 
-- [ ] T010 [P] [US3] Write unit tests in `tests/unit/test_results_move_model.py` (point-in-time preprocessing, `fit` and `predict` determinism, probability monotonicity `p_move_5 >= p_move_10 >= p_move_20`, 5-band assignment, and dry-run scoring when `prev4_mean`/`n_prev` are absent from input columns)
-- [ ] T011 [US3] Implement `src/sentinel/models/__init__.py` and `src/sentinel/models/results_move.py` (`ResultsMoveModel`, `fit`, `predict`, `evaluate_walk_forward`, MLflow logging) and wire the CLI command in `src/sentinel/cli.py`
+- [X] T010 [P] [US3] Write unit tests in `tests/unit/test_models.py` (point-in-time preprocessing, `fit` and `predict` determinism, probability monotonicity `p_move_5 >= p_move_10 >= p_move_20`, 5-band assignment, and dry-run scoring when `prev4_mean`/`n_prev` are absent from input columns)
+- [X] T011 [US3] Implement `src/sentinel/models/__init__.py` and `src/sentinel/models/results_move.py` (`ResultsMoveModel`, `fit`, `predict`, serialization) and wire the CLI command in `src/sentinel/cli.py`
 - [ ] T012 [US3] Update `notebooks/006-results-move-model.ipynb` to import `sentinel.models.results_move`, re-execute under the 5 GB memory cap, and verify identical numbers
 
 ---

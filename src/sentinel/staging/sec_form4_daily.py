@@ -262,32 +262,44 @@ def stage(con: duckdb.DuckDBPyConnection, p: Paths, echo: Callable[[str], None] 
     docs = [parse(manifest.read_stored(p, e), e.key, e.path) for e in stored_files(p)]
     read = [d for d in docs if d.header is not None]
     read.sort(key=lambda d: (d.header.filed_as_of, d.accession))
-    tables = {}
-    for table in TABLE_SPECS:
-        rows = [(d, r) for d in read for r in d.rows[table]]
-        columns = {c.lower(): [r[c] for _, r in rows] for c in TABLE_SPECS[table].columns}
-        days = [d.header.filed_as_of for d, _ in rows]
-        columns["quarter"] = [f"{x.year}q{(x.month - 1) // 3 + 1}" for x in days]
-        columns["src_row"] = list(range(1, len(rows) + 1))
-        columns["filing_day"] = days
-        columns["raw_file"] = [d.raw_file for d, _ in rows]
-        if table == "SUBMISSION":
-            columns["accepted_at_et"] = [d.header.accepted_at_et for d, _ in rows]
-        tables[table.lower()] = pa.table(columns, schema=_schema(table))
     issues = [i for d in docs for i in d.issues]
-    tables["parse_issue"] = pa.Table.from_pylist(
-        [dict(zip(ISSUE_SCHEMA.names, i, strict=True)) for i in issues], schema=ISSUE_SCHEMA
-    )
+    del docs
+    line_count = 0
     with db.transaction(con):
-        for name, data in tables.items():
+        for table in TABLE_SPECS:
+            rows = [(d, r) for d in read for r in d.rows[table]]
+            columns = {c.lower(): [r[c] for _, r in rows] for c in TABLE_SPECS[table].columns}
+            days = [d.header.filed_as_of for d, _ in rows]
+            columns["quarter"] = [f"{x.year}q{(x.month - 1) // 3 + 1}" for x in days]
+            columns["src_row"] = list(range(1, len(rows) + 1))
+            columns["filing_day"] = days
+            columns["raw_file"] = [d.raw_file for d, _ in rows]
+            if table == "SUBMISSION":
+                columns["accepted_at_et"] = [d.header.accepted_at_et for d, _ in rows]
+            name = table.lower()
+            if name in ("nonderiv_trans", "deriv_trans"):
+                line_count += len(rows)
+            data = pa.table(columns, schema=_schema(table))
+            del rows, columns, days
             con.register("_t", data)
             try:
                 con.execute(f"create or replace table {SCHEMA}.{name} as select * from _t")
             finally:
                 con.unregister("_t")
-    echo(f"  form 4 filings: {len(read):,} read, {len(issues):,} parse issues")
-    return {"documents": len(read), "lines": sum(len(tables[t]) for t in ("nonderiv_trans",
-            "deriv_trans")), "parse_issues": len(issues)}  # fmt: skip
+            del data
+        del read
+        issue_data = pa.Table.from_pylist(
+            [dict(zip(ISSUE_SCHEMA.names, i, strict=True)) for i in issues], schema=ISSUE_SCHEMA
+        )
+        con.register("_t", issue_data)
+        try:
+            con.execute(f"create or replace table {SCHEMA}.parse_issue as select * from _t")
+        finally:
+            con.unregister("_t")
+        del issue_data
+    n_read = db.count(con, f"{SCHEMA}.submission")
+    echo(f"  form 4 filings: {n_read:,} read, {len(issues):,} parse issues")
+    return {"documents": n_read, "lines": line_count, "parse_issues": len(issues)}
 
 
 def has_daily(con: duckdb.DuckDBPyConnection, table: str = "submission") -> bool:

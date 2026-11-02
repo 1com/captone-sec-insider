@@ -130,6 +130,11 @@ def build_price(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
                 con.register("_chunk", frame)
                 con.execute("insert into feature.price select * from _chunk")
                 con.unregister("_chunk")
+                del frame
+            del daily, rows, at, parts
+            from sentinel.build import release_memory
+
+            release_memory(con)
             done = min(i + CHUNK, len(ciks))
             if done % 4000 < CHUNK or done == len(ciks):
                 echo(f"  price features: {done:,}/{len(ciks):,} companies")

@@ -12,6 +12,7 @@ adjusted close also dividend-adjusted). Symbols without Yahoo data for a full hi
 """
 
 import csv
+import gc
 import io
 import json
 import time
@@ -27,6 +28,7 @@ from sentinel.reference.build import normalise
 SOURCE = "yahoo"
 FIELDS = ["Open", "High", "Low", "Close", "Adj Close", "Volume", "Dividends", "Stock Splits"]
 ATTEMPTS = 3
+MIN_BATCH_SHARE = 0.75
 FAILURE_FILES = ("yahoo/failures.csv", "yahoo/panel/failures.csv", "yahoo/history/failures.csv")
 
 
@@ -103,6 +105,35 @@ def newest_history_day(book: Manifest) -> dict[str, date]:
     return out
 
 
+def _stored_batch(p: Paths, book: Manifest, base_key: str) -> tuple[set[str], int]:
+    """Tickers already stored for `base_key` (including `-rN` retry files) and the file count."""
+    entries = [
+        e for e in book.originals(SOURCE) if e.key == base_key or e.key.startswith(f"{base_key}/r")
+    ]
+    have: set[str] = set()
+    for e in entries:
+        have.update(pd.read_parquet(p.raw / e.path, columns=["ticker"])["ticker"].unique())
+    return have, len(entries)
+
+
+def _batch_complete(got: set[str], expected: list[str], refs: set[str]) -> bool:
+    return (refs & set(expected)) <= got and len(got) >= int(MIN_BATCH_SHARE * len(expected))
+
+
+def _collect_parts(frame, symbols: list[str], parts: dict[str, pd.DataFrame],
+                   events: dict[str, date]) -> None:  # fmt: skip
+    if frame is None:
+        return
+    for t in symbols:
+        sub = _extract(frame, t)
+        if sub is not None:
+            parts[t] = sub.reset_index().assign(ticker=t)
+            actions = [c for c in ("Dividends", "Stock Splits") if c in sub]
+            moved = sub[(sub[actions].fillna(0) != 0).any(axis=1)] if actions else sub[:0]
+            if len(moved):
+                events[t] = moved.index.max().date()
+
+
 def fetch_window(p: Paths, today: date, echo=print, con=None, window_days=None, full_missing=False,
                  fetch=None, sleep=time.sleep, **_) -> FetchReport:  # fmt: skip
     """Today's window for every listed symbol (and, with `full_missing`, full histories first).
@@ -121,36 +152,54 @@ def fetch_window(p: Paths, today: date, echo=print, con=None, window_days=None, 
     windows = [_key_day(e) for e in book.originals(SOURCE) if e.key.startswith("daily/")]
     if windows and not window_days:
         start = min(start, max(windows) - timedelta(days=3))
-    size = settings["yahoo_daily_batch_size"]
+    size, sub_size = settings["yahoo_daily_batch_size"], settings["yahoo_batch_size"]
+    failed, refs = _failures(p), set(settings["reference_symbols"])
     events: dict[str, date] = {}
     for n, i in enumerate(range(0, len(symbols), size)):
-        key = f"daily/{today}/{n:03d}"
-        if book.find_original(SOURCE, key):
-            continue
+        base_key = f"daily/{today}/{n:03d}"
         batch = symbols[i : i + size]
+        expected = [t for t in batch if t not in failed] or batch
+        have, n_files = _stored_batch(p, book, base_key)
+        if n_files and _batch_complete(have, expected, refs):
+            continue
+        todo = [t for t in expected if t not in have] if n_files else batch
         report.requests += 1
-        frame = _download(fetch, batch, start, sleep, echo)
-        if frame is None:
+        frame = _download(fetch, todo, start, sleep, echo)
+        parts: dict[str, pd.DataFrame] = {}
+        _collect_parts(frame, todo, parts, events)
+        del frame
+        for retry in range(1, ATTEMPTS):
+            if _batch_complete(have | set(parts), expected, refs):
+                break
+            missing = [t for t in expected if t not in have and t not in parts]
+            if not missing:
+                break
+            sleep(5 * retry)
+            for j in range(0, len(missing), sub_size):
+                chunk = missing[j : j + sub_size]
+                report.requests += 1
+                sub_frame = _download(fetch, chunk, start, sleep, echo)
+                _collect_parts(sub_frame, chunk, parts, events)
+                del sub_frame
+                if j + sub_size < len(missing):
+                    sleep(settings["yahoo_pause_seconds"])
+        if not parts and not n_files:
             report.errors.append(f"batch {n:03d}: download failed")
             continue
-        parts = []
-        for t in batch:
-            sub = _extract(frame, t)
-            if sub is not None:
-                parts.append(sub.reset_index().assign(ticker=t))
-                actions = [c for c in ("Dividends", "Stock Splits") if c in sub]
-                moved = sub[(sub[actions].fillna(0) != 0).any(axis=1)] if actions else sub[:0]
-                if len(moved):
-                    events[t] = moved.index.max().date()
         if parts:
-            rows = pd.concat(parts, ignore_index=True)[["ticker", "Date", *FIELDS]]
-            store_bytes(p, book, SOURCE, f"yahoo/daily/{today}/batch-{n:03d}.parquet", key,
-                        _parquet(rows), _signature(start))  # fmt: skip
-            report.stored((p.raw / f"yahoo/daily/{today}/batch-{n:03d}.parquet").stat().st_size)
+            suffix = "" if n_files == 0 else f"-r{n_files}"
+            rel = f"yahoo/daily/{today}/batch-{n:03d}{suffix}.parquet"
+            key = base_key if n_files == 0 else f"{base_key}/r{n_files}"
+            rows = pd.concat(list(parts.values()), ignore_index=True)[["ticker", "Date", *FIELDS]]
+            store_bytes(p, book, SOURCE, rel, key, _parquet(rows), _signature(start))
+            report.stored((p.raw / rel).stat().st_size)
             latest = rows["Date"].max().date()
             report.latest_date = max(report.latest_date or latest, latest)
+            del rows
+        del parts
+        gc.collect()
         if i + size < len(symbols):
-            sleep(sources(p)["prices"]["yahoo_pause_seconds"])
+            sleep(settings["yahoo_pause_seconds"])
     newest = newest_history_day(book)
     stale = sorted(t for t, day in events.items() if newest.get(t, date.min) <= day)
     if stale:
@@ -217,5 +266,7 @@ def fetch_history(p: Paths, today: date, symbols: list[str], fetch, sleep, echo,
                         _signature(start))  # fmt: skip
             report.stored((p.raw / rel).stat().st_size)
         _add_failures(p, none)
+        del frame
+        gc.collect()
         if i + size < len(todo):
             sleep(settings["yahoo_pause_seconds"])

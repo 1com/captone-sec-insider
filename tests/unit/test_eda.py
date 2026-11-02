@@ -38,7 +38,7 @@ def test_every_feature_has_one_family_and_nothing_else_has_one():
     assert eda.family("vol_63") == "price" and eda.family("n_offering_12m") == "filing events"
     assert eda.family("short_ratio_1m") == "short volume" and eda.family("vix_chg_1m") == "macro"
     for col in ("cik", "as_of", "eligible", "vol_63_future", "move", "dilution", "window_end",
-                "prev4_mean", "n_prev", "close_after", "sector"):  # fmt: skip
+                "prev4_mean", "n_prev", "close_after", "sector", "cum_split_after"):  # fmt: skip
         assert eda.family(col) is None
     assert eda.features(_frame()) == ["close", "addv20", "sessions_listed", "vol_63", "ret_1m",
                                       "n_offering_12m", "market_cap"]  # fmt: skip
