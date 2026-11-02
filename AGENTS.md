@@ -216,9 +216,9 @@ For each, in order 005 → 006 → 007:
 ### Step 6 · 008 Model report, 009 Daily scores
 - [ ] 008 (#79): one command regenerates the report (data, methods, results per test year
   against the baselines, calibration, the choices) and the hit rates for `app.model_card`.
-- [ ] 009 (#74): `sentinel update` scores every covered company daily into `score.daily` and
+- [X] 009 (#74): `sentinel update` scores every covered company daily into `score.daily` and
   records outcomes in `score.outcome`, in the columns of the forecast contract (011); a rerun
-  changes nothing; `sentinel verify` identical.
+  changes nothing; `sentinel verify` identical. (Implemented on branch `009-daily-scores`).
 
 ### Step 7 · The app (011–018), with the researcher
 011 design and the forecast contract (`specs/011-app-design/contracts/`), 012 FastAPI read-only

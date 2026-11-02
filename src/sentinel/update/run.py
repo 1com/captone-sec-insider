@@ -130,6 +130,26 @@ def update(p: Paths, today: date | None = None, scheduled: bool = False, fetch: 
                 con.execute("update ops.update_run set status = 'building' where run_id = ?",
                             [run_id])  # fmt: skip
                 _build(con, p, layers, say, errors)
+                con.execute("update ops.update_run set status = 'scoring' where run_id = ?",
+                            [run_id])  # fmt: skip
+                has_snapshot = (
+                    con.execute(
+                        "select count(*) from duckdb_tables() "
+                        "where schema_name = 'feature' and table_name = 'snapshot'"
+                    ).fetchone()[0]
+                    > 0
+                )
+                if has_snapshot:
+                    try:
+                        from sentinel.scoring import daily, outcomes
+
+                        daily.score_snapshot(con, p, say)
+                        build.release_memory(con)
+                        outcomes.evaluate_outcomes(con, say)
+                        build.release_memory(con)
+                    except Exception as e:
+                        errors.append(f"scoring: {e}")
+                        say(f"  scoring failed: {e}")
                 status = "partial" if failed or errors else "complete"
             after = record.checksums(con)
         except BaseException as e:
