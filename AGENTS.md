@@ -214,8 +214,9 @@ For each, in order 005 → 006 → 007:
    imports it and gives the same numbers.
 
 ### Step 6 · 008 Model report, 009 Daily scores
-- [ ] 008 (#79): one command regenerates the report (data, methods, results per test year
+- [X] 008 (#79): one command regenerates the report (data, methods, results per test year
   against the baselines, calibration, the choices) and the hit rates for `app.model_card`.
+  CLI: `sentinel report` generates `docs/model_report.md` and `docs/figures/`.
 - [X] 009 (#74): `sentinel update` scores every covered company daily into `score.daily` and
   records outcomes in `score.outcome`, in the columns of the forecast contract (011); a rerun
   changes nothing; `sentinel verify` identical. (Implemented on branch `009-daily-scores`).

@@ -397,3 +397,13 @@ def serve(
         )
     typer.echo(f"Starting EDGAR-SENTINEL on http://localhost:{port} (binding to {host}:{port}) ...")
     uvicorn.run("sentinel.app.main:app", host=host, port=port, reload=reload)
+
+
+@app.command()
+def report() -> None:
+    """Compile out-of-sample performance report and charts into docs/ (Feature 008)."""
+    from sentinel import config
+    from sentinel.models import report as model_report
+
+    p = config.paths()
+    model_report.generate_report(p, echo=typer.echo)
