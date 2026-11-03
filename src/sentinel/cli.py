@@ -223,11 +223,20 @@ def publish() -> None:
 
 
 @app.command()
-def export() -> None:
+def export(
+    reference: bool = typer.Option(
+        False,
+        "--reference",
+        help="Write private reference datasets (all years, unsealed answers, period column).",
+    ),
+) -> None:
     """Write the private Parquet snapshot to data/exports/."""
     from sentinel.serving import export as serving
 
-    _serving("export", serving.export)
+    if reference:
+        _serving("export reference", serving.export_reference)
+    else:
+        _serving("export", serving.export)
 
 
 @app.command()

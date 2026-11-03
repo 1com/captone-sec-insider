@@ -194,10 +194,10 @@ proposals in `docs/decisions.md` for the researcher; then fix in the pipeline wi
 rebuild, re-run the EDA. Add 022 to `docs/plan.md` first.
 
 ### Step 4 · 002 Reference datasets (private) and 003 Team workflow and CI
-- [ ] 002 (#73): `sentinel export --reference` → `data/exports/reference/`: each question's
+- [X] 002 (#73): `sentinel export --reference` → `data/exports/reference/`: each question's
   rows for every year in the training files' exact columns plus `period` (development / gap /
   holdout), answers wherever windows have closed; never read by model code; log V2-21.
-- [ ] 003 (#75): GitHub Actions (ruff, format, unit tests on every pull request), `main`
+- [X] 003 (#75): GitHub Actions (ruff, format, unit tests on every pull request), `main`
   protected, pull-request template, a CI check that rejects notebooks with outputs (nbstripout is
   already installed as a filter), README "Working together".
 

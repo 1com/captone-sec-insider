@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Lint, Format, Security & Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Ruff Lint Check
+        run: uv run ruff check src tests
+
+      - name: Ruff Format Check
+        run: uv run ruff format --check src tests
+
+      - name: Notebook Output Leak Check
+        run: |
+          uv run python -c "
+          import json, glob, sys
+          failed = []
+          for path in glob.glob('notebooks/**/*.ipynb', recursive=True) + glob.glob('notebooks/*.ipynb'):
+              with open(path, 'r', encoding='utf-8') as f:
+                  nb = json.load(f)
+              for i, cell in enumerate(nb.get('cells', [])):
+                  if cell.get('outputs') or cell.get('execution_count') is not None:
+                      failed.append((path, i))
+          if failed:
+              print('ERROR: Notebooks with committed outputs or execution counts detected:')
+              for p, i in failed:
+                  print(f'  - {p} (cell {i})')
+              print('Run nbstripout before committing notebooks to protect private data.')
+              sys.exit(1)
+          print('Notebook output check passed: no output leaks found.')
+          "
+
+      - name: Run Unit Tests
+        run: uv run pytest -q tests/unit
