@@ -194,7 +194,7 @@
                     <span class="font-semibold uppercase tracking-wider text-slate-400">Insider Activity (12M)</span>
                     <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">SEC Form 4</span>
                 </div>
-                {% set net_buy = (stock.buy_value_12m or 0) - (stock.sell_value_12m or 0) %}
+                {% set net_buy = (stock.buy_value_12m|float or 0) - (stock.sell_value_12m|float or 0) %}
                 <div class="flex items-baseline gap-2">
                     <span class="text-2xl font-mono font-bold 
                         {% if net_buy > 0 %}text-emerald-400{% elif net_buy < 0 %}text-rose-400{% else %}text-slate-300{% endif %}">

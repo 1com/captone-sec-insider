@@ -1,12 +1,18 @@
 """Read-only database queries for the web application (reading data/serving.duckdb)."""
 
 import json
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 import duckdb
 
 from sentinel import config
+
+
+def _clean_row(row_dict: dict[str, Any]) -> dict[str, Any]:
+    """Convert DuckDB Decimal objects to native floats for template math and JSON serialization."""
+    return {k: float(v) if isinstance(v, Decimal) else v for k, v in row_dict.items()}
 
 
 def get_db(serving_path: Path | str | None = None) -> duckdb.DuckDBPyConnection:
@@ -146,7 +152,7 @@ def search_stocks(con: duckdb.DuckDBPyConnection, q: str, limit: int = 10) -> li
     ]
     rows = con.execute(sql, params).fetchall()
     cols = ["cik", "ticker", "name", "sector", "exchange", "coverage", "close", "ret_1m"]
-    return [dict(zip(cols, r, strict=True)) for r in rows]
+    return [_clean_row(dict(zip(cols, r, strict=True))) for r in rows]
 
 
 def get_stock_overview(con: duckdb.DuckDBPyConnection, ticker_or_cik: str) -> dict[str, Any] | None:
@@ -170,7 +176,7 @@ def get_stock_overview(con: duckdb.DuckDBPyConnection, ticker_or_cik: str) -> di
         return None
 
     stock_cols = [c[0] for c in con.description]
-    data = dict(zip(stock_cols, stock_row, strict=True))
+    data = _clean_row(dict(zip(stock_cols, stock_row, strict=True)))
     cik = data["cik"]
 
     # Retrieve latest daily machine learning scores
@@ -239,7 +245,7 @@ def get_financials(con: duckdb.DuckDBPyConnection, cik: str) -> list[dict[str, A
     ).fetchall()
 
     cols = ["period_end", "form", "tag", "value", "unit", "filed"]
-    return [dict(zip(cols, r, strict=True)) for r in rows]
+    return [_clean_row(dict(zip(cols, r, strict=True))) for r in rows]
 
 
 def get_filings(con: duckdb.DuckDBPyConnection, cik: str, limit: int = 30) -> list[dict[str, Any]]:
@@ -296,7 +302,7 @@ def get_insider_activity(
         "is_10b5_1",
         "link",
     ]
-    return [dict(zip(cols, r, strict=True)) for r in rows]
+    return [_clean_row(dict(zip(cols, r, strict=True))) for r in rows]
 
 
 def get_insider_feed(con: duckdb.DuckDBPyConnection, limit: int = 50) -> list[dict[str, Any]]:
@@ -313,7 +319,7 @@ def get_insider_feed(con: duckdb.DuckDBPyConnection, limit: int = 50) -> list[di
     ).fetchall()
 
     cols = [c[0] for c in con.description]
-    return [dict(zip(cols, r, strict=True)) for r in rows]
+    return [_clean_row(dict(zip(cols, r, strict=True))) for r in rows]
 
 
 def get_screener(
@@ -374,7 +380,7 @@ def get_screener(
     """
     rows = con.execute(sql, params).fetchall()
     cols = [c[0] for c in con.description]
-    return [dict(zip(cols, r, strict=True)) for r in rows]
+    return [_clean_row(dict(zip(cols, r, strict=True))) for r in rows]
 
 
 def get_freshness(con: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
