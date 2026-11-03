@@ -407,3 +407,67 @@ def report() -> None:
 
     p = config.paths()
     model_report.generate_report(p, echo=typer.echo)
+
+
+@app.command()
+def options(
+    ticker: str = typer.Argument(..., help="Stock ticker symbol (e.g. AAPL)"),
+    days: int = typer.Option(365, "--days", "-d", help="Max days to expiration."),
+    save: bool = typer.Option(True, "--save/--no-save", help="Save into database."),
+) -> None:
+    """Fetch on-demand option chains for a ticker and compute IV benchmarks (Feature 023)."""
+    from datetime import date
+
+    from sentinel import config, db
+    from sentinel.core import options as core_options
+    from sentinel.raw.options import fetch_option_chain_data, fetch_options
+
+    symbol = ticker.strip().upper()
+    typer.echo(f"Fetching option chains for {symbol} (expirations up to {days} days)...")
+    df = fetch_option_chain_data(symbol, max_days=days)
+
+    if df.empty:
+        _fail(f"No option chains found for {symbol}.", FAILED)
+
+    n_exp = len(df["expiration"].unique())
+    n_calls = len(df[df["option_type"] == "call"])
+    n_puts = len(df[df["option_type"] == "put"])
+    typer.echo(
+        f"Found {len(df):,} contracts across {n_exp} expirations ({n_calls} calls, {n_puts} puts)."
+    )
+
+    p = config.paths()
+    if save:
+        # Save raw snapshot
+        fetch_options(p, date.today(), echo=lambda _: None, ticker=symbol, max_days=days)
+
+        # Ingest into build database
+        con = db.connect(p)
+        try:
+            core_options.save_option_chain(con, df)
+            summary = core_options.compute_option_summary(con, symbol)
+        finally:
+            con.close()
+
+        # Ingest into serving database if present
+        if p.serving_db.exists():
+            con_srv = duckdb.connect(str(p.serving_db), read_only=False)
+            try:
+                core_options.save_option_chain(con_srv, df)
+                core_options.compute_option_summary(con_srv, symbol)
+            finally:
+                con_srv.close()
+
+        typer.echo(f"Saved into core.option_chain and core.option_summary in {p.build_db.name}.")
+
+        iv_30 = f"{summary.get('atm_iv_30d', 0) * 100:.1f}%" if summary.get("atm_iv_30d") else "N/A"
+        iv_60 = f"{summary.get('atm_iv_60d', 0) * 100:.1f}%" if summary.get("atm_iv_60d") else "N/A"
+        iv_90 = f"{summary.get('atm_iv_90d', 0) * 100:.1f}%" if summary.get("atm_iv_90d") else "N/A"
+        pcr = f"{summary.get('put_call_ratio', 0):.2f}" if summary.get("put_call_ratio") else "N/A"
+
+        typer.echo("\n--- Market Implied Volatility Benchmarks ---")
+        typer.echo(f"Estimated Spot Price: ${summary.get('spot_price', 0):.2f}")
+        typer.echo(f"30-Day ATM IV:        {iv_30}")
+        typer.echo(f"60-Day ATM IV:        {iv_60}")
+        typer.echo(f"90-Day ATM IV (3M):   {iv_90} (Model 005 Volatility Benchmark)")
+        typer.echo(f"Put/Call Vol Ratio:   {pcr}")

@@ -73,7 +73,7 @@ def reader(p: Paths, con):
 
 def fetchers() -> dict[str, Fetcher]:
     """Every source's fetch function."""
-    from sentinel.raw import market, sec, tiingo, yahoo
+    from sentinel.raw import market, options, sec, tiingo, yahoo
 
     return {
         "sec-tickers": sec.fetch_tickers,
@@ -85,6 +85,7 @@ def fetchers() -> dict[str, Fetcher]:
         "fred": market.fetch_fred,
         "cboe": market.fetch_cboe,
         "finra": market.fetch_finra,
+        "options": options.fetch_options,
     }
 
 

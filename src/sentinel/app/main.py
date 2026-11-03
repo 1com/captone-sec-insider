@@ -129,6 +129,16 @@ def api_freshness() -> list[dict[str, Any]]:
         con.close()
 
 
+@app.get("/api/options/{ticker}")
+def api_options(ticker: str) -> dict[str, Any]:
+    """Return option chain and implied volatility benchmarks for a stock (Feature 023)."""
+    con = get_connection()
+    try:
+        return db.get_options(con, ticker)
+    finally:
+        con.close()
+
+
 # ---------------------------------------------------------------------------
 # HTML Web Views
 # ---------------------------------------------------------------------------

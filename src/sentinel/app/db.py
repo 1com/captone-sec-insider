@@ -108,6 +108,25 @@ def _create_synthetic_serving_db() -> duckdb.DuckDBPyConnection:
         ) as t(dataset, latest_date);
     """)
 
+    con.execute("""
+        create table core.option_chain as select * from (values
+            ('AAPL', '2026-10-30'::date, '2026-12-18'::date, 49, 'call', 230.0, 8.5, 8.4, 8.6, 8.5,
+             1500, 12000, 0.22, true, 'AAPL261218C00230000'),
+            ('AAPL', '2026-10-30'::date, '2026-12-18'::date, 49, 'put', 230.0, 7.8, 7.7, 7.9, 7.8,
+             1200, 10500, 0.23, false, 'AAPL261218P00230000'),
+            ('AAPL', '2026-10-30'::date, '2027-01-15'::date, 77, 'call', 230.0,
+             11.2, 11.0, 11.4, 11.2, 2100, 15400, 0.24, true, 'AAPL270115C00230000')
+        ) as t(ticker, as_of, expiration, days_to_exp, option_type, strike, last_price, bid, ask,
+               mid_price, volume, open_interest, implied_volatility, in_the_money, contract_symbol);
+    """)
+
+    con.execute("""
+        create table core.option_summary as select * from (values
+            ('AAPL', '2026-10-30'::date, 230.5, 0.21, 0.23, 0.24, 3600, 1200, 0.33)
+        ) as t(ticker, as_of, spot_price, atm_iv_30d, atm_iv_60d, atm_iv_90d, call_volume,
+               put_volume, put_call_ratio);
+    """)
+
     return con
 
 
@@ -387,3 +406,57 @@ def get_freshness(con: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
     """Retrieve upstream data freshness timestamps."""
     rows = con.execute("select dataset, latest_date from app.freshness order by dataset").fetchall()
     return [{"dataset": str(r[0]), "latest_date": str(r[1])} for r in rows]
+
+
+def get_options(con: duckdb.DuckDBPyConnection, ticker: str) -> dict[str, Any]:
+    """Retrieve option chain and implied volatility benchmarks for a stock."""
+    symbol = ticker.strip().upper()
+    tables = [
+        t[0] for t in con.execute("select table_name from information_schema.tables").fetchall()
+    ]
+
+    if "option_chain" not in tables:
+        return {"ticker": symbol, "summary": {}, "expirations": [], "contracts": []}
+
+    # Latest as_of date
+    as_of_row = con.execute(
+        "select max(as_of) from core.option_chain where ticker = ?", [symbol]
+    ).fetchone()
+    if not as_of_row or as_of_row[0] is None:
+        return {"ticker": symbol, "summary": {}, "expirations": [], "contracts": []}
+    as_of = as_of_row[0]
+
+    # Summary
+    summary = {}
+    if "option_summary" in tables:
+        s_row = con.execute(
+            "select * from core.option_summary where ticker = ? and as_of = ?", [symbol, as_of]
+        ).fetchone()
+        if s_row:
+            s_cols = [c[0] for c in con.description]
+            summary = _clean_row(dict(zip(s_cols, s_row, strict=True)))
+
+    # Contracts
+    rows = con.execute(
+        """
+        select expiration, days_to_exp, option_type, strike, last_price, bid, ask,
+               mid_price, volume, open_interest, implied_volatility, in_the_money, contract_symbol
+        from core.option_chain
+        where ticker = ? and as_of = ?
+        order by expiration asc, strike asc
+        limit 500
+        """,
+        [symbol, as_of],
+    ).fetchall()
+    cols = [c[0] for c in con.description]
+    contracts = [_clean_row(dict(zip(cols, r, strict=True))) for r in rows]
+    expirations = sorted(list({str(c["expiration"]) for c in contracts}))
+
+    return {
+        "ticker": symbol,
+        "as_of": str(as_of),
+        "summary": summary,
+        "expirations": expirations,
+        "contract_count": len(contracts),
+        "contracts": contracts,
+    }
