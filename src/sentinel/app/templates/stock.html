@@ -91,7 +91,13 @@
                     <div class="text-xs text-slate-400 mt-2 space-y-1">
                         <div class="flex justify-between">
                             <span>80% Range:</span>
-                            <span class="font-mono text-slate-300">[{{ "%.1f%%"|format(vol.meta.vol_low_80 * 100) }} — {{ "%.1f%%"|format(vol.meta.vol_high_80 * 100) }}]</span>
+                            <span class="font-mono text-slate-300">
+                                {% if vol.meta and vol.meta.vol_low_80 and vol.meta.vol_high_80 %}
+                                    [{{ "%.1f%%"|format(vol.meta.vol_low_80 * 100) }} — {{ "%.1f%%"|format(vol.meta.vol_high_80 * 100) }}]
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </span>
                         </div>
                         <div class="flex justify-between">
                             <span>Past 63d Realized:</span>

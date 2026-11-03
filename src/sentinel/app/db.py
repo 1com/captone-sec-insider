@@ -46,9 +46,12 @@ def _create_synthetic_serving_db() -> duckdb.DuckDBPyConnection:
 
     con.execute("""
         create table app.daily_score as select * from (values
-            ('0000320193', 'volatility', 0.22, 2, '{"hit_rate": 0.82}', '2026-10-30'::date),
-            ('0000320193', 'dilution', 0.02, 1, '{"hit_rate": 0.99}', '2026-10-30'::date),
-            ('0000320193', 'results_move', 3.8, 3, '{"hit_rate": 0.78}', '2026-10-30'::date)
+            ('0000320193', 'volatility', 0.22, 2,
+             '{"vol_low_80": 0.18, "vol_high_80": 0.28, "hit_rate": 0.82}', '2026-10-30'::date),
+            ('0000320193', 'dilution', 0.02, 1,
+             '{"hit_rate": 0.99}', '2026-10-30'::date),
+            ('0000320193', 'results_move', 3.8, 3,
+             '{"p_move_5": 0.35, "p_move_10": 0.12, "hit_rate": 0.78}', '2026-10-30'::date)
         ) as t(cik, question, forecast_val, band, extra_json, scored_at);
     """)
 
