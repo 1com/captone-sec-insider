@@ -286,3 +286,9 @@ def get_screener(
     rows = con.execute(sql, params).fetchall()
     cols = [c[0] for c in con.description]
     return [dict(zip(cols, r, strict=True)) for r in rows]
+
+
+def get_freshness(con: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
+    """Retrieve upstream data freshness timestamps."""
+    rows = con.execute("select dataset, latest_date from app.freshness order by dataset").fetchall()
+    return [{"dataset": str(r[0]), "latest_date": str(r[1])} for r in rows]

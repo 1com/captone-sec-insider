@@ -227,7 +227,7 @@ For each, in order 005 → 006 → 007:
   with the four Sentinel intelligence panels, live interactive price chart, reported financials, Form 4 insider activity,
   and SEC filings. Multi-factor screener, market insider feed, and model card view. Tested with 8 unit tests in
   `tests/unit/test_app_api.py`. CLI entrypoint: `sentinel serve --port 8080`.
-- [ ] 018: Hosting / production deployment configuration with no Tiingo-derived value on a public page.
+- [X] 018: Hosting / production deployment configuration with no Tiingo-derived value on a public page. Dockerfile and docker-compose.yml serving read-only over port 8080, audited by test_public_data.py.
 
 ### Step 8 · 010 Holdout test (16 November)
 **Already true (checked 30 Oct):** the holdout rows (`feature_snapshot` from 2023 on, built from

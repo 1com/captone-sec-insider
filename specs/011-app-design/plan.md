@@ -31,3 +31,4 @@ Build a high-performance, dark-slate equity research web workstation powered by 
 - `GET /api/screener` -> Filtered screener results with pagination.
 - `GET /api/insiders` -> Recent cluster buys and officer transactions.
 - `GET /api/freshness` -> Dataset latest dates and coverage counts.
+

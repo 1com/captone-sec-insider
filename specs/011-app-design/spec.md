@@ -62,3 +62,4 @@ An investor can discover opportunities across the entire market of 11,282 active
 - **Screener (`/screener`)**: Filter by Volatility Band, Dilution Band, Results Move Band, Sector, Market Cap, or C-suite buying.
 - **Insider Feed (`/insiders`)**: Live chronological stream of cluster buys and C-suite purchases across all companies.
 - **Model Card (`/model-card`)**: Methodological transparency showing out-of-sample walk-forward test metrics against baselines.
+

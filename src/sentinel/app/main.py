@@ -119,6 +119,16 @@ def api_insiders(limit: int = 50) -> list[dict[str, Any]]:
         con.close()
 
 
+@app.get("/api/freshness")
+def api_freshness() -> list[dict[str, Any]]:
+    """Return latest observation dates for each data layer."""
+    con = get_connection()
+    try:
+        return db.get_freshness(con)
+    finally:
+        con.close()
+
+
 # ---------------------------------------------------------------------------
 # HTML Web Views
 # ---------------------------------------------------------------------------

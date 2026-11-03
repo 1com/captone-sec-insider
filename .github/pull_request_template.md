@@ -14,3 +14,4 @@
 - [ ] No Jupyter Notebook outputs or execution counts are committed (`nbstripout` applied)
 - [ ] Truncation and look-ahead rules are respected (no future knowledge leaks)
 - [ ] The 2023+ holdout dataset remains strictly sealed
+

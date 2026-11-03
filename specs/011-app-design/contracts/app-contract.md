@@ -14,3 +14,4 @@ The FastAPI application reads exclusively from `data/serving.duckdb` in `read_on
 8. `app.insider_feed`: Market-wide cluster purchases and C-suite solo acquisitions.
 9. `app.screener`: Pre-indexed screening view across all active stocks.
 10. `app.freshness`: Pipeline freshness timestamps per dataset.
+
