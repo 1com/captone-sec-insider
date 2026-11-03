@@ -22,9 +22,6 @@ def _create_synthetic_serving_db() -> duckdb.DuckDBPyConnection:
     """Create an in-memory synthetic database for CI runners and clean test environments."""
     con = duckdb.connect(":memory:")
     con.execute("create schema if not exists app;")
-    con.execute("create schema if not exists score;")
-    con.execute("create schema if not exists core;")
-    con.execute("create schema if not exists ops;")
 
     con.execute("""
         create table app.stock as select * from (values
@@ -35,70 +32,69 @@ def _create_synthetic_serving_db() -> duckdb.DuckDBPyConnection:
 
     con.execute("""
         create table app.company_card as select * from (values
-            ('0000320193', 230.5, 0.05, 3500000000000, 15000000000, '2026-10-30'::date),
-            ('0000789019', 420.0, 0.02, 3100000000000, 7400000000, '2026-10-30'::date)
-        ) as t(cik, close, ret_1m, market_cap, shares_out, updated_at);
+            ('0000320193', 230.5, 3500000000000, 0.22, 0.25, 0.05, 0.12, 0.20,
+             -0.15, 4.5, 0, 0.01, 45, '2026-12-15'::date, '2026-10-30'::date,
+             1500000.0, 500000.0, 2),
+            ('0000789019', 420.0, 3100000000000, 0.20, 0.23, 0.02, 0.08, 0.18,
+             -0.12, 5.0, 0, 0.005, 50, '2026-12-20'::date, '2026-10-25'::date,
+             2000000.0, 100000.0, 3)
+        ) as t(cik, close, market_cap, vol_63, vol_252, ret_1m, ret_3m, ret_12_1,
+               max_drawdown_252, cash_runway_years, n_offering_12m, share_growth_12m,
+               days_to_next_results, next_results_estimate, last_results_date,
+               buy_value_12m, sell_value_12m, buyers_14d);
+    """)
+
+    con.execute("""
+        create table app.daily_score as select * from (values
+            ('0000320193', 'volatility', 0.22, 2, '{"hit_rate": 0.82}', '2026-10-30'::date),
+            ('0000320193', 'dilution', 0.02, 1, '{"hit_rate": 0.99}', '2026-10-30'::date),
+            ('0000320193', 'results_move', 3.8, 3, '{"hit_rate": 0.78}', '2026-10-30'::date)
+        ) as t(cik, question, forecast_val, band, extra_json, scored_at);
+    """)
+
+    con.execute("""
+        create table app.price_daily as select * from (values
+            ('0000320193', '2026-10-29'::date, 228.0, 228.0, 45000000),
+            ('0000320193', '2026-10-30'::date, 230.5, 230.5, 50000000)
+        ) as t(cik, session, close, adj_close, volume);
+    """)
+
+    con.execute("""
+        create table app.financials as select * from (values
+            ('0000320193', '2026-09-30'::date, '10-K', 'Revenues', 94930000000.0,
+             'USD', '2026-10-30'::date),
+            ('0000320193', '2026-09-30'::date, '10-K', 'NetIncome', 14736000000.0,
+             'USD', '2026-10-30'::date)
+        ) as t(cik, period_end, form, tag, value, unit, filed);
     """)
 
     con.execute("""
         create table app.filings as select * from (values
-            ('0000320193', '2026-10-30'::date, '10-K', 'Annual Report', 'https://www.sec.gov/edgar/data/320193/000032019326000100')
+            ('0000320193', '2026-10-30'::date, '10-K', 'Annual Report', 'https://www.sec.gov')
         ) as t(cik, filing_date, form, items, url);
     """)
 
     con.execute("""
-        create table app.financial_first as select * from (values
-            ('0000320193', '2026-09-30'::date, 'Revenues', 94930000000.0, '2026-10-30'::date),
-            ('0000320193', '2026-09-30'::date, 'NetIncomeLoss', 14736000000.0, '2026-10-30'::date)
-        ) as t(cik, statement_date, metric, value, known_at);
-    """)
-
-    con.execute("""
-        create table app.insider_summary as select * from (values
-            ('0000320193', 2, 0, 5000, 1150000.0, true)
-        ) as t(cik, buyers_3m, sellers_3m, net_shares_3m, net_value_usd_3m, ceo_cfo_buying_3m);
+        create table app.insider_activity as select * from (values
+            ('0000320193', '2026-10-25'::date, '2026-10-26'::date, 'Cook Timothy D',
+             'Officer/Director', 'buy', 5000, 230.0, 1150000.0, 3005000, false,
+             'https://www.sec.gov')
+        ) as t(cik, min_trade_date, filing_date, owner_names, entity_role, side,
+               shares, avg_price, value_usd, shares_after, planned, url);
     """)
 
     con.execute("""
         create table app.insider_feed as select * from (values
-            ('0000320193', 'AAPL', 'Apple Inc.', '2026-10-25'::date, 'Tim Cook', 'CEO',
-             true, 5000, 1150000.0, false, false, 3000000, 3005000, 'https://www.sec.gov')
-        ) as t(cik, ticker, name, filing_date, entity, role, is_buy, shares, value_usd,
-               is_planned, is_offering, shares_before, shares_after, url);
+            ('0000320193', 'AAPL', 'Apple Inc.', '2026-10-25'::date, 1150000.0, 1, 'CEO',
+             'CEO bought 5,000 shares')
+        ) as t(cik, ticker, name, cluster_date, total_value_usd, buyer_count, roles,
+               summary);
     """)
 
     con.execute("""
-        create table score.daily as select * from (values
-            ('0000320193', 'volatility', 'volatility_lgbm_v1', 'v1',
-             '2026-10-30'::date, 0.22, 'Band 2 (Low-Med)', 0.85, 0.82),
-            ('0000320193', 'results_move', 'results_move_lgbm_v1', 'v1',
-             '2026-10-30'::date, 3.8, 'Band 3 (Average)', 0.50, 0.78),
-            ('0000320193', 'dilution', 'dilution_lgbm_v1', 'v1',
-             '2026-10-30'::date, 0.02, 'Band 1 (Negligible)', 0.02, 0.99)
-        ) as t(cik, question, model_name, version, as_of, forecast_value,
-               band, chance, hit_rate);
-    """)
-
-    con.execute("""
-        create table core.price_bar as select * from (values
-            ('0000320193', '2026-10-29'::date, 228.0, 231.0, 227.5, 229.0, 45000000),
-            ('0000320193', '2026-10-30'::date, 229.5, 232.0, 228.5, 230.5, 50000000)
-        ) as t(cik, session, open, high, low, close, volume);
-    """)
-
-    con.execute("""
-        create table app.screener as select * from (values
-            ('0000320193', 'AAPL', 'Apple Inc.', 'Technology', 230.5, 0.05, 3500000000000,
-             2, 'Band 2 (Low-Med)', 3, 'Band 3 (Average)', 1, 'Band 1 (Negligible)', 2, 0, true)
-        ) as t(cik, ticker, name, sector, close, ret_1m, market_cap,
-               vol_band, vol_label, results_band, results_label,
-               dilution_band, dilution_label, insider_buyers_3m,
-               insider_sellers_3m, ceo_cfo_buying_3m);
-    """)
-
-    con.execute("""
-        create table ops.sources as select * from (values
+        create table app.freshness as select * from (values
             ('filings', '2026-10-30'::date),
+            ('financial_values', '2026-10-30'::date),
             ('prices', '2026-10-30'::date)
         ) as t(dataset, latest_date);
     """)
