@@ -28,6 +28,7 @@ def _create_synthetic_serving_db() -> duckdb.DuckDBPyConnection:
     """Create an in-memory synthetic database for CI runners and clean test environments."""
     con = duckdb.connect(":memory:")
     con.execute("create schema if not exists app;")
+    con.execute("create schema if not exists core;")
 
     con.execute("""
         create table app.stock as select * from (values
