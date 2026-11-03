@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   sentinel-app:
     build:
@@ -21,4 +19,3 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-

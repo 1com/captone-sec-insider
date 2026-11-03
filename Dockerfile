@@ -1,43 +1,62 @@
 # Production Dockerfile for EDGAR-SENTINEL v2 (Feature 018)
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
+FROM ghcr.io/astral-sh/uv:latest AS uv_bin
+
+FROM debian:bookworm-slim AS builder
+
+# Install uv from the official binary
+COPY --from=uv_bin /uv /uvx /bin/
 
 WORKDIR /app
 
-# Install system build dependencies (OpenMP for LightGBM / XGBoost)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libgomp1 \
+    ca-certificates \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency definition
-COPY pyproject.toml uv.lock ./
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+ENV UV_PYTHON=3.14
+ENV UV_PYTHON_INSTALL_DIR=/opt/uv/python
 
-# Install python dependencies without development packages
-RUN uv sync --frozen --no-dev --no-install-project
+# Install dependencies first for layer caching
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --frozen --no-install-project --no-dev --python 3.14
+
+# Copy source code and install project into virtualenv
+COPY src/ /app/src/
+COPY config/ /app/config/
+COPY pyproject.toml uv.lock README.md /app/
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --python 3.14
 
 # Final runtime image
-FROM python:3.12-slim-bookworm AS runner
+FROM debian:bookworm-slim AS runner
 
 WORKDIR /app
 
-# Install runtime dependencies (OpenMP for LightGBM and curl for healthcheck)
+# Install runtime dependencies (OpenMP for LightGBM/XGBoost, curl for healthcheck, ca-certificates)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     curl \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy virtual environment from builder
+# Copy installed Python standalone binaries from builder
+COPY --from=builder /opt/uv/python /opt/uv/python
+RUN chmod -R a+rx /opt/uv/python
+
+# Copy virtual environment and project code from builder
 COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/src /app/src
+COPY --from=builder /app/config /app/config
+COPY --from=builder /app/pyproject.toml /app/pyproject.toml
+
 ENV PATH="/app/.venv/bin:$PATH"
-
-# Copy application source and configs
-COPY src/ /app/src/
-COPY config/ /app/config/
-COPY pyproject.toml /app/pyproject.toml
-
-# Install package in editable/wheel mode into existing venv
-RUN /app/.venv/bin/pip install --no-deps -e .
 
 # Create non-root user for security
 RUN useradd -m -u 1000 sentinel && \
@@ -59,4 +78,3 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 # Launch the FastAPI equity research terminal
 CMD ["sentinel", "serve", "--host", "0.0.0.0", "--port", "8080"]
-
