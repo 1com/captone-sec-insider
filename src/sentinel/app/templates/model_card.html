@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Model Card & Methodology · EDGAR-SENTINEL{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-5xl mx-auto">
+
+    <!-- Header -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
+        <h1 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+            <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            Model Card & Out-of-Sample Validation
+        </h1>
+        <p class="text-xs text-slate-400 mt-1">
+            Methodological transparency, walk-forward test metrics against baselines (2019–2022), and empirical band hit rates.
+        </p>
+    </div>
+
+    <!-- 1. Expected Volatility (Feature 005) -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div>
+                <h2 class="text-base font-bold text-white">1. Expected Volatility Model (Feature 005)</h2>
+                <p class="text-xs text-slate-400">Target: 63-day forward continuous annualized volatility of daily returns.</p>
+            </div>
+            <span class="text-xs font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800">
+                LightGBM / XGBoost
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+                <thead>
+                    <tr class="text-slate-500 border-b border-slate-800 font-sans">
+                        <th class="pb-2 font-medium">Model Level</th>
+                        <th class="pb-2 font-medium">Description</th>
+                        <th class="pb-2 font-medium text-right">Log MAE</th>
+                        <th class="pb-2 font-medium text-right">Spearman ρ</th>
+                        <th class="pb-2 font-medium text-center">80% Interval Coverage</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60">
+                    <tr>
+                        <td class="py-2.5 text-slate-400">Level 0: Naive</td>
+                        <td class="py-2.5 font-sans text-slate-300">Past 63d Realized Volatility</td>
+                        <td class="py-2.5 text-right text-slate-400">0.3457</td>
+                        <td class="py-2.5 text-right text-slate-400">0.7099</td>
+                        <td class="py-2.5 text-center text-slate-600">—</td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 text-slate-400">Level 1: Rule</td>
+                        <td class="py-2.5 font-sans text-slate-300">Mean Reversion Linear Rule</td>
+                        <td class="py-2.5 text-right text-slate-400">0.3263</td>
+                        <td class="py-2.5 text-right text-slate-400">0.7099</td>
+                        <td class="py-2.5 text-center text-slate-600">—</td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 text-slate-400">Level 2: Classic</td>
+                        <td class="py-2.5 font-sans text-slate-300">Ridge Regression (L2)</td>
+                        <td class="py-2.5 text-right text-slate-300">0.3168</td>
+                        <td class="py-2.5 text-right text-slate-300">0.7301</td>
+                        <td class="py-2.5 text-center text-slate-300">79.8%</td>
+                    </tr>
+                    <tr class="bg-cyan-950/20">
+                        <td class="py-2.5 font-bold text-cyan-400">Level 3: ML (Chosen)</td>
+                        <td class="py-2.5 font-sans font-medium text-white">Gradient Boosted Trees (LightGBM/XGB)</td>
+                        <td class="py-2.5 text-right font-bold text-emerald-400">0.3119</td>
+                        <td class="py-2.5 text-right font-bold text-emerald-400">0.7371</td>
+                        <td class="py-2.5 text-center font-bold text-emerald-400">80.3%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 2. Results-Day Move (Feature 006) -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div>
+                <h2 class="text-base font-bold text-white">2. Results-Day Move Model (Feature 006)</h2>
+                <p class="text-xs text-slate-400">Target: Absolute market-adjusted price jump on 10-Q / 10-K earnings release day.</p>
+            </div>
+            <span class="text-xs font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800">
+                LightGBM
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+                <thead>
+                    <tr class="text-slate-500 border-b border-slate-800 font-sans">
+                        <th class="pb-2 font-medium">Model Level</th>
+                        <th class="pb-2 font-medium">Description</th>
+                        <th class="pb-2 font-medium text-right">Log MAE</th>
+                        <th class="pb-2 font-medium text-right">Spearman ρ</th>
+                        <th class="pb-2 font-medium text-right">Band 1 Move</th>
+                        <th class="pb-2 font-medium text-right">Band 5 Move</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60">
+                    <tr>
+                        <td class="py-2.5 text-slate-400">Level 0: Naive</td>
+                        <td class="py-2.5 font-sans text-slate-300">Company Past 4-Quarter Mean</td>
+                        <td class="py-2.5 text-right text-slate-400">0.9634</td>
+                        <td class="py-2.5 text-right text-slate-400">0.3332</td>
+                        <td class="py-2.5 text-right text-slate-600">—</td>
+                        <td class="py-2.5 text-right text-slate-600">—</td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 text-slate-400">Level 1: Rule</td>
+                        <td class="py-2.5 font-sans text-slate-300">Shrinkage + Volatility Rule</td>
+                        <td class="py-2.5 text-right text-slate-400">0.9068</td>
+                        <td class="py-2.5 text-right text-slate-400">0.3957</td>
+                        <td class="py-2.5 text-right text-slate-600">—</td>
+                        <td class="py-2.5 text-right text-slate-600">—</td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 text-slate-400">Level 2: Classic</td>
+                        <td class="py-2.5 font-sans text-slate-300">Ridge on Log-Move</td>
+                        <td class="py-2.5 text-right text-slate-300">0.8878</td>
+                        <td class="py-2.5 text-right text-slate-300">0.4133</td>
+                        <td class="py-2.5 text-right text-slate-300">2.9%</td>
+                        <td class="py-2.5 text-right text-slate-300">9.8%</td>
+                    </tr>
+                    <tr class="bg-cyan-950/20">
+                        <td class="py-2.5 font-bold text-cyan-400">Level 3: ML (Chosen)</td>
+                        <td class="py-2.5 font-sans font-medium text-white">LightGBM on Log-Move</td>
+                        <td class="py-2.5 text-right font-bold text-emerald-400">0.8744</td>
+                        <td class="py-2.5 text-right font-bold text-emerald-400">0.4262</td>
+                        <td class="py-2.5 text-right font-bold text-emerald-400">2.6%</td>
+                        <td class="py-2.5 text-right font-bold text-rose-400">10.7%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 3. Dilution Risk (Feature 007) -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div>
+                <h2 class="text-base font-bold text-white">3. Dilution Risk Model (Feature 007)</h2>
+                <p class="text-xs text-slate-400">Target: Binary event of shares outstanding increasing by 10%+ within 6 months.</p>
+            </div>
+            <span class="text-xs font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800">
+                LightGBM / HistGradientBoosting
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+                <thead>
+                    <tr class="text-slate-500 border-b border-slate-800 font-sans">
+                        <th class="pb-2 font-medium">Model Level</th>
+                        <th class="pb-2 font-medium">Description</th>
+                        <th class="pb-2 font-medium text-right">AUC</th>
+                        <th class="pb-2 font-medium text-right">Log Loss</th>
+                        <th class="pb-2 font-medium text-center">Top Decile Lift</th>
+                        <th class="pb-2 font-medium text-right">Band 5 Actual Rate</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60">
+                    <tr>
+                        <td class="py-2.5 text-slate-400">Level 0: Naive</td>
+                        <td class="py-2.5 font-sans text-slate-300">Base Rate (Constant)</td>
+                        <td class="py-2.5 text-right text-slate-400">0.5000</td>
+                        <td class="py-2.5 text-right text-slate-400">0.3431</td>
+                        <td class="py-2.5 text-center text-slate-600">1.00x</td>
+                        <td class="py-2.5 text-right text-slate-400">10.0%</td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 text-slate-400">Level 1: Rule</td>
+                        <td class="py-2.5 font-sans text-slate-300">Recent S-3 / 424B Filings Rule</td>
+                        <td class="py-2.5 text-right text-slate-400">0.6277</td>
+                        <td class="py-2.5 text-right text-slate-400">0.3235</td>
+                        <td class="py-2.5 text-center text-slate-400">2.14x</td>
+                        <td class="py-2.5 text-right text-slate-400">18.5%</td>
+                    </tr>
+                    <tr>
+                        <td class="py-2.5 text-slate-400">Level 2: Classic</td>
+                        <td class="py-2.5 font-sans text-slate-300">Logistic Regression (L2)</td>
+                        <td class="py-2.5 text-right text-slate-300">0.8711</td>
+                        <td class="py-2.5 text-right text-slate-300">0.2403</td>
+                        <td class="py-2.5 text-center text-slate-300">4.52x</td>
+                        <td class="py-2.5 text-right text-slate-300">30.2%</td>
+                    </tr>
+                    <tr class="bg-cyan-950/20">
+                        <td class="py-2.5 font-bold text-cyan-400">Level 3: ML (Chosen)</td>
+                        <td class="py-2.5 font-sans font-medium text-white">Histogram Tree Boosting (LightGBM)</td>
+                        <td class="py-2.5 text-right font-bold text-emerald-400">0.8915</td>
+                        <td class="py-2.5 text-right font-bold text-emerald-400">0.2257</td>
+                        <td class="py-2.5 text-center font-bold text-emerald-400">4.97x</td>
+                        <td class="py-2.5 text-right font-bold text-rose-400">34.3%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+

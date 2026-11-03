@@ -223,11 +223,20 @@ def publish() -> None:
 
 
 @app.command()
-def export() -> None:
+def export(
+    reference: bool = typer.Option(
+        False,
+        "--reference",
+        help="Write private reference datasets (all years, unsealed answers, period column).",
+    ),
+) -> None:
     """Write the private Parquet snapshot to data/exports/."""
     from sentinel.serving import export as serving
 
-    _serving("export", serving.export)
+    if reference:
+        _serving("export reference", serving.export_reference)
+    else:
+        _serving("export", serving.export)
 
 
 @app.command()
@@ -367,3 +376,34 @@ def score(
                 merged = merged.join(df_pred[cols_to_add])
             merged.to_parquet(out_p, index=False)
         typer.echo(f"Saved predictions to {output_file}")
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("0.0.0.0", "--host", help="Host interface to bind to."),
+    port: int = typer.Option(
+        8080, "--port", help="Port number (default 8080, port 8000 is reserved)."
+    ),
+    reload: bool = typer.Option(False, "--reload", help="Enable auto-reload for development."),
+) -> None:
+    """Launch the EDGAR-SENTINEL web application and API."""
+    import uvicorn
+
+    if port == 8000:
+        _fail(
+            "Port 8000 is reserved for another application on this machine. "
+            "Use port 8080 or another port.",
+            USAGE,
+        )
+    typer.echo(f"Starting EDGAR-SENTINEL on http://localhost:{port} (binding to {host}:{port}) ...")
+    uvicorn.run("sentinel.app.main:app", host=host, port=port, reload=reload)
+
+
+@app.command()
+def report() -> None:
+    """Compile out-of-sample performance report and charts into docs/ (Feature 008)."""
+    from sentinel import config
+    from sentinel.models import report as model_report
+
+    p = config.paths()
+    model_report.generate_report(p, echo=typer.echo)

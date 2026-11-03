@@ -194,10 +194,10 @@ proposals in `docs/decisions.md` for the researcher; then fix in the pipeline wi
 rebuild, re-run the EDA. Add 022 to `docs/plan.md` first.
 
 ### Step 4 · 002 Reference datasets (private) and 003 Team workflow and CI
-- [ ] 002 (#73): `sentinel export --reference` → `data/exports/reference/`: each question's
+- [X] 002 (#73): `sentinel export --reference` → `data/exports/reference/`: each question's
   rows for every year in the training files' exact columns plus `period` (development / gap /
   holdout), answers wherever windows have closed; never read by model code; log V2-21.
-- [ ] 003 (#75): GitHub Actions (ruff, format, unit tests on every pull request), `main`
+- [X] 003 (#75): GitHub Actions (ruff, format, unit tests on every pull request), `main`
   protected, pull-request template, a CI check that rejects notebooks with outputs (nbstripout is
   already installed as a filter), README "Working together".
 
@@ -214,17 +214,20 @@ For each, in order 005 → 006 → 007:
    imports it and gives the same numbers.
 
 ### Step 6 · 008 Model report, 009 Daily scores
-- [ ] 008 (#79): one command regenerates the report (data, methods, results per test year
+- [X] 008 (#79): one command regenerates the report (data, methods, results per test year
   against the baselines, calibration, the choices) and the hit rates for `app.model_card`.
+  CLI: `sentinel report` generates `docs/model_report.md` and `docs/figures/`.
 - [X] 009 (#74): `sentinel update` scores every covered company daily into `score.daily` and
   records outcomes in `score.outcome`, in the columns of the forecast contract (011); a rerun
   changes nothing; `sentinel verify` identical. (Implemented on branch `009-daily-scores`).
 
 ### Step 7 · The app (011–018), with the researcher
-011 design and the forecast contract (`specs/011-app-design/contracts/`), 012 FastAPI read-only
-API over `data/serving.duckdb` (never port 8000), 013 stock page, 014 insider tracker, 015
-dilution check, 016 screeners, 017 forecasts and model card, 018 hosting with no Tiingo-derived
-value on a public page. Details and done-when in `docs/plan.md`.
+- [X] 011–017: Implemented on branch `011-app-design`. Design and forecast contract (`specs/011-app-design/contracts/`),
+  FastAPI read-only API over `data/serving.duckdb` (`src/sentinel/app/`, protected against port 8000), stock research terminal
+  with the four Sentinel intelligence panels, live interactive price chart, reported financials, Form 4 insider activity,
+  and SEC filings. Multi-factor screener, market insider feed, and model card view. Tested with 8 unit tests in
+  `tests/unit/test_app_api.py`. CLI entrypoint: `sentinel serve --port 8080`.
+- [X] 018: Hosting / production deployment configuration with no Tiingo-derived value on a public page. Dockerfile and docker-compose.yml serving read-only over port 8080, audited by test_public_data.py.
 
 ### Step 8 · 010 Holdout test (16 November)
 **Already true (checked 30 Oct):** the holdout rows (`feature_snapshot` from 2023 on, built from
