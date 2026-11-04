@@ -32,6 +32,9 @@ every weekday; the three forecasting models and the app are next. Hand-in: produ
   every market term the first time (ADR, 8-K, dilution, volatility...). Prefer one complete
   explanation over many small answers.
 - **Before asking to continue, say in plain words what the next step does and why.**
+- **Ask pending decisions one at a time**, each explained on its own: what it is, a real example,
+  what each option changes, and a recommendation with the reason. If the researcher is unsure,
+  explain the trade-off in plain words and ask again (the researcher, 4 Nov).
 - **Ask before** anything hard to undo or outward-facing: pushing, merging into `main`, opening or
   commenting on issues, deleting anything, installing schedules, changing a pre-registered
   definition. Decisions about the data or the method are the researcher's: propose with
