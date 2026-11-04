@@ -241,7 +241,8 @@ For each, in order 005 → 006 → 007:
    (rules, the EDA's findings for that model, the holdout, ten sections). Build, run and tune
    every level there: naive baseline → rule → classic model → LightGBM, walk-forward test years
    2019–2022 with the purge, the simplest level within one standard error of the best,
-   calibration, bands with hit rates, MLflow, fixed seeds.
+   calibration, bands with hit rates, MLflow, fixed seeds. End with a verdict per hypothesis of
+   `docs/hypotheses.md` (V2-46): family checks and direction checks on the test years.
 3. Show the researcher the executed notebook; wait for approval.
 4. Move the approved model into `src/sentinel/models/` with tests and a command; the notebook
    imports it and gives the same numbers.
