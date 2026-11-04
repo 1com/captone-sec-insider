@@ -243,6 +243,10 @@ For each, in order 005 → 006 → 007:
    2019–2022 with the purge, the simplest level within one standard error of the best,
    calibration, bands with hit rates, MLflow, fixed seeds. End with a verdict per hypothesis of
    `docs/hypotheses.md` (V2-46): family checks and direction checks on the test years.
+   **Splits only by `eda.folds` and `eda.check_folds`** (inner-train, gap, validation, purge,
+   test: all cut by dates, checked; the holdout refused), and `eda.known_before(rows, question,
+   day)` before every fit: the model, its settings, the calibration, the band edges, the
+   volatility range, each with the start of the period it is judged on.
 3. Show the researcher the executed notebook; wait for approval.
 4. Move the approved model into `src/sentinel/models/` with tests and a command; the notebook
    imports it and gives the same numbers.
