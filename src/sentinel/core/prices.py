@@ -121,7 +121,8 @@ def _companies(con) -> dict[str, dict]:
                c.filer_type, c.tickers, c.exchanges,
                least(c.first_form4, c.first_periodic, (select min(valid_from)
                      from ref.ticker_history t where t.cik = c.cik)) as first_seen,
-               greatest(c.last_form4, c.last_filing, (select max(coalesce(valid_to, today()))
+               greatest(c.last_form4, c.last_filing, (select max(coalesce(valid_to,
+                        (select max(snapshot_date) from stg_sec_tickers.snapshot)))
                         from ref.ticker_history t where t.cik = c.cik)) as last_seen
         from ref.company c where not c.is_fund and not c.is_blank_check
         """
@@ -160,13 +161,14 @@ def build_candidates(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> di
     listing: dict[str, list[tuple]] = {}
     for t, ex, a, b in con.execute(
         "select ticker, exchange, start_date, end_date from stg_tiingo.listing "
-        "where asset_type = 'Stock' and currency = 'USD'"
+        "where asset_type = 'Stock' and currency = 'USD' order by all"  # ties keep the first
     ).fetchall():
         if ex in exchanges and (n := normalise(t)):
             listing.setdefault(n, []).append((a, b, ex))
     form4 = {}
     for cik, t, a, b in con.execute(
-        "select cik, ticker, valid_from, valid_to from ref.ticker_history where evidence = 'form4'"
+        "select cik, ticker, valid_from, valid_to from ref.ticker_history "
+        "where evidence = 'form4' order by all"
     ).fetchall():
         form4.setdefault(cik, []).append((t, a, b))
     hits: dict[str, list[str]] = {}

@@ -59,6 +59,16 @@ def test_ticker_spans_follow_v1s_rules():
     }
 
 
+def test_ticker_spans_do_not_depend_on_the_order_of_their_inputs():
+    form4 = [("1", "AAA", date(2015, 1, 5), date(2017, 6, 1)),
+             ("1", "ZZZ", date(2015, 1, 5), date(2016, 6, 1)),  # same start: AAA is the earliest
+             ("2", "ZZZ", date(2012, 2, 1), date(2014, 5, 1))]  # fmt: skip
+    first = market.ticker_spans(form4, [], [])
+    assert market.ticker_spans(form4[::-1], [], []) == first  # reversed, ZZZ used to win the tie
+    assert ("1", "AAA", market.EARLIEST, date(2017, 6, 1), "form4") in first  # no earlier user
+    assert ("1", "ZZZ", date(2015, 1, 5), date(2016, 6, 1), "form4") in first  # keeps its start
+
+
 def test_short_volume_is_summed_per_company_and_day_over_its_symbols(con, tmp_data):
     _frame(con, "core.ticker_span", [
         {"cik": "1", "ticker": "BRK-A", "valid_from": date(2019, 1, 1), "valid_to": None,
