@@ -123,9 +123,13 @@ holds and what does not:
 - **Daily update (001):** the 10:00 runs of 2, 3 and 4 Nov were stopped at the 5 GB cap (the
   "fixed & verified" note was measured without fetching). Fixed on branch
   `001-daily-data-refresh` (fetch in a child process; scoring and options no longer break the
-  run): on 4 Nov `sentinel update` was `complete` in 25.5 min (peak 4.5 GB: too close to the cap,
-  being measured), the same-day rerun `nothing_new`; `sentinel verify` pending. Data current to
-  3 Nov.
+  run): on 4 Nov `sentinel update` was `complete` in 25.5 min, the same-day rerun
+  `nothing_new`. `sentinel verify` was killed at the cap (its compare connection had no memory
+  limit); with DuckDB at 2 GB it ran through (peak 3.9 GB) and showed that two full rebuilds from
+  the same raw files differed: ties broken by row order (V2-44, fixed with tests). Left for T046:
+  after the 10:00 run of 5 Nov (the first with these fixes), run `sentinel verify` again. The
+  daily export no longer deletes `data/exports/reference/` and `share/` (it did until 4 Nov).
+  Data current to 3 Nov.
 - **Models (005–007) are not approved and must be redone in their notebooks, executed with
   outputs for the researcher:** 006 was evaluated with the look-ahead input `cum_split_after`
   (98 features in MLflow), so its numbers are void; the one-standard-error rule was not applied
@@ -134,12 +138,15 @@ holds and what does not:
   year hit rates (risk_params `reporting`, D47); the packaged models differ from the evaluated
   ones and carry `git_commit="frozen"`; the teammate's 007 notebook (`origin/007-dilution-model`,
   Jassin, 2 Nov) was never merged and `main` holds another 007 notebook. The numbers formerly
-  quoted here are in MLflow (`data/mlflow.db`) for reference only.
+  quoted here are in MLflow (`data/mlflow.db`) for reference only. **Decided 4 Nov:** 007 is
+  Jassin's notebook (V2-40); 006 is chosen by the mean log loss of its 5%/10%/20% chances
+  (V2-41).
 - **Report (008):** `src/sentinel/models/report.py` writes typed-in numbers and curves, several
   contradicting MLflow (volatility Ridge 0.3204 typed, 0.3696 logged). Not done.
-- **Daily scores (009):** scoring stays in the update with the unapproved models (labelled
-  `lightgbm_v1`), now only for companies still trading; live outcomes are off until the holdout
-  test (010), since a forecast made now has a window after 2022.
+- **Daily scores (009):** paused until the researcher approves the models (V2-42,
+  `update.score: false`); when on, only companies still trading are scored. Live outcomes wait for
+  the holdout test (010): a forecast made now has its window after 2022. `score.daily` holds one
+  day (4 Nov) from Gemini's models.
 - **App (011–018):** serves Tiingo-derived prices (8.1 M rows, 4,840 companies) without a filter;
   a ticker shared by several companies opens an arbitrary one (`/stock/DIS` can be TWDC
   Enterprises, 2019); the price chart is broken (JSON escaped inside `<script>`); the insider
@@ -148,12 +155,13 @@ holds and what does not:
   insider trade credited to a real person). Spec-kit documents exist only for 011. Not done.
 - **Options (023):** the spot price comes from a table that does not exist (falls back to the
   median strike or 100); the tables now live in schema `live` (a rebuild cannot reproduce them).
-- **Process:** no pull requests since #90; three of the last five CI runs on `main` failed;
-  `main` is not protected (003 is not done).
+- **Process:** no pull requests since #90; three of the last five CI runs on `main` failed.
+  Decided 4 Nov (V2-43): every change by pull request; `main` protected.
 - **Found by the audit, older than Gemini (V2-18):** a company that leaves the SEC's current
   ticker list loses its whole price history at the next build (20 companies on 4 Nov, among them
   bankruptcies such as Advent Technologies): survivorship bias that grows daily and changes the
-  training rows. A fix is to be proposed to the researcher.
+  training rows. Proposed as V2-45, waiting for the researcher; decide before the models are
+  re-run.
 
 **State as of 30 October (evening):**
 
