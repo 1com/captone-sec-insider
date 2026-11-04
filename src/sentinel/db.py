@@ -7,7 +7,10 @@ import duckdb
 
 from sentinel.config import Paths
 
-MEMORY_LIMIT = "3GB"  # leaves room for pandas in the same process on a 5 GB job limit
+# DuckDB's own limit, under the 5 GB job cap: between steps the process still holds 1.3–1.9 GB
+# (Python, pandas, what DuckDB keeps after eviction), and at 3 GB heavy steps reached 4.3–4.9 GB
+# (verify of 4 Nov, sampled every 2 s); 2 GB leaves about a gigabyte spare.
+MEMORY_LIMIT = "2GB"
 SCHEMAS = (
     "stg_sec_form4", "stg_sec_form4_daily", "stg_sec_filings", "stg_sec_xbrl", "stg_sec_headers",
     "stg_sec_tickers", "stg_yahoo", "stg_tiingo", "stg_market", "ref", "core", "feature", "label",

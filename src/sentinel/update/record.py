@@ -19,6 +19,7 @@ from pathlib import Path
 import duckdb
 import pyarrow as pa
 
+from sentinel import db
 from sentinel.raw import FetchReport
 
 STATUSES = ("started", "fetching", "staging", "building", "publishing", "complete", "partial",
@@ -121,7 +122,7 @@ def app_changes(prev: Path, new: Path) -> dict[str, tuple[int, int, int, int, in
     """Per `app` table of the new serving copy: (rows before, rows after, added, changed,
     removed) by its key against the previous copy (all added when there was none)."""
     out = {}
-    with duckdb.connect(config={"memory_limit": "2GB"}) as con:
+    with duckdb.connect(config={"memory_limit": db.MEMORY_LIMIT}) as con:
         con.execute(f"attach '{new.as_posix()}' as n (read_only)")
         has_prev = prev.exists()
         if has_prev:

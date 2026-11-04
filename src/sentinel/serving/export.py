@@ -64,8 +64,15 @@ def export(p: Paths, echo=print) -> dict:
             rows[name] = (n, columns)
             echo(f"  {name}: {n:,} rows")
     (tmp / "README.md").write_text(_readme(rows), encoding="utf-8")
-    shutil.rmtree(p.exports, ignore_errors=True)
-    tmp.rename(p.exports)
+    p.exports.mkdir(parents=True, exist_ok=True)
+    for part in ("ml", "app", "README.md"):  # only what this export writes: reference/ and the
+        target = p.exports / part  # privately shared files stay (the daily update
+        if target.is_dir():  # deleted them until 4 Nov)
+            shutil.rmtree(target)
+        else:
+            target.unlink(missing_ok=True)
+        (tmp / part).rename(target)
+    tmp.rmdir()
     return {name: n for name, (n, _) in rows.items()}
 
 
