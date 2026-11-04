@@ -71,9 +71,11 @@ def ticker_spans(form4, listed, series) -> list[tuple]:
         start = ends.get(cik) or (own[1] if own and own[0] == ticker else snapshot)
         spans[(cik, ticker)] = [start, None, "listed"]
     known = {cik for cik, _ in spans}
-    for cik, (ticker, first, last, source) in price.items():
+    for cik, (ticker, first, last, _source) in price.items():
         if cik not in known:
-            spans[(cik, ticker)] = [first, None if source == "yahoo" else last, "price_series"]
+            # over the series: such a company is not listed today, even when Yahoo prices it
+            # (it left the SEC list, V2-45), so the symbol may pass to another company
+            spans[(cik, ticker)] = [first, last, "price_series"]
     users: dict[str, list[tuple[str, date, date | None]]] = {}
     earliest: dict[str, tuple[str, str]] = {}
     for (cik, ticker), (start, end, _) in sorted(spans.items()):  # ties: the first ticker

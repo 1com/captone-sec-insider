@@ -163,8 +163,9 @@ holds and what does not:
 - **Found by the audit, older than Gemini (V2-18):** a company that leaves the SEC's current
   ticker list loses its whole price history at the next build (20 companies on 4 Nov, among them
   bankruptcies such as Advent Technologies): survivorship bias that grows daily and changes the
-  training rows. Proposed as V2-45, waiting for the researcher; decide before the models are
-  re-run.
+  training rows. Decided 4 Nov (V2-45): a company keeps the tickers of the last stored SEC list
+  it was in, priced up to that list's day; implemented with tests, applied by the next daily
+  rebuild.
 
 **State as of 30 October (evening):**
 
