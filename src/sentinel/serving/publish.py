@@ -149,8 +149,13 @@ def publish(p: Paths, echo=print) -> dict:
                 "select schema_name, table_name from duckdb_tables() where database_name = 'b'"
             ).fetchall()
         }
-        if "score.daily" in existing_b:
-            all_tables["daily_score"] = "select * from b.score.daily order by cik, as_of, question"
+        if "score.daily" in existing_b:  # the log keeps every day; the app shows today's
+            all_tables["daily_score"] = (
+                "select * from b.score.daily where as_of >= "
+                "(select max(as_of) from b.score.daily) - 7 qualify row_number() over "
+                "(partition by cik, question order by as_of desc, scored_at desc) = 1 "
+                "order by cik, question"
+            )
         if "score.outcome" in existing_b:
             all_tables["live_outcomes"] = (
                 "select * from b.score.outcome order by cik, as_of, question"

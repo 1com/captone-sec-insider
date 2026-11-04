@@ -80,7 +80,7 @@ def world(tmp_data, monkeypatch):
     monkeypatch.setitem(build.LAYERS, "staging", {"yahoo": prices.stage_yahoo})
     monkeypatch.setitem(build.LAYERS, "test", {"twice": _twice})
     options = {"layers": ("test",), "publish": _publish, "export": lambda p, echo=print: {},
-               "echo": QUIET}  # fmt: skip
+               "echo": QUIET, "apart": False}  # fmt: skip
     return tmp_data, calls, options
 
 

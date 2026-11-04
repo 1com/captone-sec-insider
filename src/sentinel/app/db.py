@@ -29,6 +29,7 @@ def _create_synthetic_serving_db() -> duckdb.DuckDBPyConnection:
     con = duckdb.connect(":memory:")
     con.execute("create schema if not exists app;")
     con.execute("create schema if not exists core;")
+    con.execute("create schema if not exists live;")
 
     con.execute("""
         create table app.stock as select * from (values
@@ -110,7 +111,7 @@ def _create_synthetic_serving_db() -> duckdb.DuckDBPyConnection:
     """)
 
     con.execute("""
-        create table core.option_chain as select * from (values
+        create table live.option_chain as select * from (values
             ('AAPL', '2026-10-30'::date, '2026-12-18'::date, 49, 'call', 230.0, 8.5, 8.4, 8.6, 8.5,
              1500, 12000, 0.22, true, 'AAPL261218C00230000'),
             ('AAPL', '2026-10-30'::date, '2026-12-18'::date, 49, 'put', 230.0, 7.8, 7.7, 7.9, 7.8,
@@ -122,7 +123,7 @@ def _create_synthetic_serving_db() -> duckdb.DuckDBPyConnection:
     """)
 
     con.execute("""
-        create table core.option_summary as select * from (values
+        create table live.option_summary as select * from (values
             ('AAPL', '2026-10-30'::date, 230.5, 0.21, 0.23, 0.24, 3600, 1200, 0.33)
         ) as t(ticker, as_of, spot_price, atm_iv_30d, atm_iv_60d, atm_iv_90d, call_volume,
                put_volume, put_call_ratio);
@@ -413,7 +414,10 @@ def get_options(con: duckdb.DuckDBPyConnection, ticker: str) -> dict[str, Any]:
     """Retrieve option chain and implied volatility benchmarks for a stock."""
     symbol = ticker.strip().upper()
     tables = [
-        t[0] for t in con.execute("select table_name from information_schema.tables").fetchall()
+        t[0]
+        for t in con.execute(
+            "select table_name from information_schema.tables where table_schema = 'live'"
+        ).fetchall()
     ]
 
     if "option_chain" not in tables:
@@ -421,7 +425,7 @@ def get_options(con: duckdb.DuckDBPyConnection, ticker: str) -> dict[str, Any]:
 
     # Latest as_of date
     as_of_row = con.execute(
-        "select max(as_of) from core.option_chain where ticker = ?", [symbol]
+        "select max(as_of) from live.option_chain where ticker = ?", [symbol]
     ).fetchone()
     if not as_of_row or as_of_row[0] is None:
         return {"ticker": symbol, "summary": {}, "expirations": [], "contracts": []}
@@ -431,7 +435,7 @@ def get_options(con: duckdb.DuckDBPyConnection, ticker: str) -> dict[str, Any]:
     summary = {}
     if "option_summary" in tables:
         s_row = con.execute(
-            "select * from core.option_summary where ticker = ? and as_of = ?", [symbol, as_of]
+            "select * from live.option_summary where ticker = ? and as_of = ?", [symbol, as_of]
         ).fetchone()
         if s_row:
             s_cols = [c[0] for c in con.description]
@@ -442,7 +446,7 @@ def get_options(con: duckdb.DuckDBPyConnection, ticker: str) -> dict[str, Any]:
         """
         select expiration, days_to_exp, option_type, strike, last_price, bid, ask,
                mid_price, volume, open_interest, implied_volatility, in_the_money, contract_symbol
-        from core.option_chain
+        from live.option_chain
         where ticker = ? and as_of = ?
         order by expiration asc, strike asc
         limit 500

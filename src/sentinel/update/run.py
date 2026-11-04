@@ -1,10 +1,12 @@
 """`sentinel update`: the daily update (specs/001-daily-data-refresh, contracts/cli.md).
 
 In order: take the update lock; refuse below `update.min_free_gb` of free disk; fetch every daily
-source (`raw.run("all")`: each source from where it last stopped, so missed days are caught up);
-re-stage the sources with stored files not yet applied (`ops.staged_file`); rebuild the layers
-above staging in full; publish the serving copy and write the export, keeping the previous copy
-to report what changed; record the run in `ops` and in `data/logs/update-<date>.log`.
+source (`raw.run("all")`: each source from where it last stopped, so missed days are caught up)
+in a child process, so the memory the downloads leave behind is returned before staging; re-stage
+the sources with stored files not yet applied (`ops.staged_file`); rebuild the layers above
+staging in full; score the companies still trading with the frozen models (`score.daily`); publish
+the serving copy and write the export, keeping the previous copy to report what changed; record
+the run in `ops` and in `data/logs/update-<date>.log`.
 
 A step's own check failing (`db.StepFailed`, e.g. the calendar refusing an old SPY file) keeps
 that table as it was and makes the run `partial`; any other error stops the run as `failed`, with
@@ -13,9 +15,11 @@ complete previous run, nothing is rebuilt and the run is `nothing_new`.
 """
 
 import contextlib
+import multiprocessing
 import os
 import shutil
 from collections.abc import Callable
+from concurrent.futures import ProcessPoolExecutor
 from datetime import date, datetime
 
 from sentinel import build, db, raw
@@ -71,6 +75,41 @@ def _last_status(con) -> str | None:
     return row[0] if row else None
 
 
+def _fetch_child(p: Paths, today: date) -> tuple[list[raw.FetchReport], list[str]]:
+    """In the child process: every daily source, each fetcher with its own read-only connection;
+    the reports and the lines it printed."""
+    lines: list[str] = []
+
+    def echo(line: str) -> None:
+        print(line, flush=True)
+        lines.append(line)
+
+    return raw.run(p, "all", today, echo), lines
+
+
+def fetch_apart(p: Paths, today: date) -> tuple[list[raw.FetchReport], list[str]]:
+    """Fetch every daily source in a child process. Seven download threads leave memory behind
+    that the process keeps (each thread's heap, Yahoo's frames); with DuckDB's 3 GB for staging on
+    top, the scheduled runs of 2–4 November were stopped at the 5 GB cap. The child's memory goes
+    back to the system when it ends. The caller must not hold the build database open."""
+    with ProcessPoolExecutor(1, mp_context=multiprocessing.get_context("spawn")) as pool:
+        return pool.submit(_fetch_child, p, today).result()
+
+
+def _score(con, p: Paths, echo, errors: list[str]) -> None:
+    """Today's forecasts (`score.daily`, feature 009). Live outcomes (`score.outcome`) are not
+    recorded: a forecast made now has a window starting after 2022, whose answer stays sealed
+    until the holdout test (010) has run."""
+    from sentinel.scoring import daily
+
+    try:
+        daily.score_snapshot(con, p, echo)
+    except Exception as e:  # a scoring failure leaves the data built; the run is partial
+        errors.append(f"scoring: {type(e).__name__}: {e}")
+        echo(f"  scoring failed: {e}")
+    build.release_memory(con)
+
+
 def _build(con, p: Paths, layers, echo, errors: list[str]) -> None:
     for layer in layers:
         for name, step in build.LAYERS[layer].items():
@@ -85,9 +124,11 @@ def _build(con, p: Paths, layers, echo, errors: list[str]) -> None:
 
 def update(p: Paths, today: date | None = None, scheduled: bool = False, fetch: bool = True,
            echo=print, layers=LAYERS, publish: Callable = serving_publish.publish,
-           export: Callable = serving_export.export, notes: list[str] = ()) -> dict:  # fmt: skip
+           export: Callable = serving_export.export, notes: list[str] = (),
+           apart: bool = True) -> dict:  # fmt: skip
     """Run the update; returns the run's record (status, sources, changes, log file). `notes` go
-    to the top of the log (e.g. a scheduled run without its memory cap)."""
+    to the top of the log (e.g. a scheduled run without its memory cap). `apart=False` fetches in
+    this process (tests that replace the fetchers)."""
     today = today or date.today()
     run_id = datetime.now().strftime("%Y%m%dT%H%M%S")
     log_file = p.logs / f"update-{today}.log"
@@ -107,12 +148,15 @@ def update(p: Paths, today: date | None = None, scheduled: bool = False, fetch: 
             con.execute("insert into ops.update_run values (?, ?, ?, null, 'fetching', 0, ?)",
                         [run_id, "scheduled" if scheduled else "manual", datetime.now(),
                          log_file.as_posix()])  # fmt: skip
-            before = {}
-            if fetch:
+            if fetch and apart:
+                con.close()
+                reports, fetched = fetch_apart(p, today)
+                lines.extend(fetched)
+                con = db.connect(p)
+            elif fetch:
                 reports = raw.run(p, "all", today, say, con=con)
-                for r in reports:
-                    say(r.summary())
-                build.release_memory(con)
+            for r in reports:
+                say(r.summary())
             before = record.checksums(con)
             build.release_memory(con)
             entries = [e for e in manifest.read_all(p.manifest) if e.role == "original"]
@@ -130,26 +174,10 @@ def update(p: Paths, today: date | None = None, scheduled: bool = False, fetch: 
                 con.execute("update ops.update_run set status = 'building' where run_id = ?",
                             [run_id])  # fmt: skip
                 _build(con, p, layers, say, errors)
-                con.execute("update ops.update_run set status = 'scoring' where run_id = ?",
-                            [run_id])  # fmt: skip
-                has_snapshot = (
-                    con.execute(
-                        "select count(*) from duckdb_tables() "
-                        "where schema_name = 'feature' and table_name = 'snapshot'"
-                    ).fetchone()[0]
-                    > 0
-                )
-                if has_snapshot:
-                    try:
-                        from sentinel.scoring import daily, outcomes
-
-                        daily.score_snapshot(con, p, say)
-                        build.release_memory(con)
-                        outcomes.evaluate_outcomes(con, say)
-                        build.release_memory(con)
-                    except Exception as e:
-                        errors.append(f"scoring: {e}")
-                        say(f"  scoring failed: {e}")
+                if "feature.snapshot" in record.tables(con, ("feature",)):
+                    con.execute("update ops.update_run set status = 'scoring' where run_id = ?",
+                                [run_id])  # fmt: skip
+                    _score(con, p, say, errors)
                 status = "partial" if failed or errors else "complete"
             after = record.checksums(con)
         except BaseException as e:

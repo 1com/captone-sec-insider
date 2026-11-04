@@ -142,7 +142,7 @@ def test_save_option_chain_and_summary():
     # Idempotent re-run
     re_inserted = core_options.save_option_chain(con, df)
     assert re_inserted == 3
-    count = con.execute("select count(*) from core.option_chain").fetchone()[0]
+    count = con.execute("select count(*) from live.option_chain").fetchone()[0]
     assert count == 3
 
     # 2. Compute Summary

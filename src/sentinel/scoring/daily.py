@@ -16,39 +16,17 @@ from sentinel.config import Paths
 from sentinel.models import dilution, results_move, volatility
 from sentinel.scoring import schema
 
+CURRENT_DAYS = 7  # a company is scored while its last snapshot row is this close to the newest
+
 
 def _load_model(p: Paths, question: str):
-    """Load a frozen model bundle, or fit on development data if not yet saved."""
+    """The frozen model bundle saved by `sentinel train`. Missing is an error: a model is trained
+    only by that command, never inside the daily update."""
     model_path = p.models / f"{question}.joblib"
-    if model_path.exists():
-        if question == "results_move":
-            return results_move.load(model_path)
-        if question == "dilution":
-            return dilution.load(model_path)
-        if question == "volatility":
-            return volatility.load(model_path)
-
-    # Train and save frozen model on development data
-    from sentinel import eda
-
-    p.models.mkdir(parents=True, exist_ok=True)
-    raw_df = eda.load(question)
-    dev_df = raw_df[pd.to_datetime(raw_df["as_of"]) <= pd.Timestamp(eda.DEV_END)].copy()
-
-    if question == "results_move":
-        model = results_move.fit(dev_df, level="lightgbm")
-        results_move.save(model, model_path)
-        return model
-    if question == "dilution":
-        model = dilution.fit(dev_df, level="lightgbm")
-        dilution.save(model, model_path)
-        return model
-    if question == "volatility":
-        model = volatility.fit(dev_df, level="lightgbm")
-        volatility.save(model, model_path)
-        return model
-
-    raise ValueError(f"Unknown question: {question}")
+    if not model_path.exists():
+        raise FileNotFoundError(f"no frozen {question} model at {model_path}: `sentinel train`")
+    module = {"results_move": results_move, "dilution": dilution, "volatility": volatility}
+    return module[question].load(model_path)
 
 
 def score_snapshot(
@@ -56,11 +34,16 @@ def score_snapshot(
     p: Paths,
     echo: Callable[[str], None] = lambda _: None,
 ) -> dict[str, int]:
-    """Score the latest active feature snapshot and record forecasts in score.daily."""
+    """Score the companies still trading (their last snapshot row within `CURRENT_DAYS` of the
+    newest) and record forecasts in score.daily. A company that stopped trading keeps a `latest`
+    row from its last day (some from 2010); it gets no forecast."""
     schema.create_tables(con)
 
-    # Load latest snapshot from DuckDB
-    snap_df = con.execute("select * from feature.snapshot where latest order by cik").df()
+    snap_df = con.execute(
+        "select * from feature.snapshot where latest and as_of >= "
+        "(select max(as_of) from feature.snapshot where latest) - ?::integer order by cik",
+        [CURRENT_DAYS],
+    ).df()
     if snap_df.empty:
         echo("  scoring: no latest feature snapshot rows found")
         return {"results_move": 0, "dilution": 0, "volatility": 0}

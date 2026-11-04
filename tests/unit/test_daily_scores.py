@@ -92,8 +92,10 @@ def mock_db_con() -> duckdb.DuckDBPyConnection:
         ('0000000002', date '{today}', true, 'price_only', false, true, false,
          'Unknown', 0.35, 0.38, -0.01, -0.03, null),
         ('0000000003', date '{today}', true, 'foreign', true, true, false,
-         'Consumer', 0.18, 0.20, 0.01, 0.02, null)
-    """)
+         'Consumer', 0.18, 0.20, 0.01, 0.02, null),
+        ('0000000004', date '2015-06-30', true, 'full', true, true, true,
+         'Technology', 0.30, 0.31, 0.00, 0.01, 0.02)
+    """)  # the fourth stopped trading in 2015: its latest row gets no forecast
 
     # Create synthetic label tables for outcome tracking
     con.execute("""
@@ -101,7 +103,7 @@ def mock_db_con() -> duckdb.DuckDBPyConnection:
             cik varchar,
             as_of date,
             vol_63_future double,
-            vol_window_end date
+            window_end date
         )
     """)
     con.execute("""
@@ -109,7 +111,7 @@ def mock_db_con() -> duckdb.DuckDBPyConnection:
             cik varchar,
             as_of date,
             dilution integer,
-            dilution_window_end date
+            window_end date
         )
     """)
     con.execute("""
@@ -201,6 +203,12 @@ def test_daily_scoring_and_idempotence(mock_db_con, mock_paths):
         total_rows_second = mock_db_con.execute("select count(*) from score.daily").fetchone()[0]
         assert total_rows_second == 6  # No duplicate rows inserted!
         assert counts_second == counts
+
+
+def test_a_missing_model_is_an_error_never_trained_in_the_update(mock_paths):
+    with pytest.raises(FileNotFoundError, match="sentinel train"):
+        daily._load_model(mock_paths, "volatility")
+    assert list(mock_paths.models.iterdir()) == []
 
 
 def test_outcome_tracking(mock_db_con):
