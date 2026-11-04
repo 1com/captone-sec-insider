@@ -79,7 +79,9 @@ every weekday; the three forecasting models and the app are next. Hand-in: produ
 
 - **Every heavy job runs under the memory cap, with no swap**, or WSL and VS Code crash:
   `systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 <command>`. DuckDB is capped
-  at 3 GB inside the code. Never run two heavy jobs at once.
+  at 2 GB inside the code (`db.MEMORY_LIMIT`; the process holds 1.3–1.9 GB more): every
+  `duckdb.connect` must set it, since DuckDB's default is 80% of RAM. Never run two heavy jobs at
+  once. To see where a job peaks, sample its scope's `memory.stat` (`anon`) every 2 s.
 - `data/sentinel.duckdb` has **one writer at a time**. If a command reports a lock, ask what
   holds it (often the daily update or a notebook); do not kill processes you did not start.
 - **Port 8000 belongs to another application; never stop it.**
