@@ -174,7 +174,9 @@ def update(p: Paths, today: date | None = None, scheduled: bool = False, fetch: 
                 con.execute("update ops.update_run set status = 'building' where run_id = ?",
                             [run_id])  # fmt: skip
                 _build(con, p, layers, say, errors)
-                if "feature.snapshot" in record.tables(con, ("feature",)):
+                if not sources(p)["update"].get("score", False):
+                    say("scoring: paused (update.score in config/sources.yaml)")
+                elif "feature.snapshot" in record.tables(con, ("feature",)):
                     con.execute("update ops.update_run set status = 'scoring' where run_id = ?",
                                 [run_id])  # fmt: skip
                     _score(con, p, say, errors)

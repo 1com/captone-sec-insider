@@ -100,6 +100,12 @@ def test_an_update_equals_a_full_rebuild_and_a_rerun_changes_nothing(world):
     assert verifier.verify(p, layers=("staging", "test"), echo=QUIET) == []
 
 
+def test_scoring_waits_for_approved_models(world):
+    p, _, options = world
+    result = updater.update(p, today=DAYS[0], **options)
+    assert "scoring: paused (update.score in config/sources.yaml)" in result["log_file"].read_text()
+
+
 def test_missed_days_are_caught_up_in_order(world):
     p, calls, options = world
     updater.update(p, today=DAYS[0], **options)
