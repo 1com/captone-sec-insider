@@ -120,7 +120,7 @@ a named choice.
 - [X] T036 Section 7: the year-by-year one-standard-error choice (V2-50, FR-007), the textbook choice shown for reference
 - [X] T037 Section 9b: family checks (five seeds, every fold, the fold's settings) and direction checks for H-D1 to H-D5, with a verdict table (FR-019)
 - [X] T038 Section 10: the frozen model of `Dated` steps; the dry run; a demonstration that it refuses a 2021 row
-- [ ] T039 Trial run with a tiny grid, then the full run under the memory cap; findings from the outputs; commit (outputs stripped); show the researcher (T030)
+- [X] T039 Trial run with a tiny grid, then the full run under the memory cap (17 min); findings from the outputs; commit (outputs stripped); show the researcher (T030)
 
 ---
 
