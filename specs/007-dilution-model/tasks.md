@@ -108,7 +108,7 @@ a named choice.
 - [X] T027 Install `libomp` (Homebrew) and switch section 6 of `notebooks/007-dilution-model.ipynb` to `lightgbm.LGBMClassifier` (grid `num_leaves` {15, 63} × `min_child_samples` {100, 500}, early stopping on the validation year, `deterministic=True`); section 9 uses LightGBM gain importance
 - [X] T028 Trees on `TREE_FEATURES` (95 minus insider and macro); family check in section 9 re-adds each family (seeds 0–4, every fold)
 - [X] T029 [P] Record V2-35 to V2-39 in `docs/decisions.md`; update spec.md, plan.md, research.md (R2, R4, R7, R10)
-- [ ] T030 Re-run the notebook start to finish; rewrite the findings cell with the new numbers; commit (outputs stripped) and push; tell the researcher (done with T032–T039)
+- [X] T030 Re-run the notebook start to finish; rewrite the findings cell with the new numbers; commit (outputs stripped); tell the researcher (done with T032–T039; approved 5 Nov, V2-52; pushed with the pull request)
 - [X] T031 The split-like answers are dropped in section 1, found by code (`sentinel.validation.split_dilution`, V2-40) instead of a list (T034)
 
 ## Phase 7c: The rules of 4–5 Nov (V2-40, V2-46, V2-49, V2-50)
