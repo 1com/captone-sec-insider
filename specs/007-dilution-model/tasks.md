@@ -103,13 +103,24 @@ a named choice.
 
 ---
 
-## Phase 7b: The researcher's answers (2 Nov, V2-34 to V2-38)
+## Phase 7b: The researcher's answers (2 Nov, V2-35 to V2-39)
 
 - [X] T027 Install `libomp` (Homebrew) and switch section 6 of `notebooks/007-dilution-model.ipynb` to `lightgbm.LGBMClassifier` (grid `num_leaves` {15, 63} × `min_child_samples` {100, 500}, early stopping on the validation year, `deterministic=True`); section 9 uses LightGBM gain importance
 - [X] T028 Trees on `TREE_FEATURES` (95 minus insider and macro); family check in section 9 re-adds each family (seeds 0–4, every fold)
-- [X] T029 [P] Record V2-34 to V2-38 in `docs/decisions.md`; update spec.md, plan.md, research.md (R2, R4, R7, R10)
-- [ ] T030 Re-run the notebook start to finish; rewrite the findings cell with the new numbers; commit (outputs stripped) and push; tell the researcher
-- [ ] T031 When the researcher's list of the 46 split-like answers (`cik`, `as_of`) arrives: drop them in section 1, re-run, update the findings
+- [X] T029 [P] Record V2-35 to V2-39 in `docs/decisions.md`; update spec.md, plan.md, research.md (R2, R4, R7, R10)
+- [ ] T030 Re-run the notebook start to finish; rewrite the findings cell with the new numbers; commit (outputs stripped) and push; tell the researcher (done with T032–T039)
+- [X] T031 The split-like answers are dropped in section 1, found by code (`sentinel.validation.split_dilution`, V2-40) instead of a list (T034)
+
+## Phase 7c: The rules of 4–5 Nov (V2-40, V2-46, V2-49, V2-50)
+
+- [X] T032 Merge `main` into this branch; Jassin's notebook and spec kept, decision references renumbered to main's (his V2-34..V2-38 are V2-35..V2-39)
+- [X] T033 Section 2: the folds from `eda.folds`, checked by `eda.check_folds`; `train` = inner, gap and valid (FR-004)
+- [X] T034 Section 1: drop the split-like "yes" answers found by `validation.split_dilution` on a read-only database connection (FR-018)
+- [X] T035 Every fitted step a `Dated` (FR-017): the levels, the Platt calibrators (cutoff: the test year), the band edges (fitted on the validation year's model chances: calibration keeps their order); LightGBM without early stopping, its number of trees chosen by predicting the validation year (FR-009)
+- [X] T036 Section 7: the year-by-year one-standard-error choice (V2-50, FR-007), the textbook choice shown for reference
+- [X] T037 Section 9b: family checks (five seeds, every fold, the fold's settings) and direction checks for H-D1 to H-D5, with a verdict table (FR-019)
+- [X] T038 Section 10: the frozen model of `Dated` steps; the dry run; a demonstration that it refuses a 2021 row
+- [ ] T039 Trial run with a tiny grid, then the full run under the memory cap; findings from the outputs; commit (outputs stripped); show the researcher (T030)
 
 ---
 

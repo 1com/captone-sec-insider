@@ -16,6 +16,15 @@ seeds), and freeze it as one object with a `predict(model, rows)` function, dry-
 out of the features (research R1). Moving the code to `src/sentinel/models/` comes after the
 researcher's approval and is not part of this plan's notebook work.
 
+**Revision of 5 November** (spec FR-017 to FR-019; tasks T032 to T039): the folds come from
+`eda.folds` and are checked by `eda.check_folds`; every model, calibration and set of band edges
+is a `sentinel.models.dated.Dated` (V2-49), so LightGBM's number of trees is chosen by predicting
+the validation year rather than by early stopping; the split-like answers are dropped by code
+(V2-40); the level is chosen by one standard error of the yearly differences (V2-50); section 9b
+gives a verdict per hypothesis (V2-46). The notebook now also reads the build database once,
+read-only, for the split-like answers, and runs on this machine (16 cores, LightGBM on 8 threads,
+under the 5 GB cap).
+
 ## Technical Context
 
 **Language/Version**: Python 3.14 (uv, `uv.lock`)

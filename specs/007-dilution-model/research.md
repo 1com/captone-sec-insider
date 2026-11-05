@@ -24,7 +24,7 @@ the export of 30 October 2026 and `notebooks/004-eda-dilution.ipynb`.
 
 - **Decision**: `sentinel.eda.load("dilution")` (rows dated by 31 Dec 2022), keep
   `eligible_dilution` true and `dilution` present: 409,576 rows. Sorted by `cik`, `as_of`.
-- **The 46 split-like "yes" answers are dropped once the researcher's list arrives** (V2-38,
+- **The 46 split-like "yes" answers are dropped once the researcher's list arrives** (V2-39,
   2 Nov). Until then they stay in. The spec assumed they would be left out by
   `sentinel.validation.split_dilution`, but that check reads `data/sentinel.duckdb`, which exists
   only on the researcher's machine. They are 0.12% of the 39,276 "yes" answers, so the effect on
@@ -62,8 +62,8 @@ the export of 30 October 2026 and `notebooks/004-eda-dilution.ipynb`.
   `log_market_cap`, `log_close`); cut every feature at its 1st and 99th training percentiles; fill
   missing values with the training median and add a "was missing" indicator; standardise. The
   regularisation strength C is chosen from {0.01, 0.1, 1} on the validation year.
-- **Trees** (LightGBM per D60, V2-34): on the 95 features **minus the insider and macro
-  families** (V2-35, researcher, 2 Nov), missing values left to the trees (they learn "missing"
+- **Trees** (LightGBM per D60, V2-35): on the 95 features **minus the insider and macro
+  families** (V2-36, researcher, 2 Nov), missing values left to the trees (they learn "missing"
   themselves), no cutting needed. Fixed: learning rate 0.05, feature fraction 0.8, bagging fraction
   0.8 every iteration, `deterministic=True`, fixed thread count, `seed=0`. Tuned on the validation
   year: `num_leaves` {15, 63} × `min_child_samples` {100, 500}, with early stopping (100 rounds) on
@@ -103,7 +103,7 @@ the export of 30 October 2026 and `notebooks/004-eda-dilution.ipynb`.
   20 by size). Leak check: no input is a non-feature column; no single feature reaches AUC ≥ 0.95.
   **Family check (D60)**: first version (1 Nov): refit without the insider family, and without the
   macro family, seeds 0–4, every fold: insider changed nothing, macro hurt. After the researcher
-  dropped both (V2-35), the check runs the other way: add each family back, seeds 0–4, every fold,
+  dropped both (V2-36), the check runs the other way: add each family back, seeds 0–4, every fold,
   and report the mean log-loss change against the chosen feature set with its spread.
 - **Alternatives**: SHAP values (slower, a new plot dependency; gain importance answers "does it
   make sense" here).
@@ -135,7 +135,7 @@ the export of 30 October 2026 and `notebooks/004-eda-dilution.ipynb`.
 ## R10 · Running on the teammate's Mac
 
 - **Update (2 Nov): LightGBM.** The researcher asked for LightGBM in the production code (D60,
-  V2-34); the teammate installed `libomp` 23.1.4 with Homebrew, and LightGBM 4.7.0 runs on the
+  V2-35); the teammate installed `libomp` 23.1.4 with Homebrew, and LightGBM 4.7.0 runs on the
   Mac. Settings as R4 (`colsample_bytree` 0.8, `subsample` 0.8 every iteration,
   `deterministic=True`, `force_row_wise=True`, 4 threads, early stopping on the validation year
   through `eval_set`). The paragraph below records the first version.
