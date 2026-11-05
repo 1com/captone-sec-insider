@@ -292,7 +292,8 @@ read the two run records and the freshness overview.
 - **SC-003**: After the refresh, price-only stocks keep the history their sources hold: at least 450
   of today's 636 have prices from before 2025 (today: 19), Hitachi's from April 2012 or earlier and
   Deutsche Telekom's from June 2010 or earlier.
-- **SC-004**: A typical weekday update finishes within 30 minutes on this machine.
+- **SC-004**: A typical weekday update finishes within 60 minutes on this machine (V2-47, 5 Nov;
+  was 30 before it was measured: 47 on 5 Nov, 19 of them waiting for Yahoo's downloads).
 - **SC-005**: On a test day, every published table after the update is identical to the result of a
   full rebuild from the same downloaded files.
 - **SC-006**: A second update on the same day reports zero rows added, changed or removed.

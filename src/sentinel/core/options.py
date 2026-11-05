@@ -1,7 +1,7 @@
 """Core database management and market benchmark calculations for options (Feature 023).
 
-Stores option chains in `core.option_chain` and computes market implied volatility
-benchmarks in `core.option_summary`.
+Stores option chains in `live.option_chain` and computes market implied volatility
+benchmarks in `live.option_summary`.
 """
 
 from datetime import date
@@ -12,13 +12,13 @@ import pandas as pd
 
 
 def init_options_tables(con: duckdb.DuckDBPyConnection) -> None:
-    """Create core.option_chain and core.option_summary tables if not already present."""
-    con.execute("create schema if not exists core;")
+    """Create live.option_chain and live.option_summary tables if not already present."""
+    con.execute("create schema if not exists live;")
     con.execute("create schema if not exists app;")
 
     con.execute(
         """
-        create table if not exists core.option_chain (
+        create table if not exists live.option_chain (
             ticker VARCHAR NOT NULL,
             as_of DATE NOT NULL,
             expiration DATE NOT NULL,
@@ -41,7 +41,7 @@ def init_options_tables(con: duckdb.DuckDBPyConnection) -> None:
 
     con.execute(
         """
-        create table if not exists core.option_summary (
+        create table if not exists live.option_summary (
             ticker VARCHAR NOT NULL,
             as_of DATE NOT NULL,
             spot_price DOUBLE,
@@ -58,7 +58,7 @@ def init_options_tables(con: duckdb.DuckDBPyConnection) -> None:
 
 
 def save_option_chain(con: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> int:
-    """Idempotently insert option contracts into core.option_chain."""
+    """Idempotently insert option contracts into live.option_chain."""
     if df is None or df.empty:
         return 0
 
@@ -69,13 +69,13 @@ def save_option_chain(con: duckdb.DuckDBPyConnection, df: pd.DataFrame) -> int:
     with con.cursor() as cur:
         # Idempotent replacement for this ticker and snapshot date
         cur.execute(
-            "delete from core.option_chain where ticker = ? and as_of = ?",
+            "delete from live.option_chain where ticker = ? and as_of = ?",
             [ticker, as_of],
         )
         cur.register("tmp_opt_input", df)
         cur.execute(
             """
-            insert into core.option_chain
+            insert into live.option_chain
             select
                 ticker, as_of, expiration, days_to_exp, option_type, strike,
                 last_price, bid, ask, mid_price, volume, open_interest,
@@ -97,7 +97,7 @@ def compute_option_summary(
 
     if as_of is None:
         row = con.execute(
-            "select max(as_of) from core.option_chain where ticker = ?", [symbol]
+            "select max(as_of) from live.option_chain where ticker = ?", [symbol]
         ).fetchone()
         if not row or row[0] is None:
             return {}
@@ -109,7 +109,7 @@ def compute_option_summary(
         select
             coalesce(sum(case when option_type = 'call' then volume else 0 end), 0) as call_vol,
             coalesce(sum(case when option_type = 'put' then volume else 0 end), 0) as put_vol
-        from core.option_chain
+        from live.option_chain
         where ticker = ? and as_of = ?
         """,
         [symbol, as_of],
@@ -147,7 +147,7 @@ def compute_option_summary(
         # Fallback to median strike of near-the-money active contracts
         med_row = con.execute(
             """
-            select median(strike) from core.option_chain
+            select median(strike) from live.option_chain
             where ticker = ? and as_of = ? and days_to_exp between 5 and 45 and volume > 0
             """,
             [symbol, as_of],
@@ -160,7 +160,7 @@ def compute_option_summary(
         exp_row = con.execute(
             """
             select expiration, abs(days_to_exp - ?) as diff
-            from core.option_chain
+            from live.option_chain
             where ticker = ? and as_of = ?
             order by diff asc limit 1
             """,
@@ -176,7 +176,7 @@ def compute_option_summary(
             """
             with atm as (
                 select implied_volatility
-                from core.option_chain
+                from live.option_chain
                 where ticker = ? and as_of = ? and expiration = ?
                   and implied_volatility is not null and implied_volatility > 0.01
                 order by abs(strike - ?) asc limit 4
@@ -204,13 +204,13 @@ def compute_option_summary(
         "put_call_ratio": pcr,
     }
 
-    # Save into core.option_summary
+    # Save into live.option_summary
     con.execute(
-        "delete from core.option_summary where ticker = ? and as_of = ?",
+        "delete from live.option_summary where ticker = ? and as_of = ?",
         [symbol, as_of],
     )
     con.execute(
-        "insert into core.option_summary values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "insert into live.option_summary values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
             symbol,
             as_of,

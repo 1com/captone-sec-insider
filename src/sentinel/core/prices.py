@@ -19,12 +19,14 @@ Tables:
 
 Rules (docs/spec.md §5, lessons from v1):
 - **Listed today** (in the newest SEC ticker list): Yahoo, under the company's main ticker (its
-  first in the SEC's order with Yahoo data). If Yahoo has nothing, or its history starts more than
-  `LATE_DAYS` after the company needs it, Tiingo's series of the same ticker is used. The SEC's
-  list is the authority on who holds a ticker today, so either source's series of a company's own
-  listed ticker is accepted on dates alone (it must still be trading), without comparing names:
-  companies renamed since they stopped filing keep their prices (specs/001-daily-data-refresh,
-  research R12).
+  first in the SEC's order with Yahoo data). A company that has left the list since is treated
+  the same under the tickers of the last stored list it was in, priced up to that list's day
+  (V2-45: otherwise every company leaving the list lost its whole history). If Yahoo has
+  nothing, or its history starts more than `LATE_DAYS` after the company needs it, Tiingo's series
+  of the same ticker is used. The SEC's list is the authority on who holds a ticker, so either
+  source's series of a company's own listed ticker is accepted on dates alone (it must still be
+  trading at the list's day), without comparing names: companies renamed since they stopped filing
+  keep their prices (specs/001-daily-data-refresh, research R12).
 - **Disappeared:** Tiingo, under a ticker its own Form 4s printed (or the bankruptcy `Q` form),
   matched to Tiingo's listing by the longest date overlap with the company's use of it; for a
   company without Form 4 tickers, a hit of Tiingo's name search. The series is kept only if
@@ -117,13 +119,24 @@ def search_queries(names: list[str]) -> list[str]:
 def _companies(con) -> dict[str, dict]:
     rows = con.execute(
         """
+        with past as (  -- each company's last stored SEC list (V2-45)
+            select s.cik, s.snapshot_date as day,
+                   list(s.ticker order by s.rank, s.ticker) as tickers
+            from stg_sec_tickers.snapshot s
+            join (select cik, max(snapshot_date) as day from stg_sec_tickers.snapshot
+                  group by cik) m on m.cik = s.cik and m.day = s.snapshot_date
+            group by s.cik, s.snapshot_date
+        )
         select c.cik, c.name, [n.name for n in coalesce(c.former_names, [])] as former,
                c.filer_type, c.tickers, c.exchanges,
                least(c.first_form4, c.first_periodic, (select min(valid_from)
                      from ref.ticker_history t where t.cik = c.cik)) as first_seen,
-               greatest(c.last_form4, c.last_filing, (select max(coalesce(valid_to, today()))
-                        from ref.ticker_history t where t.cik = c.cik)) as last_seen
-        from ref.company c where not c.is_fund and not c.is_blank_check
+               greatest(c.last_form4, c.last_filing, (select max(coalesce(valid_to,
+                        (select max(snapshot_date) from stg_sec_tickers.snapshot)))
+                        from ref.ticker_history t where t.cik = c.cik)) as last_seen,
+               past.tickers as past_tickers, past.day as past_day
+        from ref.company c left join past on past.cik = c.cik
+        where not c.is_fund and not c.is_blank_check
         """
     ).fetchall()
     form4_names: dict[str, list[str]] = {}
@@ -133,12 +146,13 @@ def _companies(con) -> dict[str, dict]:
     ).fetchall():
         form4_names.setdefault(cik, []).append(name)
     out = {}
-    for cik, name, former, filer_type, tickers, exchanges, first, last in rows:
+    for cik, name, former, filer_type, tickers, exchanges, first, last, past, day in rows:
         out[cik] = {"names": [n for n in [name, *(former or [])] if n],
                     "all_names": [n for n in [name, *(former or []), *form4_names.get(cik, [])]
                                   if n],
                     "filer_type": filer_type, "tickers": tickers or [], "exchanges": exchanges
-                    or [], "first": first, "last": last}  # fmt: skip
+                    or [], "first": first, "last": last, "past_tickers": past or [],
+                    "past_day": day}  # fmt: skip
     return out
 
 
@@ -160,13 +174,14 @@ def build_candidates(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> di
     listing: dict[str, list[tuple]] = {}
     for t, ex, a, b in con.execute(
         "select ticker, exchange, start_date, end_date from stg_tiingo.listing "
-        "where asset_type = 'Stock' and currency = 'USD'"
+        "where asset_type = 'Stock' and currency = 'USD' order by all"  # ties keep the first
     ).fetchall():
         if ex in exchanges and (n := normalise(t)):
             listing.setdefault(n, []).append((a, b, ex))
     form4 = {}
     for cik, t, a, b in con.execute(
-        "select cik, ticker, valid_from, valid_to from ref.ticker_history where evidence = 'form4'"
+        "select cik, ticker, valid_from, valid_to from ref.ticker_history "
+        "where evidence = 'form4' order by all"
     ).fetchall():
         form4.setdefault(cik, []).append((t, a, b))
     hits: dict[str, list[str]] = {}
@@ -185,21 +200,26 @@ def build_candidates(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> di
         last = c["last"] or FAR_FUTURE
         span = (first, last)
 
-        def add(source, ticker, role, ev_from, ev_to, overlap=None, cik=cik, c=c, span=span):
+        own, day = c["tickers"], list_day  # listed today, or (V2-45) in its last stored list
+        if not own and c["past_tickers"]:
+            own, day = c["past_tickers"], c["past_day"]
+
+        def add(source, ticker, role, ev_from, ev_to, overlap=None, cik=cik, c=c, span=span,
+                day=day):  # fmt: skip
             stats = (ystats if source == "yahoo" else tstats).get(ticker, (None, None, 0))
             if source == "yahoo":
                 ident = "not_checked"
             elif role == "tiingo_listed":
-                ident = listed_identity(stats, list_day)
+                ident = listed_identity(stats, day)
             else:
                 ident = identity(meta.get(ticker), c["all_names"], span)
             if ident == "ok" and not stats[2]:
                 ident = "no_data"
-            start = listing_start(listing.get(ticker, []), list_day) if ev_to is None else None
+            start = listing_start(listing.get(ticker, []), day) if ev_to is None else None
             rows.append((cik, source, ticker, role, ev_from, ev_to, *stats, ident, overlap, start))
 
-        if c["tickers"]:  # listed today
-            for rank, t in enumerate(c["tickers"]):
+        if own:
+            for rank, t in enumerate(own):
                 t = normalise(t)
                 if t and t in ystats:
                     add("yahoo", t, "yahoo" if rank == 0 else "yahoo_other", first, None)
@@ -277,7 +297,8 @@ def _other_use_ends(con) -> dict[tuple[str, str], date]:
 
 
 def build_choice(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
-    db.require(con, ["core.price_candidate", "ref.ticker_history"], "core.price_choice")
+    db.require(con, ["core.price_candidate", "ref.ticker_history", "stg_sec_tickers.snapshot"],
+               "core.price_choice")  # fmt: skip
     start = sources(p)["prices"]["history_start"]
     companies = _companies(con)
     by_cik: dict[str, list[tuple]] = {}
@@ -291,12 +312,15 @@ def build_choice(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
     others = _other_use_ends(con)
     rows = []
     for cik, c in companies.items():
-        source, ticker, reason = choose(by_cik.get(cik, []), c["first"], bool(c["tickers"]), start)
-        if c["tickers"]:  # listed today: back to the ticker's current listing (research R12)
+        in_list = bool(c["tickers"] or c["past_tickers"])
+        source, ticker, reason = choose(by_cik.get(cik, []), c["first"], in_list, start)
+        if in_list:  # in an SEC list: back to the ticker's current listing (research R12)
             bounds = [start, listing.get((cik, source, ticker)) or start]
             if (cik, ticker) in others:
                 bounds.append(others[(cik, ticker)] + timedelta(days=1))
-            trim_from, trim_to = max(bounds), None
+            # a company that left the list: up to its last list's day, after which the
+            # ticker may belong to another company (V2-45)
+            trim_from, trim_to = max(bounds), None if c["tickers"] else c["past_day"]
         else:
             first = c["first"] or start
             trim_from = max(start, first - timedelta(days=WARMUP_DAYS))

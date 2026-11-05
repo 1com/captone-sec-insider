@@ -88,6 +88,57 @@ def test_purge_drops_training_rows_whose_window_ends_in_the_test_year():
     assert (t.loc[2019, "train_rows"], t.loc[2019, "purged"], t.loc[2019, "test_rows"]) == (1, 1, 1)
 
 
+def _monthly(first="2016-01-31", last="2019-12-31", days=182) -> pd.DataFrame:
+    """One row per month-end; its answer is known `days` later (the dilution window)."""
+    as_of = pd.date_range(first, last, freq="ME")
+    return pd.DataFrame({"as_of": as_of, "window_end": as_of + pd.Timedelta(days=days)})
+
+
+def test_folds_cut_every_block_by_date():
+    f = _monthly()
+    fold = eda.folds(f, "dilution", [2019])[2019]
+    months = {k: (f.as_of[m].min().strftime("%Y-%m"), f.as_of[m].max().strftime("%Y-%m"))
+              for k, m in fold.items()}  # fmt: skip
+    assert months == {"inner": ("2016-01", "2017-06"),  # answers known by Dec 2017
+                      "gap": ("2017-07", "2017-12"),  # answers known during validation
+                      "valid": ("2018-01", "2018-06"),  # answers known before 2019
+                      "purged": ("2018-07", "2018-12"),  # answers known in 2019
+                      "test": ("2019-01", "2019-12")}  # fmt: skip
+    table = eda.check_folds(f, {2019: fold}, "dilution")
+    assert table.loc[2019, "inner answers known by"] < pd.Timestamp("2018-01-01")
+    counts = eda.purge_table(f, "window_end", [2019]).loc[2019]  # the EDA's counts agree
+    assert int((fold["inner"] | fold["gap"] | fold["valid"]).sum()) == counts["train_rows"]
+    assert (int(fold["purged"].sum()), int(fold["test"].sum())) == (counts["purged"], 12)
+
+
+def test_check_folds_refuses_any_block_out_of_time_order():
+    f = _monthly()
+    for block, row in (("valid", "2018-08-31"), ("inner", "2017-09-30"), ("test", "2018-10-31")):
+        fold = eda.folds(f, "dilution", [2019])[2019]
+        leak = f.as_of == pd.Timestamp(row)  # an answer that lands in a later block
+        fold = {k: (m | leak) if k == block else (m & ~leak) for k, m in fold.items()}
+        with pytest.raises(AssertionError, match="2019"):
+            eda.check_folds(f, {2019: fold}, "dilution")
+
+
+def test_holdout_answers_and_missing_answers_are_in_no_block():
+    f = _monthly(last="2023-06-30")
+    f.loc[f.as_of >= "2022-07-01", "window_end"] = pd.NaT  # sealed: no answer in the export
+    fold = eda.folds(f, "dilution", [2023])[2023]  # the frozen model's fold
+    assert not fold["test"].any()
+    eda.check_folds(f, {2023: fold}, "dilution")
+    f.loc[f.as_of == "2022-08-31", "window_end"] = pd.Timestamp("2023-02-28")  # unsealed by error
+    with pytest.raises(AssertionError, match="holdout"):
+        eda.check_folds(f, eda.folds(f, "dilution", [2023]), "dilution")
+
+
+def test_known_before_guards_every_fit():
+    f = _monthly()
+    eda.known_before(f[f.as_of <= "2017-06-30"], "dilution", "2018-01-01")
+    with pytest.raises(AssertionError, match="not known before"):
+        eda.known_before(f[f.as_of <= "2017-07-31"], "dilution", "2018-01-01")
+
+
 def test_auc_and_lift():
     y = pd.Series([0, 0, 0, 1] * 25)
     score = pd.Series(np.arange(100.0))

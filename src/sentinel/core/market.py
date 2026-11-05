@@ -71,12 +71,14 @@ def ticker_spans(form4, listed, series) -> list[tuple]:
         start = ends.get(cik) or (own[1] if own and own[0] == ticker else snapshot)
         spans[(cik, ticker)] = [start, None, "listed"]
     known = {cik for cik, _ in spans}
-    for cik, (ticker, first, last, source) in price.items():
+    for cik, (ticker, first, last, _source) in price.items():
         if cik not in known:
-            spans[(cik, ticker)] = [first, None if source == "yahoo" else last, "price_series"]
+            # over the series: such a company is not listed today, even when Yahoo prices it
+            # (it left the SEC list, V2-45), so the symbol may pass to another company
+            spans[(cik, ticker)] = [first, last, "price_series"]
     users: dict[str, list[tuple[str, date, date | None]]] = {}
     earliest: dict[str, tuple[str, str]] = {}
-    for (cik, ticker), (start, end, _) in spans.items():
+    for (cik, ticker), (start, end, _) in sorted(spans.items()):  # ties: the first ticker
         users.setdefault(ticker, []).append((cik, start, end))
         if cik not in earliest or start < spans[earliest[cik]][0]:
             earliest[cik] = (cik, ticker)
@@ -126,8 +128,9 @@ def build_short_volume(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> 
                                       '[^A-Z0-9-]', '', 'g') as ticker
                 from stg_market.short_volume
             )
-            select s.cik, v.session, sum(v.short_volume) as short_volume,
-                   sum(v.total_volume) as total_volume, count(*) as n_symbols
+            select s.cik, v.session, sum(v.short_volume::DECIMAL(38, 10))::DOUBLE as short_volume,
+                   sum(v.total_volume::DECIMAL(38, 10))::DOUBLE as total_volume,
+                   count(*) as n_symbols
             from v join core.ticker_span s
               on s.ticker = v.ticker
              and v.session between s.valid_from and coalesce(s.valid_to, DATE '9999-12-31')

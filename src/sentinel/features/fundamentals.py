@@ -45,8 +45,11 @@ def fact_steps(facts: pd.DataFrame) -> pd.DataFrame:
     period (`known_at`, its `period_end`, `value`, and for annual items the value one year earlier
     as known at that moment). Items: instants, annual flows, and `net_income_latest` (any period,
     the shortest when several end on the same day). `facts`: cik, concept, period_start,
-    period_end, value, filed, known_at (timestamps)."""
-    f = facts.copy()
+    period_end, value, filed, known_at (timestamps). The facts are put in a fixed order first, so
+    a tie (two values for one period in one filing) is broken alike whatever order the query
+    returned them in (`sentinel verify`, 5 Nov)."""
+    f = facts.sort_values(["cik", "concept", "filed", "period_end", "period_start", "value",
+                           "known_at"], kind="stable", ignore_index=True)  # fmt: skip
     f["days"] = (f["period_end"] - f["period_start"]).dt.days
     parts = [f[f["concept"].isin(INSTANT)].assign(kind="instant")]
     annual = f[f["concept"].isin(FLOW) & f["days"].between(*ANNUAL_DAYS)]
@@ -72,8 +75,9 @@ def fact_steps(facts: pd.DataFrame) -> pd.DataFrame:
 
 
 def _asof(rows: pd.DataFrame, steps: pd.DataFrame, at: str, concept: str) -> pd.DataFrame:
-    """For each row, the step of `concept` known at its `at` date, or nothing if stale."""
-    s = steps[steps["concept"] == concept].sort_values("known_at")
+    """For each row, the step of `concept` known at its `at` date, or nothing if stale; of two
+    steps known from the same day, the later period."""
+    s = steps[steps["concept"] == concept].sort_values(["known_at", "period_end"], kind="stable")
     left = rows[["cik", at]].reset_index().sort_values(at)
     m = pd.merge_asof(left, s, left_on=at, right_on="known_at", by="cik")
     if len(s):
@@ -140,8 +144,9 @@ def fundamentals(rows: pd.DataFrame, steps: pd.DataFrame, reports: pd.DataFrame,
     out["share_growth_12m"] = (shares / then.where(then > 0) - 1).clip(-1, 20)
     out["issue_proceeds_to_assets"] = v["stock_issue_proceeds"] / assets
     left = rows[["cik", "as_of"]].reset_index().sort_values("as_of")
-    last = pd.merge_asof(left, reports.sort_values("known_at"), left_on="as_of",
-                         right_on="known_at", by="cik").set_index("index")  # fmt: skip
+    reports = reports.sort_values(["known_at", "filing_date"], kind="stable")  # the later filing
+    last = pd.merge_asof(left, reports, left_on="as_of", right_on="known_at",
+                         by="cik").set_index("index")  # fmt: skip
     out["months_since_report"] = ((last["as_of"] - last["filing_date"]).dt.days / 30.44).reindex(
         rows.index
     )

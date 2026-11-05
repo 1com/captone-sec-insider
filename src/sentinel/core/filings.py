@@ -284,8 +284,9 @@ def build_results_release(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) 
                   from r window w as (partition by cik order by filing_date)),
             n as (select *, sum(starts) over (partition by cik order by filing_date
                                               rows unbounded preceding) as announcement from g),
-            a as (select cik, min(filing_date) as filing_date,
-                         arg_min(report_date, filing_date) as report_date
+            a as (select cik, min(filing_date) as filing_date,  -- two 8-Ks on the first day:
+                         first(report_date order by filing_date,  -- the earlier report date
+                               report_date nulls last) as report_date  -- (arg_min chose either)
                   from n group by cik, announcement),
             rep as (select cik, filing_date as report_filed from core.filing
                     where form in ('10-Q', '10-K', '10-KT')),

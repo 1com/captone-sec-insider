@@ -14,7 +14,9 @@ import pytest
 from sentinel import build, db, raw
 from sentinel.raw import FetchReport
 from sentinel.raw.manifest import Manifest, store_bytes
+from sentinel.serving import publish
 from sentinel.staging import prices
+from sentinel.update import record
 from sentinel.update import run as updater
 from sentinel.update import verify as verifier
 
@@ -80,7 +82,7 @@ def world(tmp_data, monkeypatch):
     monkeypatch.setitem(build.LAYERS, "staging", {"yahoo": prices.stage_yahoo})
     monkeypatch.setitem(build.LAYERS, "test", {"twice": _twice})
     options = {"layers": ("test",), "publish": _publish, "export": lambda p, echo=print: {},
-               "echo": QUIET}  # fmt: skip
+               "echo": QUIET, "apart": False}  # fmt: skip
     return tmp_data, calls, options
 
 
@@ -98,6 +100,12 @@ def test_an_update_equals_a_full_rebuild_and_a_rerun_changes_nothing(world):
     assert again["status"] == "nothing_new"
     assert again["app"]["price_daily"][2:] == (0, 0, 0)  # none added, changed or removed
     assert verifier.verify(p, layers=("staging", "test"), echo=QUIET) == []
+
+
+def test_scoring_waits_for_approved_models(world):
+    p, _, options = world
+    result = updater.update(p, today=DAYS[0], **options)
+    assert "scoring: paused (update.score in config/sources.yaml)" in result["log_file"].read_text()
 
 
 def test_missed_days_are_caught_up_in_order(world):
@@ -149,3 +157,29 @@ def test_an_update_without_fetching_records_its_run(world):
     result = updater.update(p, today=DAYS[1], fetch=False, **options)
     assert result["status"] == "nothing_new" and calls == [DAYS[:2]]
     assert _scalar(p, "select count(*) from ops.update_run where finished_at is not null") == 2
+
+
+def test_every_product_table_has_a_key_so_an_unchanged_copy_shows_no_change(tmp_path):
+    """Without a key, every row was counted as added (app.daily_score, 5 Nov)."""
+    assert set(publish.TABLES) | {"daily_score", "live_outcomes"} <= set(record.APP_KEYS)
+    path = tmp_path / "serving.duckdb"
+    with duckdb.connect(str(path)) as con:
+        con.execute("create schema app")
+        con.execute("create table app.daily_score as select * from (values ('1', 'volatility', "
+                    "0.3), ('1', 'dilution', 0.1)) t(cik, question, value)")  # fmt: skip
+    assert record.app_changes(path, path)["daily_score"] == (2, 2, 0, 0, 0)
+
+
+def test_the_update_asks_yahoo_for_the_full_history_of_tickers_never_asked(world, monkeypatch):
+    """FR-008: a ticker new in the SEC's list gets its full history, not only the daily window
+    (43 listed symbols had none on 5 Nov)."""
+    p, _, options = world
+    stand_in, asked = raw.fetchers()["yahoo"], []
+
+    def yahoo(p, today, **kw):
+        asked.append(kw.get("full_missing"))
+        return stand_in(p, today, **kw)
+
+    monkeypatch.setattr(raw, "fetchers", lambda: {"yahoo": yahoo})
+    updater.update(p, today=DAYS[0], **options)
+    assert asked == [True]

@@ -458,7 +458,7 @@ def options(
             finally:
                 con_srv.close()
 
-        typer.echo(f"Saved into core.option_chain and core.option_summary in {p.build_db.name}.")
+        typer.echo(f"Saved into live.option_chain and live.option_summary in {p.build_db.name}.")
 
         iv_30 = f"{summary.get('atm_iv_30d', 0) * 100:.1f}%" if summary.get("atm_iv_30d") else "N/A"
         iv_60 = f"{summary.get('atm_iv_60d', 0) * 100:.1f}%" if summary.get("atm_iv_60d") else "N/A"
