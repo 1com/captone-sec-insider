@@ -51,6 +51,20 @@ def test_export_writes_the_training_sets_and_a_readme(built):
     assert "ml/volatility.parquet" in (built.exports / "README.md").read_text()
 
 
+def test_export_replaces_only_its_own_files(built):
+    publish.publish(built, **QUIET)
+    export.export(built, **QUIET)
+    kept = [built.exports / "reference" / "volatility.parquet",
+            built.exports / "share" / "list.csv"]  # fmt: skip
+    for f in kept:
+        f.parent.mkdir(exist_ok=True)
+        f.write_text("private")
+    (built.exports / "ml" / "stale.parquet").write_text("from an older export")
+    export.export(built, **QUIET)
+    assert all(f.read_text() == "private" for f in kept)
+    assert not (built.exports / "ml" / "stale.parquet").exists()
+
+
 def test_freshness_gives_each_datasets_latest_date(built):
     publish.publish(built, **QUIET)
     with duckdb.connect(str(built.serving_db), read_only=True) as con:

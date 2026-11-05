@@ -134,12 +134,13 @@ def _short(con, p: Paths, echo=print) -> int:
                 with raw as (
                     select "Symbol" as symbol,
                            try_strptime(cast("Date" as VARCHAR), '%Y%m%d')::DATE as session,
-                           try_cast("ShortVolume" as DOUBLE) as short_volume,
-                           try_cast("TotalVolume" as DOUBLE) as total_volume
+                           try_cast("ShortVolume" as DECIMAL(38, 10)) as short_volume,
+                           try_cast("TotalVolume" as DECIMAL(38, 10)) as total_volume
                     from read_csv($files, delim = '|', header = true, all_varchar = true,
                                   ignore_errors = true, union_by_name = true)
                 )
-                select session, symbol, sum(short_volume), sum(total_volume), count(*)
+                select session, symbol, sum(short_volume)::DOUBLE, sum(total_volume)::DOUBLE,
+                       count(*)  -- exact sums (fractional volumes since 2026, up to 6 places)
                 from raw where session is not null and symbol is not null
                   and total_volume is not null
                 group by 1, 2

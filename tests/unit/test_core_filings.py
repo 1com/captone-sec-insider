@@ -136,6 +136,17 @@ def test_results_releases_follow_the_registered_announcement_rule(con, tmp_data)
     assert got == [(date(2022, 4, 20), date(2022, 4, 25)), (date(2022, 7, 26), date(2022, 7, 26))]
 
 
+def test_two_8ks_on_an_announcements_first_day_give_the_earlier_report_date(con, tmp_data):
+    rows = [_filing("1", "a", "8-K", date(2022, 4, 20), "2.02", report=date(2022, 4, 19)),
+            _filing("1", "b", "8-K", date(2022, 4, 20), "2.02", report=date(2022, 4, 18)),
+            _filing("1", "c", "10-Q", date(2022, 4, 25))]  # fmt: skip
+    for order in (rows, rows[::-1]):  # the same answer whatever order the rows arrive in
+        _frame(con, "core.filing", order)
+        filings.build_results_release(con, tmp_data, **QUIET)
+        got = con.execute("select filing_date, report_date from core.results_release").fetchall()
+        assert got == [(date(2022, 4, 20), date(2022, 4, 18))]
+
+
 def _counts(*rows):
     """Share counts in the order they became known: (cik, shares, source, basic, cum[, close])."""
     rows = [r if len(r) == 6 else (*r, None) for r in rows]

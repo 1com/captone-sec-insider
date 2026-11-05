@@ -88,3 +88,18 @@ def test_the_window_reaches_back_to_cover_days_missed(listed):
     fetch = StandIn()
     yahoo.fetch_window(listed, date(2026, 11, 20), fetch=fetch, **QUIET)  # three weeks later
     assert fetch.calls[0][1] == "2026-10-27"  # three days before the last window, not 10 Nov
+
+
+def test_an_incomplete_window_batch_is_completed_into_a_retry_file(listed):
+    partial = StandIn()
+    first = partial(["AAPL"], "2026-10-20")  # a throttled batch missing SPY, IWM and BRK-B
+    rows = first["AAPL"].reset_index().assign(ticker="AAPL")[["ticker", "Date", *yahoo.FIELDS]]
+    store_bytes(listed, Manifest(listed.manifest), "yahoo",
+                "yahoo/daily/2026-10-30/batch-000.parquet", "daily/2026-10-30/000",
+                yahoo._parquet(rows), "stand-in")  # fmt: skip
+    fetch = StandIn()
+    report = yahoo.fetch_window(listed, TODAY, fetch=fetch, **QUIET)
+    assert report.files_stored == 1
+    retry = pd.read_parquet(listed.raw / "yahoo/daily/2026-10-30/batch-000-r1.parquet")
+    assert sorted(retry["ticker"].unique()) == ["BRK-B", "IWM", "SPY"]
+    assert yahoo.fetch_window(listed, TODAY, fetch=fetch, **QUIET).files_stored == 0

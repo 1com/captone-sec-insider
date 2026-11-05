@@ -233,6 +233,10 @@ def build_labels(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
                     con.register("_chunk", frame)
                     con.execute(f"insert into {table} select * from _chunk")
                     con.unregister("_chunk")
+            del daily, rows, shares, releases, labels, moves
+            from sentinel.build import release_memory
+
+            release_memory(con)
             done = min(i + CHUNK, len(ciks))
             if done % 4000 < CHUNK or done == len(ciks):
                 echo(f"  labels: {done:,}/{len(ciks):,} companies")

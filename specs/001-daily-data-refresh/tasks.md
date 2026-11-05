@@ -130,7 +130,8 @@ tested on its own.
 - [X] T045 [US3] Create src/sentinel/update/verify.py and `sentinel verify [--keep]` in src/sentinel/cli.py: rebuild staging through labels into `data/verify.duckdb` from the stored files, compare every table's checksum with `data/sentinel.duckdb`, print the tables that differ, exit 0 when identical and 1 otherwise; delete the scratch database unless `--keep`
 - [X] T065 [P] [US3] tests/unit/test_staging_sec_daily.py: after a full staging, a day's new files (an index, a new registrant's submissions document, a newer document of an earlier registrant, newer `companyfacts` documents including one of a base company) applied by `stage_new` give the same `stg_sec_filings` and `stg_sec_xbrl` checksums as a full staging from the same files; a new bulk copy or missing tables make `stage_new` return None (research R10 amendment)
 - [X] T066 [US3] `stage_new(con, p, staged, echo)` in src/sentinel/staging/sec_filings.py and src/sentinel/staging/sec_xbrl.py; `record.staged(con, step)`; `build.run(..., incremental=True)` (from `update`) uses a step's `stage_new` and falls back to its `stage` when it returns None
-- [ ] T046 [US3] Real run: `sentinel update`; a second `sentinel update` (expect `nothing_new`); `sentinel verify` (expect identical); compare the update's duration in data/logs/update-<date>.log with SC-004's 30 minutes and report the three results
+- [X] T046 [US3] Real run: `sentinel update`; a second `sentinel update` (expect `nothing_new`); `sentinel verify` (expect identical); compare the update's duration in data/logs/update-<date>.log with SC-004's 30 minutes and report the three results
+  Done 5 Nov. The 10:00 scheduled run (the first with the fixes of 4 Nov): `complete` in 47 minutes, 19 of them waiting for Yahoo (SC-004 is now 60 minutes, V2-47), memory 3.25 GB (anon) of the 5 GB cap. The rerun: `nothing_new` in 28 seconds, but the change report counted all of `app.daily_score` as added (no key: keys added, with a test). `sentinel verify`: `feature.fundamental` and `feature.insider` differed (ties broken by row order, floating-point sums: fixed, V2-44 of 5 Nov, with tests). The full checks found that the daily update never asked Yahoo for a new ticker's full history (FR-008; 43 tickers): fixed, with a test. After an update with the fixes (`complete`, 24 minutes, 3.48 GB): `sentinel verify` all tables identical (44 minutes, 4.02 GB); the rerun `nothing_new`, every `app` table 0 added, 0 changed, 0 removed.
 
 **Checkpoint**: SC-004, SC-005 and SC-006 checked on real data.
 
@@ -175,7 +176,8 @@ tested on its own.
 
 - [X] T057 [US5] Create src/sentinel/update/schedule.py (the task XML in UTF-16 per research R13; `install`, `remove`, `show` through `schtasks.exe`; `uv` located with `shutil.which`; `ConfigError` when `schtasks.exe` is unreachable) and `sentinel schedule install|remove|show [--time HH:MM]` in src/sentinel/cli.py
 - [X] T058 [US5] Add `sentinel status [--runs N]` to src/sentinel/cli.py reading `ops.update_run`, `ops.update_source`, `ops.coverage` and `app.freshness`, plus the task's next run from `schedule show` when installed
-- [ ] T059 [US5] With the researcher's approval, install the task on this machine (`sentinel schedule install`), confirm `sentinel schedule show` lists the next weekday 23:00 run, and after the next scheduled evening confirm the run with `sentinel status`, as in specs/001-daily-data-refresh/quickstart.md §6; report the results
+- [X] T059 [US5] With the researcher's approval, install the task on this machine (`sentinel schedule install`), confirm `sentinel schedule show` lists the next weekday 23:00 run, and after the next scheduled evening confirm the run with `sentinel status`, as in specs/001-daily-data-refresh/quickstart.md §6; report the results
+  Done 5 Nov: the researcher keeps the schedule at weekdays 10:00 (V2-20, not the evening of the first plan); `sentinel schedule show`: next run 6 Nov at 10:00; the scheduled run of 5 Nov `complete` in `sentinel status`.
 
 **Checkpoint**: SC-008 under way (two weeks of runs).
 
@@ -185,9 +187,12 @@ tested on its own.
 
 - [X] T060 [P] Update docs/architecture.md: the daily raw layout (link to specs/001-daily-data-refresh/contracts/raw-layout.md), the staging newest-file rule, `stg_sec_form4_daily`, the `ops` schema, `app.freshness`, and `sentinel fetch`, `update`, `status`, `verify`, `schedule` under Commands
 - [X] T061 [P] Log decisions in docs/decisions.md: V2-16 daily SEC data through the master index, Form 4s from their full submissions; V2-17 Yahoo and Tiingo windows with full refetches after splits and dividends; V2-18 a listed company's own ticker accepted on dates, history from the ticker's listing start; V2-19 the update rebuilds the layers above staging in full, checked by `sentinel verify`; V2-20 Windows Task Scheduler for the schedule
-- [ ] T062 [P] Update docs/plan.md (status of steps 1 and 6) and README.md (the daily commands)
-- [ ] T063 Run quickstart.md end to end and `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run pytest -q`; report durations and results
-- [ ] T064 Mark this file's tasks done in specs/001-daily-data-refresh/tasks.md, merge `001-daily-data-refresh` into `main`, delete the branch locally and on GitHub, and comment on issues #63 and #68
+- [X] T062 [P] Update docs/plan.md (status of steps 1 and 6) and README.md (the daily commands)
+  Done 5 Nov: the schedule (weekdays at 10:00, V2-20) and the 60-minute target in README.md and quickstart.md.
+- [X] T063 Run quickstart.md end to end and `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run pytest -q`; report durations and results
+  Done 5 Nov (the one-off refresh of section 1 ran on 30 Oct): section 2 verify identical; 3 the rerun `nothing_new` with every table unchanged; 4 the 269 Form 4s filed on 4 Nov are in `app.insider_activity` (the 227 filed after the close have no `known_at` until the next session is in the calendar, which follows the prices: no feature uses them before), and the reconciliation finds 1,973 filings in both sources, 0 differing; 5 47 minutes (V2-47: 60); 6 the task is installed, next run 6 Nov at 10:00, today's scheduled run complete (SC-008's two weeks end on 19 Nov); 7 and 8 ruff clean, 201 passed, 1 skipped.
+- [X] T064 Mark this file's tasks done in specs/001-daily-data-refresh/tasks.md, merge `001-daily-data-refresh` into `main`, delete the branch locally and on GitHub, and comment on issues #63 and #68
+  Done 5 Nov: merged by pull request #91 (the researcher's approval), the branch deleted, #68 closed with a comment (#63 was already closed).
 
 ---
 

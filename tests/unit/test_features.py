@@ -2,10 +2,12 @@
 
 from datetime import date
 
+import pandas as pd
 import pytest
 from conftest import WORLD_SESSIONS, build_world
 
 from sentinel import build, db
+from sentinel.features import fundamentals
 
 QUIET = {"echo": lambda s: None}
 
@@ -124,3 +126,48 @@ def test_a_price_only_stock_is_eligible_for_volatility_only(tmp_data):
     assert _row(con, "2", date(2021, 6, 30), "active_filer", "eligible", "eligible_volatility",
                 "eligible_dilution") == (False, False, True, False)  # fmt: skip
     con.close()
+
+
+def test_financial_features_do_not_depend_on_the_order_of_their_inputs():
+    """Two rebuilds broke ties differently (`sentinel verify`, 5 Nov): two values for one period in
+    one filing, two periods in one filing, two reports usable from the same day."""
+    ts = pd.Timestamp
+    facts = pd.DataFrame({
+        "cik": "1", "concept": ["cash", "cash", "assets", "assets"],
+        "period_start": pd.NaT, "period_end": [ts("2020-12-31")] * 3 + [ts("2021-01-31")],
+        "value": [100.0, 120.0, 4000.0, 5000.0], "filed": ts("2021-02-01"),
+        "known_at": ts("2021-02-02"),
+    })  # fmt: skip
+    reports = pd.DataFrame({"cik": "1", "filing_date": [ts("2021-02-01"), ts("2021-02-02")],
+                            "known_at": ts("2021-02-02")})  # fmt: skip
+    rows = pd.DataFrame({"cik": ["1"], "as_of": [ts("2021-03-31")], "close": [10.0],
+                         "cum_split_after": [1.0]})  # fmt: skip
+    splits = pd.DataFrame({"cik": ["1"], "session": [ts("2021-03-31")], "cum_split_after": [1.0]})
+    steps = fundamentals.fact_steps(facts)
+    out = fundamentals.fundamentals(rows, steps, reports, splits)
+    for order in ([3, 2, 1, 0], [1, 3, 0, 2]):
+        again = fundamentals.fact_steps(facts.loc[order])
+        assert again.equals(steps)
+        assert fundamentals.fundamentals(rows, again, reports.loc[[1, 0]], splits).equals(out)
+    assert out.loc[0, "cash_to_assets"] == 100.0 / 5000.0  # the later period's assets
+    assert out.loc[0, "months_since_report"] == pytest.approx(57 / 30.44)  # the later filing
+
+
+def test_insider_values_are_added_exactly_whatever_their_order(tmp_data):
+    """As floating-point numbers 0.1 + 0.2 + 0.3 is 0.6000000000000001 in one order and 0.6 in
+    another; two rebuilds' insider totals differed so (`sentinel verify`, 5 Nov)."""
+    con = db.connect(tmp_data)
+    build_world(con)
+    con.execute("""
+        insert into core.insider_trade by name
+        with b as (select * exclude (accession, filing_date, known_at, value_usd)
+                   from core.insider_trade where accession = 'b1')
+        select b.*, 'p' || i as accession, date '2019-06-03' as filing_date,
+               date '2019-06-04' as known_at, v as value_usd
+        from b, (values (1, 0.1), (2, 0.2), (3, 0.3)) t(i, v)
+    """)
+    build.run(con, tmp_data, "features", **QUIET)
+    got = con.execute("select buy_filings_12m, buy_value_3m, buy_value_12m from feature.insider "
+                      "where cik = '1' and as_of = ?", [date(2019, 6, 28)]).fetchone()  # fmt: skip
+    con.close()
+    assert got == (3, 0.6, 0.6)

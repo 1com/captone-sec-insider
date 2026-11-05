@@ -131,7 +131,7 @@ every feature's track, dates and status.
 **This machine** (WSL2 on Windows).
 
 - Heavy jobs run under a memory cap: `systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 uv run sentinel …`.
-  DuckDB is capped at 3 GB.
+  DuckDB is capped at 2 GB (`db.MEMORY_LIMIT`).
 - `data/sentinel.duckdb` has one writer at a time. Browse `data/serving.duckdb`, read-only.
 - Port 8000 belongs to another application; do not stop it.
 
@@ -151,7 +151,7 @@ Data lives in `data/` (git-ignored).
 uv run sentinel update            # fetch what is new, rebuild, publish, export, record the run
 uv run sentinel status            # recent runs, data as of, price coverage, next scheduled run
 uv run sentinel verify            # rebuild from the raw files and compare: must be identical
-uv run sentinel schedule install  # run the update on weekday evenings (Windows Task Scheduler)
+uv run sentinel schedule install  # run the update on weekdays at 10:00 (Windows Task Scheduler)
 ```
 
 Other commands: `sentinel fetch <source>`, `sentinel build <layer>`, `sentinel publish`,

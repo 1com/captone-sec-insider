@@ -54,7 +54,7 @@ uv run sentinel status --runs 1
 Expected: status `nothing_new`; every `app` table 0 added, 0 changed, 0 removed; every build table
 with the same checksum.
 
-## 4. Insider trades the evening after filing (SC-007)
+## 4. Insider trades the morning after filing (SC-007)
 
 After an update, pick a Form 4 from the latest indexed filing day in `app.insider_activity`
 (`filing_date` = that day). Expected: it is there, with the person, role, value and `known_at`
@@ -66,7 +66,8 @@ those the report explains.
 
 ## 5. Speed (SC-004)
 
-`sentinel status` after a weekday update: duration 30 minutes or less.
+`sentinel status` after a weekday update: duration 60 minutes or less (V2-47; 47 on 5 Nov, 19 of
+them waiting for Yahoo's downloads).
 
 ## 6. The schedule (SC-008)
 
@@ -75,9 +76,10 @@ uv run sentinel schedule install
 uv run sentinel schedule show
 ```
 
-Expected: the task `EDGAR-SENTINEL\daily update`, next run on the next weekday at 23:00. After two
-weekday evenings with the computer on, `sentinel status --runs 2` shows two scheduled runs. Turn the
-computer off over one evening; the next start runs the update, and its run covers the missed day.
+Expected: the task `EDGAR-SENTINEL\daily update`, next run on the next weekday at 10:00 (V2-20). After
+two weekdays with the computer on, `sentinel status --runs 2` shows two scheduled runs. Turn the
+computer off over one weekday morning; the next start runs the update, and its run covers the missed
+day.
 
 ## 7. Limits (SC-009)
 

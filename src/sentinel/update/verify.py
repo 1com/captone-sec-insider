@@ -25,7 +25,7 @@ def verify(p: Paths, keep: bool = False, echo=print, layers=LAYERS) -> list[str]
     finally:
         con.close()
     differ = []
-    with duckdb.connect() as con:
+    with duckdb.connect(config={"memory_limit": db.MEMORY_LIMIT}) as con:  # default: 80% of RAM
         con.execute(f"attach '{p.build_db.as_posix()}' as a (read_only)")
         con.execute(f"attach '{p.verify_db.as_posix()}' as b (read_only)")
         mine = set(record.tables(con, record.BUILD_SCHEMAS, "a"))

@@ -11,6 +11,7 @@ from sentinel.core import prices
 QUIET = {"echo": lambda s: None}
 SESSIONS = [d.date() for d in pd.bdate_range("2014-01-02", "2016-12-30")]
 LIST_DAY = date(2016, 12, 30)  # the SEC's ticker list
+LEFT_DAY = date(2016, 6, 30)  # an older list, the last with company 11 in it
 
 
 def _frame(con, table: str, rows: list[dict]) -> None:
@@ -54,6 +55,7 @@ def con(tmp_data):
         ("8", "Reuse Inc", "us", ["REU"], date(2016, 1, 4), date(2016, 6, 1), None, None),
         ("9", "First Reuse Corp", "us", None, date(2014, 2, 3), date(2014, 9, 2), None, None),
         ("10", "Empty Co", "non_reporting", ["EMTY"], None, None, None, None),  # no data anywhere
+        ("11", "Left Corp", "us", None, None, None, date(2014, 2, 3), date(2016, 5, 2)),
     ]  # fmt: skip
     _frame(con, "ref.company", [
         {"cik": c, "name": n, "former_names": [], "filer_type": ft, "tickers": t,
@@ -71,16 +73,20 @@ def con(tmp_data):
          "valid_to": date(2014, 9, 2), "evidence": "form4"},  # REU's earlier owner
         *({"cik": c, "ticker": t, "exchange": None, "valid_from": LIST_DAY, "valid_to": None,
            "evidence": "sec_list"} for c, t in (("7", "NEWN"), ("8", "REU"), ("10", "EMTY"))),
+        {"cik": "11", "ticker": "LFT", "exchange": None, "valid_from": LEFT_DAY,
+         "valid_to": LEFT_DAY, "evidence": "sec_list"},  # in an older list only
     ])  # fmt: skip
-    _frame(con, "stg_sec_tickers.snapshot", [{"snapshot_date": LIST_DAY, "cik": "7",
-                                              "ticker": "NEWN"}])  # fmt: skip
+    _frame(con, "stg_sec_tickers.snapshot", [
+        {"snapshot_date": LIST_DAY, "cik": "7", "ticker": "NEWN", "rank": 0},
+        {"snapshot_date": LEFT_DAY, "cik": "11", "ticker": "LFT", "rank": 0}])  # fmt: skip
     _frame(con, "stg_sec_form4.submission", [
         {"issuercik": "4", "issuername": "GONE WIDGETS INC"},
         {"issuercik": "6", "issuername": "WRONGNAME INC"}])  # fmt: skip
     _frame(con, "stg_yahoo.price",
            _series("LST", SESSIONS[0], SESSIONS[-1], 50.0, split_on=date(2016, 1, 4))
            + _series("LATE", date(2016, 6, 1), SESSIONS[-1])
-           + _series("REU", SESSIONS[0], SESSIONS[-1]))  # fmt: skip
+           + _series("REU", SESSIONS[0], SESSIONS[-1])
+           + _series("LFT", SESSIONS[0], SESSIONS[-1]))  # LFT trades on: reused?  # fmt: skip
     _frame(con, "stg_tiingo.price",
            _series("LST", SESSIONS[0], SESSIONS[-1], 50.0, src="t")
            + _series("LATE", SESSIONS[0], SESSIONS[-1], src="t")
@@ -157,6 +163,7 @@ def test_securities_get_their_coverage_and_the_sources_are_cross_checked(con, tm
         "5": "foreign",
         "7": "price_only",
         "8": "full",
+        "11": "full",
     }
     check = con.execute("select cik, verdict from core.price_check order by cik").fetchall()
     assert ("1", "agree") in check  # Yahoo and Tiingo give the same returns for LST
@@ -190,6 +197,16 @@ def test_listed_tickers_are_trusted_on_dates_and_reach_back_to_their_listing(con
     assert coverage["7"] == ("tiingo", "priced", True)
     assert coverage["1"] == ("yahoo", "priced", False)
     assert coverage["10"] == ("none", "no data in any source", False)
+
+
+def test_a_company_that_left_the_sec_list_keeps_its_prices_up_to_its_last_list(con, tmp_data):
+    for step in (prices.build_candidates, prices.build_choice, prices.build_daily):
+        step(con, tmp_data, **QUIET)
+    choice = con.execute("select source, ticker, reason, trim_to, listed from core.price_choice "
+                         "where cik = '11'").fetchone()  # fmt: skip
+    assert choice == ("yahoo", "LFT", "yahoo_primary_late", LEFT_DAY, False)  # V2-45; not listed
+    last = con.execute("select max(session) from core.price_daily where cik = '11'").fetchone()[0]
+    assert last == LEFT_DAY  # LFT's later prices may be another company's
 
 
 def test_placeholder_prices_and_unexplained_jumps_are_glitches(tmp_data):

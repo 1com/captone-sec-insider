@@ -41,7 +41,8 @@ through WSL interop (`schtasks.exe`, `wsl.exe`)
 
 **Project Type**: command-line data pipeline (single project)
 
-**Performance Goals**: a weekday update in 30 minutes or less (estimate 27, R10); the one-off refresh
+**Performance Goals**: a weekday update in 60 minutes or less (V2-47; estimate 27, R10, which left
+out Yahoo's downloads: 47 measured on 5 Nov, 19 of them Yahoo's); the one-off refresh
 in a few hours (Yahoo's ~1,600 missing histories about 10 minutes, the bulk SEC files about 10, the
 October Form 4 backfill about 12,000 submissions, 25 minutes at 8 requests a second)
 

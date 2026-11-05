@@ -31,7 +31,7 @@ DATES = ("as_of", "window_end", "filing_date", "report_date", "close_after")
 WINDOW_END = {"volatility": "window_end", "results_move": "close_after", "dilution": "window_end"}
 FAMILIES: list[tuple[str, str]] = [
     ("price", r"ret_\w+|vol_(21|63|252)|range_vol_21|max_drawdown_252|near_high_252|beta_252"
-              r"|idio_vol_252|log_close|close|cum_split_after"),
+              r"|idio_vol_252|log_close|close"),
     ("trading", r"log_addv20|addv20|zero_volume_63|sessions_listed"),
     ("size", r"market_cap|log_market_cap|shares_outstanding"),
     ("financials", r"book_to_market|leverage|cash_to_assets|cash_runway_years|loss_making"
@@ -211,6 +211,71 @@ def purge_table(frame: pd.DataFrame, window_end: str, test_years=None) -> pd.Dat
                    "purged": int((before & (frame[window_end] >= start)).sum()),
                    "test_rows": int((frame["as_of"].dt.year == y).sum())}  # fmt: skip
     return pd.DataFrame(rows).T
+
+
+def folds(frame: pd.DataFrame, question: str, years=None) -> dict[int, dict[str, pd.Series]]:
+    """The walk-forward folds, cut by dates only (research R3; never a random split). For test year
+    Y each row with an answer falls in one block, by its date (`as_of`) and the day its answer was
+    known (`WINDOW_END`): `inner` (answer known before the validation year Y-1: the model learns
+    from it), `gap` (dated before Y-1, answer known in Y-1: left out), `valid` (dated in Y-1,
+    answer known before Y: settings, calibration, band edges), `purged` (dated before Y, answer
+    known in Y or later: left out) and `test` (dated in Y: scored once). A model fitted for the
+    holdout is the fold of `DEV_END.year + 1`, which has no test rows here (sealed)."""
+    end, dated = frame[WINDOW_END[question]], frame["as_of"]
+    known = end.notna()
+    out = {}
+    for y in years or TEST_YEARS:
+        test_start, valid_start = pd.Timestamp(y, 1, 1), pd.Timestamp(y - 1, 1, 1)
+        out[y] = {
+            "inner": end < valid_start,
+            "gap": (dated < valid_start) & (end >= valid_start) & (end < test_start),
+            "valid": (dated >= valid_start) & (end < test_start),
+            "purged": (dated < test_start) & (end >= test_start),
+            "test": known & (dated.dt.year == y),
+        }
+    return out
+
+
+def check_folds(frame: pd.DataFrame, fold_masks: dict, question: str) -> pd.DataFrame:
+    """Each fold's blocks in time order, or an AssertionError naming the fold and the broken rule;
+    the boundaries per fold (to show in the notebook)."""
+    end, dated = frame[WINDOW_END[question]], frame["as_of"]
+    sealed = pd.Timestamp(DEV_END)
+    assert not (end > sealed).any(), "an answer in the holdout is in the data: the seal is broken"
+    out = {}
+    for y, f in fold_masks.items():
+        test_start, valid_start = pd.Timestamp(y, 1, 1), pd.Timestamp(y - 1, 1, 1)
+        names = list(f)
+        for i, a in enumerate(names):
+            for b in names[i + 1 :]:
+                assert not (f[a] & f[b]).any(), f"{y}: a row is in both {a} and {b}"
+        inner, valid, test = f["inner"], f["valid"], f["test"]
+        for name, m in (("inner", inner), ("valid", valid), ("test", test)):
+            assert end[m].notna().all(), f"{y}: a {name} row has no answer"
+            assert (end[m] <= sealed).all(), f"{y}: a {name} row's answer is in the holdout"
+        assert (end[inner] < valid_start).all(), f"{y}: an inner answer is known in validation"
+        assert (dated[valid] >= valid_start).all(), f"{y}: a validation row is too early"
+        assert (end[valid] < test_start).all(), f"{y}: a validation answer is known in the test"
+        assert dated[test].dt.year.eq(y).all(), f"{y}: a test row is outside the test year"
+        if inner.any() and valid.any():
+            assert dated[inner].max() < dated[valid].min(), f"{y}: validation is not after inner"
+        if (inner | valid).any() and test.any():
+            assert end[inner | valid].max() < dated[test].min(), f"{y}: training sees the test"
+        out[y] = {"inner rows": int(inner.sum()), "inner dated to": dated[inner].max(),
+                  "inner answers known by": end[inner].max(), "valid rows": int(valid.sum()),
+                  "valid dated from": dated[valid].min(),
+                  "valid answers known by": end[valid].max(),
+                  "left out (gap, purged)": int((f["gap"] | f["purged"]).sum()),
+                  "test rows": int(test.sum()), "test dated from": dated[test].min()}  # fmt: skip
+    return pd.DataFrame(out).T
+
+
+def known_before(frame: pd.DataFrame, question: str, day) -> None:
+    """Call before fitting anything (a model, settings, a calibration, band edges, a range):
+    every row it learns from must have its answer known before `day`, the start of the period it
+    is judged on."""
+    late = frame[WINDOW_END[question]].isna() | (frame[WINDOW_END[question]] >= pd.Timestamp(day))
+    assert not late.any(), f"{int(late.sum())} rows' answers are not known before {day}"
 
 
 def auc(y: pd.Series, score: pd.Series) -> float:

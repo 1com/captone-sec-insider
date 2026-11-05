@@ -25,7 +25,7 @@ when several insiders bought together.
   or before the filing date times the share count known by then), or when it is an open-market
   purchase or sale (code P or S, price above 0) priced `PRICE_TYPO` times or more above or below
   that close: a moved decimal point, not another share class (Berkshire's class A trades at about
-  1,500 times its class B, the price series here), or above \$1 million a share, which no US
+  1,500 times its class B, the price series here), or above $1 million a share, which no US
   stock has reached (V2-32; it also covers stocks with no price yet). Its `value_usd` is missing
   and `value_typo` is set; the line itself stays.
 - `core.insider_activity`: per filing and side (buy or sell), its open-market lines (G1, G2, G3,
