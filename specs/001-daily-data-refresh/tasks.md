@@ -191,7 +191,8 @@ tested on its own.
   Done 5 Nov: the schedule (weekdays at 10:00, V2-20) and the 60-minute target in README.md and quickstart.md.
 - [X] T063 Run quickstart.md end to end and `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run pytest -q`; report durations and results
   Done 5 Nov (the one-off refresh of section 1 ran on 30 Oct): section 2 verify identical; 3 the rerun `nothing_new` with every table unchanged; 4 the 269 Form 4s filed on 4 Nov are in `app.insider_activity` (the 227 filed after the close have no `known_at` until the next session is in the calendar, which follows the prices: no feature uses them before), and the reconciliation finds 1,973 filings in both sources, 0 differing; 5 47 minutes (V2-47: 60); 6 the task is installed, next run 6 Nov at 10:00, today's scheduled run complete (SC-008's two weeks end on 19 Nov); 7 and 8 ruff clean, 201 passed, 1 skipped.
-- [ ] T064 Mark this file's tasks done in specs/001-daily-data-refresh/tasks.md, merge `001-daily-data-refresh` into `main`, delete the branch locally and on GitHub, and comment on issues #63 and #68
+- [X] T064 Mark this file's tasks done in specs/001-daily-data-refresh/tasks.md, merge `001-daily-data-refresh` into `main`, delete the branch locally and on GitHub, and comment on issues #63 and #68
+  Done 5 Nov: merged by pull request #91 (the researcher's approval), the branch deleted, #68 closed with a comment (#63 was already closed).
 
 ---
 

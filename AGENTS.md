@@ -137,7 +137,7 @@ holds and what does not:
   `app.daily_score` (fixed) and the daily update never asked Yahoo for new tickers' full
   histories (FR-008, 43 tickers: fixed); after an update with the fixes, `sentinel verify` found
   every table identical and the rerun was `nothing_new` with every `app` table unchanged. The EDA
-  notebooks were re-run on that export. Data current to 4 Nov. Left: T059 and the merge (PR #91).
+  notebooks were re-run on that export. Data current to 4 Nov. 001 is done: merged by #91 (5 Nov).
 - **Models (005–007) are not approved and must be redone in their notebooks, executed with
   outputs for the researcher:** 006 was evaluated with the look-ahead input `cum_split_after`
   (98 features in MLflow), so its numbers are void; the one-standard-error rule was not applied
@@ -212,8 +212,8 @@ do it, show a plain summary, tick it here.
   after the fixes of 5 Nov; the rerun `nothing_new` (details in the 001 tasks file).
 - [X] T059 (5 Nov): the researcher keeps the schedule at weekdays 10:00.
 - [X] T062–T063 (5 Nov): docs; the quickstart's checks and the full checks pass (201 tests).
-- [X] Merged into `main` (#88, #89, #90), branches deleted. Close #76 (004 done) and, after T046,
-  #68, with a short comment each.
+- [X] Merged into `main` (#88, #89, #90; the checks of 4–5 Nov by #91), branches deleted; #68 and
+  #76 closed (5 Nov).
 
 ### Step 3 · Validation round on named cases (feature 022, branch `022-validation`)
 **Status: done (30 Oct).** Verdicts in `notebooks/022-validation.ipynb` section 8; V2-28 to V2-32
