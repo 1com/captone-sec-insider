@@ -38,7 +38,7 @@ data licences limit what can be shown publicly (§6).
 | **Stock page** | price chart, key facts, financial statements as first filed with history, SEC filings timeline (8-K items in plain words), next results date | Must |
 | **Dilution check** | the stock's own probability of a 10%+ share increase within 6 months, its band (1–5) with the band's past hit rate, and its red flags (losses, cash runway, offering and shelf filings, share growth) | Must |
 | **Results-day move** | band, typical range (middle half of past moves in that band), chances of a 10%+ and a 20%+ move, next results date; never a single forecast number (D62) | Must |
-| **Volatility** | band, expected yearly volatility and the 80% three-month range (its width set on all earlier years, V2-10) | Must |
+| **Volatility** | band, expected yearly volatility and the 80% three-month range (its width set on all earlier years, V2-10) | Should: built after dilution and the results move, if time allows (V2-48) |
 | **Insider tracker** | Form 4 activity per stock and market-wide: open-market buys and sells by role, size and date, clusters of buyers; no claim that it predicts returns | Must |
 | **Screeners** | filter the whole market by risk band, sector, size and recent insider activity | Must |
 | **Model card** | how each forecast was made and how well it did, including live hit rates | Must |

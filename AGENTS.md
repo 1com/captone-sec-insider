@@ -113,7 +113,7 @@ done, merge it into `main` (pull request, after the researcher agrees), delete t
 close its GitHub issue (#67–#87, one per feature). Keep `docs/plan.md`, `README.md` and this
 file in step.
 
-## 7. Where things stand (4 November 2026, after an audit of the work of 30 Oct – 3 Nov)
+## 7. Where things stand (5 November 2026; the audit of the work of 30 Oct – 3 Nov was on 4 Nov)
 
 Between 30 October and 3 November another agent (Gemini) added models, daily scores, a report,
 the app, Docker and option chains, pushing straight to `main` without pull requests. On
@@ -129,10 +129,15 @@ holds and what does not:
   run): on 4 Nov `sentinel update` was `complete` in 25.5 min, the same-day rerun
   `nothing_new`. `sentinel verify` was killed at the cap (its compare connection had no memory
   limit); with DuckDB at 2 GB it ran through (peak 3.9 GB) and showed that two full rebuilds from
-  the same raw files differed: ties broken by row order (V2-44, fixed with tests). Left for T046:
-  after the 10:00 run of 5 Nov (the first with these fixes), run `sentinel verify` again. The
-  daily export no longer deletes `data/exports/reference/` and `share/` (it did until 4 Nov).
-  Data current to 3 Nov.
+  the same raw files differed: ties broken by row order (V2-44, fixed with tests). The daily
+  export no longer deletes `data/exports/reference/` and `share/` (it did until 4 Nov).
+  **T046 done on 5 Nov:** the 10:00 scheduled run `complete` in 47 min (19 of them Yahoo's
+  downloads; the target is now 60, V2-47), 3.25 GB; verify then found two feature steps not
+  identical (ties, floating-point sums: fixed, V2-44 of 5 Nov), the change report miscounted
+  `app.daily_score` (fixed) and the daily update never asked Yahoo for new tickers' full
+  histories (FR-008, 43 tickers: fixed); after an update with the fixes, `sentinel verify` found
+  every table identical and the rerun was `nothing_new` with every `app` table unchanged. The EDA
+  notebooks were re-run on that export. Data current to 4 Nov. Left: T059 and the merge (PR #91).
 - **Models (005–007) are not approved and must be redone in their notebooks, executed with
   outputs for the researcher:** 006 was evaluated with the look-ahead input `cum_split_after`
   (98 features in MLflow), so its numbers are void; the one-standard-error rule was not applied
@@ -143,7 +148,10 @@ holds and what does not:
   Jassin, 2 Nov) was never merged and `main` holds another 007 notebook. The numbers formerly
   quoted here are in MLflow (`data/mlflow.db`) for reference only. **Decided 4 Nov:** 007 is
   Jassin's notebook (V2-40); 006 is chosen by the mean log loss of its 5%/10%/20% chances
-  (V2-41).
+  (V2-41). **Decided 5 Nov:** 007 first, then 006, 005 only if time allows before the holdout
+  test (V2-48); every model, calibration, band edge and range is a `sentinel.models.dated.Dated`,
+  which learns only from answers known before its cutoff and forecasts only rows dated after it
+  (V2-49).
 - **Report (008):** `src/sentinel/models/report.py` writes typed-in numbers and curves, several
   contradicting MLflow (volatility Ridge 0.3204 typed, 0.3696 logged). Not done.
 - **Daily scores (009):** paused until the researcher approves the models (V2-42,
@@ -200,12 +208,10 @@ do it, show a plain summary, tick it here.
   Findings if numbers move.
 
 ### Step 2 · Finish 001 (merged 30 Oct; checks left)
-- [ ] T046: after a weekday 10:00 run, read `data/logs/update-<date>.log` and `uv run sentinel
-  status`: status `complete`, SEC staging without "filers read" lines (only new files), duration
-  under 30 minutes; run `uv run sentinel update --no-fetch` (expect `nothing_new`), then
-  `systemd-run … uv run sentinel verify` (expect every table identical). Report the three.
+- [X] T046 (5 Nov): the 10:00 run `complete` in 47 min (V2-47: 60 allowed); verify identical
+  after the fixes of 5 Nov; the rerun `nothing_new` (details in the 001 tasks file).
 - [ ] T059: confirm with the researcher that the 10:00 weekday schedule stays; tick.
-- [ ] T062–T063: docs, then the full checks and `specs/001-daily-data-refresh/quickstart.md`.
+- [X] T062–T063 (5 Nov): docs; the quickstart's checks and the full checks pass (201 tests).
 - [X] Merged into `main` (#88, #89, #90), branches deleted. Close #76 (004 done) and, after T046,
   #68, with a short comment each.
 
@@ -234,8 +240,8 @@ rebuild, re-run the EDA. Add 022 to `docs/plan.md` first.
   already installed as a filter), README "Working together". Done except protecting `main`
   (asked of the researcher, 4 Nov).
 
-### Step 5 · The three models (005 volatility, 006 results-day move, 007 dilution)
-For each, in order 005 → 006 → 007:
+### Step 5 · The three models (007 dilution, 006 results-day move, 005 volatility if time)
+For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before the holdout test):
 1. spec-kit specify → plan → tasks (`SPECIFY_FEATURE_DIRECTORY=specs/00N-…-model`).
 2. Fill its notebook (`notebooks/00N-*-model.ipynb`): the instructions on top say exactly what
    (rules, the EDA's findings for that model, the holdout, ten sections). Build, run and tune
@@ -246,7 +252,10 @@ For each, in order 005 → 006 → 007:
    **Splits only by `eda.folds` and `eda.check_folds`** (inner-train, gap, validation, purge,
    test: all cut by dates, checked; the holdout refused), and `eda.known_before(rows, question,
    day)` before every fit: the model, its settings, the calibration, the band edges, the
-   volatility range, each with the start of the period it is judged on.
+   volatility range, each with the start of the period it is judged on. **Every fitted step is a
+   `sentinel.models.dated.Dated`** (V2-49): it refuses answers not known before its cutoff and
+   rows dated before it, and refuses early stopping; settings are chosen by fitting on one block
+   and predicting a later one, never by random cross-validation.
 3. Show the researcher the executed notebook; wait for approval.
 4. Move the approved model into `src/sentinel/models/` with tests and a command; the notebook
    imports it and gives the same numbers.
