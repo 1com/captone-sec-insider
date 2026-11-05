@@ -126,8 +126,8 @@ a named choice.
 
 ## Phase 8: After the researcher's approval (not part of the notebook work)
 
-- [ ] T024 Move `DilutionModel`, fitting and `predict` into `src/sentinel/models/dilution.py`; the notebook imports them and gives the same numbers
-- [ ] T025 [P] Unit tests in `tests/unit/test_models_dilution.py`: feature list excludes non-features and `cum_split_after`; predict skips ineligible rows; deterministic output; missing feature column raises
+- [X] T024 Move `DilutionModel`, fitting and `predict` into `src/sentinel/models/dilution.py`; the notebook imports them and gives the same numbers (5 Nov: same numbers, every table identical)
+- [X] T025 [P] Unit tests in `tests/unit/test_models_dilution.py`: feature list excludes non-features and `cum_split_after`; predict skips ineligible rows; deterministic output; missing feature column raises (5 Nov: same numbers, every table identical)
 - [ ] T026 Pull request into `main` after the researcher agrees; close issue #78
 
 ---
