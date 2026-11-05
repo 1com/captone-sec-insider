@@ -151,7 +151,7 @@ Data lives in `data/` (git-ignored).
 uv run sentinel update            # fetch what is new, rebuild, publish, export, record the run
 uv run sentinel status            # recent runs, data as of, price coverage, next scheduled run
 uv run sentinel verify            # rebuild from the raw files and compare: must be identical
-uv run sentinel schedule install  # run the update on weekday evenings (Windows Task Scheduler)
+uv run sentinel schedule install  # run the update on weekdays at 10:00 (Windows Task Scheduler)
 ```
 
 Other commands: `sentinel fetch <source>`, `sentinel build <layer>`, `sentinel publish`,
