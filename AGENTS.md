@@ -210,7 +210,7 @@ do it, show a plain summary, tick it here.
 ### Step 2 · Finish 001 (merged 30 Oct; checks left)
 - [X] T046 (5 Nov): the 10:00 run `complete` in 47 min (V2-47: 60 allowed); verify identical
   after the fixes of 5 Nov; the rerun `nothing_new` (details in the 001 tasks file).
-- [ ] T059: confirm with the researcher that the 10:00 weekday schedule stays; tick.
+- [X] T059 (5 Nov): the researcher keeps the schedule at weekdays 10:00.
 - [X] T062–T063 (5 Nov): docs; the quickstart's checks and the full checks pass (201 tests).
 - [X] Merged into `main` (#88, #89, #90), branches deleted. Close #76 (004 done) and, after T046,
   #68, with a short comment each.

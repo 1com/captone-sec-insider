@@ -176,7 +176,8 @@ tested on its own.
 
 - [X] T057 [US5] Create src/sentinel/update/schedule.py (the task XML in UTF-16 per research R13; `install`, `remove`, `show` through `schtasks.exe`; `uv` located with `shutil.which`; `ConfigError` when `schtasks.exe` is unreachable) and `sentinel schedule install|remove|show [--time HH:MM]` in src/sentinel/cli.py
 - [X] T058 [US5] Add `sentinel status [--runs N]` to src/sentinel/cli.py reading `ops.update_run`, `ops.update_source`, `ops.coverage` and `app.freshness`, plus the task's next run from `schedule show` when installed
-- [ ] T059 [US5] With the researcher's approval, install the task on this machine (`sentinel schedule install`), confirm `sentinel schedule show` lists the next weekday 23:00 run, and after the next scheduled evening confirm the run with `sentinel status`, as in specs/001-daily-data-refresh/quickstart.md §6; report the results
+- [X] T059 [US5] With the researcher's approval, install the task on this machine (`sentinel schedule install`), confirm `sentinel schedule show` lists the next weekday 23:00 run, and after the next scheduled evening confirm the run with `sentinel status`, as in specs/001-daily-data-refresh/quickstart.md §6; report the results
+  Done 5 Nov: the researcher keeps the schedule at weekdays 10:00 (V2-20, not the evening of the first plan); `sentinel schedule show`: next run 6 Nov at 10:00; the scheduled run of 5 Nov `complete` in `sentinel status`.
 
 **Checkpoint**: SC-008 under way (two weeks of runs).
 
