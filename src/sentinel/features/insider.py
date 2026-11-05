@@ -25,13 +25,20 @@ BUY = "base and trans_code = 'P' and acq_disp = 'A'"
 SELL = "base and trans_code = 'S' and acq_disp = 'D'"
 
 
+def _total(expr: str, dollars: bool = True) -> str:
+    """SQL: the sum of `expr`, 0 if none; dollar values added exactly (`db.exact_sum`), as two
+    rebuilds' floating-point totals differed in their last digits (`sentinel verify`, 5 Nov)."""
+    return f"coalesce({db.exact_sum(expr) if dollars else f'sum({expr})'}, 0)"
+
+
 def build_insider(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
     db.require(con, ["feature.row", "core.insider_trade", "core.insider_owner_role",
                      "core.insider_activity", "stg_sec_form4.reportingowner"],
                "feature.insider")  # fmt: skip
+    recent = "d.filing_date > r.as_of - interval 3 month"
     windows = ",\n".join(
-        f"coalesce(sum(d.{k}) filter (where d.filing_date > r.as_of - interval 3 month), 0) "
-        f"as {k}_3m,\ncoalesce(sum(d.{k}), 0) as {k}_12m"
+        f"{_total(f'case when {recent} then d.{k} end', k.endswith('_value'))} as {k}_3m,\n"
+        f"{_total(f'd.{k}', k.endswith('_value'))} as {k}_12m"
         for k in INSIDER_COUNTS
     )
     with db.transaction(con):
@@ -60,13 +67,13 @@ def build_insider(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
             select t.cik, t.filing_date, t.known_at,
                    count(distinct t.accession) filter (where {BUY} and unplanned
                                                        and not_offering) as buy_filings,
-                   coalesce(sum(value_usd) filter (where {BUY} and unplanned and not_offering), 0)
+                   {_total(f"case when {BUY} and unplanned and not_offering then value_usd end")}
                        as buy_value,
                    count(distinct t.accession) filter (where {SELL}) as sell_filings,
-                   coalesce(sum(value_usd) filter (where {SELL}), 0) as sell_value,
+                   {_total(f"case when {SELL} then value_usd end")} as sell_value,
                    count(*) filter (where {SELL}) as sell_lines,
                    count(*) filter (where {SELL} and not unplanned) as planned_sell_lines,
-                   coalesce(sum(value_usd) filter (where {BUY} and not not_offering), 0)
+                   {_total(f"case when {BUY} and not not_offering then value_usd end")}
                        as offering_buy_value,
                    bool_or(c.accession is not null) as ceo_cfo_sell
             from t left join ceo_sells c using (accession)
@@ -87,7 +94,7 @@ def build_insider(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
                    sum(d.planned_sell_lines) / nullif(sum(d.sell_lines), 0)
                        as planned_sell_share_12m,
                    cast(coalesce(bool_or(d.ceo_cfo_sell), false) as DOUBLE) as ceo_cfo_sold_12m,
-                   coalesce(sum(d.offering_buy_value), 0) as offering_buy_value_12m,
+                   {_total("d.offering_buy_value")} as offering_buy_value_12m,
                    coalesce(any_value(b.buyers_14d), 0) as buyers_14d
             from feature.row r
             left join _tx_day d on d.cik = r.cik and d.known_at <= r.as_of
