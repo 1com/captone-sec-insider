@@ -14,7 +14,9 @@ import pytest
 from sentinel import build, db, raw
 from sentinel.raw import FetchReport
 from sentinel.raw.manifest import Manifest, store_bytes
+from sentinel.serving import publish
 from sentinel.staging import prices
+from sentinel.update import record
 from sentinel.update import run as updater
 from sentinel.update import verify as verifier
 
@@ -155,3 +157,14 @@ def test_an_update_without_fetching_records_its_run(world):
     result = updater.update(p, today=DAYS[1], fetch=False, **options)
     assert result["status"] == "nothing_new" and calls == [DAYS[:2]]
     assert _scalar(p, "select count(*) from ops.update_run where finished_at is not null") == 2
+
+
+def test_every_product_table_has_a_key_so_an_unchanged_copy_shows_no_change(tmp_path):
+    """Without a key, every row was counted as added (app.daily_score, 5 Nov)."""
+    assert set(publish.TABLES) | {"daily_score", "live_outcomes"} <= set(record.APP_KEYS)
+    path = tmp_path / "serving.duckdb"
+    with duckdb.connect(str(path)) as con:
+        con.execute("create schema app")
+        con.execute("create table app.daily_score as select * from (values ('1', 'volatility', "
+                    "0.3), ('1', 'dilution', 0.1)) t(cik, question, value)")  # fmt: skip
+    assert record.app_changes(path, path)["daily_score"] == (2, 2, 0, 0, 0)
