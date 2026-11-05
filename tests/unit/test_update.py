@@ -168,3 +168,18 @@ def test_every_product_table_has_a_key_so_an_unchanged_copy_shows_no_change(tmp_
         con.execute("create table app.daily_score as select * from (values ('1', 'volatility', "
                     "0.3), ('1', 'dilution', 0.1)) t(cik, question, value)")  # fmt: skip
     assert record.app_changes(path, path)["daily_score"] == (2, 2, 0, 0, 0)
+
+
+def test_the_update_asks_yahoo_for_the_full_history_of_tickers_never_asked(world, monkeypatch):
+    """FR-008: a ticker new in the SEC's list gets its full history, not only the daily window
+    (43 listed symbols had none on 5 Nov)."""
+    p, _, options = world
+    stand_in, asked = raw.fetchers()["yahoo"], []
+
+    def yahoo(p, today, **kw):
+        asked.append(kw.get("full_missing"))
+        return stand_in(p, today, **kw)
+
+    monkeypatch.setattr(raw, "fetchers", lambda: {"yahoo": yahoo})
+    updater.update(p, today=DAYS[0], **options)
+    assert asked == [True]

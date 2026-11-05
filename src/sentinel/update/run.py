@@ -30,6 +30,8 @@ from sentinel.serving import publish as serving_publish
 from sentinel.update import record
 
 LAYERS = ("reference", "core", "features", "labels")
+# FR-008: a ticker new in the SEC's list gets its full Yahoo history, not only the daily window
+FETCH = {"full_missing": True}
 
 
 class UpdateLocked(Exception):
@@ -84,7 +86,7 @@ def _fetch_child(p: Paths, today: date) -> tuple[list[raw.FetchReport], list[str
         print(line, flush=True)
         lines.append(line)
 
-    return raw.run(p, "all", today, echo), lines
+    return raw.run(p, "all", today, echo, **FETCH), lines
 
 
 def fetch_apart(p: Paths, today: date) -> tuple[list[raw.FetchReport], list[str]]:
@@ -154,7 +156,7 @@ def update(p: Paths, today: date | None = None, scheduled: bool = False, fetch: 
                 lines.extend(fetched)
                 con = db.connect(p)
             elif fetch:
-                reports = raw.run(p, "all", today, say, con=con)
+                reports = raw.run(p, "all", today, say, con=con, **FETCH)
             for r in reports:
                 say(r.summary())
             before = record.checksums(con)
