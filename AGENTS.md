@@ -246,7 +246,8 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
 2. Fill its notebook (`notebooks/00N-*-model.ipynb`): the instructions on top say exactly what
    (rules, the EDA's findings for that model, the holdout, ten sections). Build, run and tune
    every level there: naive baseline → rule → classic model → LightGBM, walk-forward test years
-   2019–2022 with the purge, the simplest level within one standard error of the best,
+   2019–2022 with the purge, the simplest level within one standard error of the best
+   (V2-50: the standard error of the four yearly differences from the best level),
    calibration, bands with hit rates, MLflow, fixed seeds. End with a verdict per hypothesis of
    `docs/hypotheses.md` (V2-46): family checks and direction checks on the test years.
    **Splits only by `eda.folds` and `eda.check_folds`** (inner-train, gap, validation, purge,
