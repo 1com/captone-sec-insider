@@ -151,7 +151,9 @@ holds and what does not:
   (V2-41). **Decided 5 Nov:** 007 first, then 006, 005 only if time allows before the holdout
   test (V2-48); every model, calibration, band edge and range is a `sentinel.models.dated.Dated`,
   which learns only from answers known before its cutoff and forecasts only rows dated after it
-  (V2-49).
+  (V2-49). **007 approved on 5 Nov (V2-52): LightGBM**, log loss 0.225 against 0.302 for the
+  offering rule, better in every test year; packaged in `src/sentinel/models/dilution.py` (the
+  notebook imports it, same numbers). Next: its pull request, then 006.
 - **Report (008):** `src/sentinel/models/report.py` writes typed-in numbers and curves, several
   contradicting MLflow (volatility Ridge 0.3204 typed, 0.3696 logged). Not done.
 - **Daily scores (009):** paused until the researcher approves the models (V2-42,
@@ -246,7 +248,8 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
 2. Fill its notebook (`notebooks/00N-*-model.ipynb`): the instructions on top say exactly what
    (rules, the EDA's findings for that model, the holdout, ten sections). Build, run and tune
    every level there: naive baseline → rule → classic model → LightGBM, walk-forward test years
-   2019–2022 with the purge, the simplest level within one standard error of the best,
+   2019–2022 with the purge, the simplest level within one standard error of the best
+   (V2-50: the standard error of the four yearly differences from the best level),
    calibration, bands with hit rates, MLflow, fixed seeds. End with a verdict per hypothesis of
    `docs/hypotheses.md` (V2-46): family checks and direction checks on the test years.
    **Splits only by `eda.folds` and `eda.check_folds`** (inner-train, gap, validation, purge,

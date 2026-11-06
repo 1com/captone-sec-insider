@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-01
 
-**Status**: Second version after the researcher's answers (2 Nov: V2-34 to V2-38)
+**Status**: Second version after the researcher's answers (2 Nov: V2-35 to V2-39)
 
 **Input**: User description: "Feature 007 · Dilution model (roadmap 007, issue #78, owner: the
 teammate `sonson033`, with the coding agent): the chance that a company's shares outstanding rise
@@ -142,7 +142,7 @@ then has no test result.
   fold's training rows, never using the test year's values.
 - **Share growth capped at 20×** and the 46 split-like "yes" answers: the check that finds them
   needs the full database, which the teammate's machine does not have; the researcher exports the
-  list and the model drops them in its preprocessing (V2-38; until then they stay in, 0.12% of the
+  list and the model drops them in its preprocessing (V2-39; until then they stay in, 0.12% of the
   "yes" answers, research R2).
 - **The 2022 test year is half a year** (22,597 rows, January–June): its results are reported with
   that caveat.
@@ -164,19 +164,23 @@ then has no test result.
   compute or read any answer whose window starts in 2023 or later.
 - **FR-004**: Every evaluation MUST be walk-forward by date: for each test year 2019–2022, train on
   earlier years only, with training rows purged whose 182-day window reaches into the test year.
-  No random split anywhere, including inside training for tuning.
+  No random split anywhere, including inside training for tuning. The folds MUST come from
+  `eda.folds` and pass `eda.check_folds` (5 Nov): inner rows (answers known before the validation
+  year) for the models, the validation year for settings, calibration and band edges.
 - **FR-005**: Four levels MUST be built and scored: the base rate, a rule (at least the offering
   rule found by the EDA), a classic model, and gradient-boosted trees.
 - **FR-006**: Every level MUST be scored per test year with AUC, log loss, Brier score (stated next
   to the base rate's 0.0867) and lift in the top tenth.
 - **FR-007**: The chosen level MUST be the simplest within one standard error of the best on the
-  primary measure, with the reasoning written out.
+  primary measure, with the reasoning written out; the standard error is that of the four yearly
+  differences from the best level (V2-50, 5 Nov).
 - **FR-008**: Model-side cleaning (V2-33) MUST be fitted on each fold's training rows only: extreme
   ratios cut at the 1st/99th percentiles, missing values filled with the training median plus
   "was missing" indicators, one feature of each highly redundant pair, macro and short-volume
   features left out of the classic model.
 - **FR-009**: Hyper-parameters MUST be chosen by time-ordered validation inside the training years,
-  never on the test year.
+  never on the test year; no early stopping inside a fit: the number of trees is chosen by
+  predicting the validation year (V2-49, 5 Nov).
 - **FR-010**: Chances MUST be calibrated on earlier years only and grouped into five bands, each
   with its real dilution rate per test year.
 - **FR-011**: The notebook MUST show the chosen level's strongest features and the insider/macro
@@ -185,7 +189,8 @@ then has no test result.
   version, with fixed seeds so that two runs give identical predictions.
 - **FR-013**: The chosen model MUST be saved as one frozen object with its feature list, all
   preprocessing, the eligibility flag, seed, commit and export date, plus one scoring function
-  taking the model and feature rows; a dry run on the 2023+ feature rows MUST succeed.
+  taking the model and feature rows; a dry run on the 2023+ feature rows MUST succeed. Its model,
+  calibration and band edges are `Dated` steps that keep their cutoffs (V2-49).
 - **FR-014**: The notebook MUST run start to finish by one command and MUST be committed without
   outputs; written findings MUST quote aggregates only (no Tiingo-derived values of single rows).
 - **FR-015**: The notebook MUST end with plain-language findings: the chosen level and why, its
@@ -194,6 +199,15 @@ then has no test result.
 - **FR-016**: After the researcher approves the level, the model's code MUST move into
   `src/sentinel/models/` with tests, and the notebook MUST then use that code and give the same
   numbers.
+- **FR-017** (5 Nov, V2-49): Every fitted step (each model, calibration and set of band edges) MUST
+  be a `sentinel.models.dated.Dated`: it learns only from rows whose answers were known before its
+  cutoff and refuses to forecast rows dated before it.
+- **FR-018** (5 Nov, V2-39, V2-40): The split-like "yes" answers MUST be dropped from the learnable
+  rows, found by code (`sentinel.validation.split_dilution`), not read from a file; the holdout test
+  (010) MUST drop them from the 2023+ answers by the same rule.
+- **FR-019** (5 Nov, V2-46): The notebook MUST end with a verdict on each dilution hypothesis of
+  `docs/hypotheses.md` (H-D1 to H-D5): a family check on the chosen level (five seeds, every fold)
+  and a direction check per test year.
 
 ### Key Entities
 
@@ -227,12 +241,12 @@ then has no test result.
 - The export of 30 October 2026 (`data/exports/ml/dilution.parquet`, cleaning V2-22 to V2-32) is
   the data of record; a later export means re-running the notebook.
 - The primary measure for the one-standard-error rule is log loss (a proper score for chances), with
-  AUC, Brier score and lift reported alongside (confirmed by the researcher, V2-36).
+  AUC, Brier score and lift reported alongside (confirmed by the researcher, V2-37).
 - The classic model is a regularised logistic regression; the trees are LightGBM, both already in
   the project.
 - Run logging uses MLflow, already a project dependency.
-- The trees leave out the insider and macro families (V2-35). The 46 split-like "yes" answers
-  are dropped once the researcher's list arrives (V2-38, research R2).
+- The trees leave out the insider and macro families (V2-36). The 46 split-like "yes" answers
+  are dropped once the researcher's list arrives (V2-39, research R2).
 - The notebook runs on the teammate's Mac; it does not need the full database, only the export.
 - Out of scope: changing the pre-registered definition, the offering-event question (roadmap 024),
   the daily scoring (009), the report (008) and the holdout test itself (010).
