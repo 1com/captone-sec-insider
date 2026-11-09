@@ -15,7 +15,7 @@ the newest rows are of September 2022, whose windows end by December).
 | `vol_63` | the past 63 sessions' volatility: an input, the naive baseline and the rule's one input |
 | `eligible_volatility` | this question's flag (V2-26: price-only stocks count when they pass the price rules) |
 | `coverage` | full, foreign or price_only: never an input; used to report price-only stocks apart |
-| the 95 features of `eda.features()` | inputs |
+| the 95 features of `eda.features()` | inputs of the baseline and rule (`vol_63` only); the ridge and LightGBM use the 79 without the macro family (V2-57) |
 | `sector`, `cum_split_after`, other flags | never inputs (`sector` is the current SIC, not point-in-time; `cum_split_after` is look-ahead) |
 
 Derived per row: `log_vol = log(vol_63_future)` (rows with an answer of 0 are left out); the

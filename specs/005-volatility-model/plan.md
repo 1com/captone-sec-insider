@@ -23,7 +23,9 @@ dry run. Every fitted step is a `Dated` (V2-49). Runs are logged in MLflow.
 The method's open choices were settled on 2014–2018, before every test year (research, design
 check): the change rather than the level (0.2416 against 0.2468), squared-error loss, the range
 pooled over all earlier years (74.9% coverage against 72.1% for the year before and 65.7% for the
-training rows' own errors). 005 is built only if the researcher approves it by the evening of Wednesday 11 November
+training rows' own errors). After the first full run the researcher left the macro family out of
+the ridge and LightGBM (V2-57, research R11): decided after seeing the test years, so the re-run's
+comparison flatters the models a little and the holdout test is the honest check. 005 is built only if the researcher approves it by the evening of Wednesday 11 November
 (V2-48). Moving the code to `src/sentinel/models/volatility.py` follows the approval (FR-019).
 
 ## Technical Context

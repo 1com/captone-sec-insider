@@ -5,7 +5,8 @@
 **Created**: 2026-11-09
 
 **Status**: First version, written to the decisions of 4–9 Nov (V2-46, V2-48, V2-49, V2-50) before
-any clean result; the deciding measure decided 9 Nov (V2-56)
+any clean result; the deciding measure decided 9 Nov (V2-56); after the first full run, the
+macro family left out of the ridge and LightGBM (V2-57)
 
 **Input**: User description: "Feature 005 · Volatility model (roadmap 005, issue #67): how much a
 stock's price will swing over the next three months, built, run and tuned in
@@ -226,6 +227,10 @@ feature rows.
 - **FR-018**: The notebook MUST end with plain-language findings: the chosen level and why, its
   skill per test year against the baseline and the rule, the range's coverage, the bands, the
   hypothesis verdicts, what moves to `src/sentinel/models/`, and open questions.
+- **FR-020** (9 Nov, V2-57, after the first full run): The ridge and LightGBM MUST leave out the
+  macro family; hypothesis H-V4 MUST be checked by adding it back. The findings MUST say that this
+  was decided after seeing the test years, so the 2019–2022 comparison flatters the models a
+  little, and that the holdout test (010) is the honest check.
 - **FR-019**: After the researcher approves the level, the model's code MUST move into
   `src/sentinel/models/volatility.py` with tests, replacing Gemini's, and the notebook MUST then
   use that code and give the same numbers.

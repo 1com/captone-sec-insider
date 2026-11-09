@@ -156,6 +156,25 @@ was 100 in 2017 and 400–1,000 in the other years.
   the eligible rows of `latest.parquet` of companies still trading; checks: one forecast per
   eligible row, low below level below high, bands 1–5.
 
+## R11 · The macro family is left out of the ridge and LightGBM (V2-57, after the first run)
+
+- **Decision** (researcher, 9 Nov, after the first full run, so after seeing the test years): the
+  ridge and LightGBM learn from the 79 features without the macro family (rates, credit spreads,
+  inflation, unemployment, VIX, market volatility); H-V4 is checked by adding it back.
+- **What the first run showed** (all four levels as planned, 18.5 min): mean absolute log error
+  2019 / 2020 / 2021 / 2022: baseline 0.352 / 0.490 / 0.287 / 0.254; rule 0.340 / 0.430 / 0.273 /
+  0.261; ridge 0.358 / 0.464 / 0.335 / 0.262; LightGBM 0.284 / 0.381 / 0.234 / 0.332. LightGBM best
+  in three years and worst in 2022, so the year-by-year rule (V2-50) chose the baseline (gap 0.038
+  ± 0.040). The family check: without macro, LightGBM's error falls by 0.138 in 2022 and 0.024 in
+  2020 (H-V4 opposite); in 2022 rates rose faster than in any training year.
+- **Evidence from before the test years** (`design_check_macro.py`, 2016–2018): LightGBM on the
+  change is 0.0030 better without macro on average (+0.0020, −0.0104, −0.0006), clearly better in
+  the calm 2017: macro added nothing before 2019 and hurt when the market changed character.
+- **The honest cost**: the 2019–2022 comparison of the re-run flatters the models a little; the
+  holdout years (2023 on) have rates far above any training year, which is where a model leaning on
+  macro levels would fail again; the holdout test (010) is the honest check. As for dilution's
+  trees (V2-36).
+
 ## R10 · MLflow and the move to the package
 
 - **MLflow**: `sqlite:///data/mlflow.db`, experiment `005-volatility` (trial runs in
