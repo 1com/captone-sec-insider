@@ -266,8 +266,10 @@ def train(
         raw_df = eda.load(q)
         dev_df = raw_df[pd.to_datetime(raw_df["as_of"]) <= pd.Timestamp(eda.DEV_END)].copy()
 
-        if q == "results_move":
-            model = results_move.fit(dev_df, level=level)
+        if q == "results_move":  # the approved model (V2-55); `--level` does not apply
+            rows = results_move.learnable(dev_df)
+            made_from = dilution.provenance(eda.EXPORT / "results_move.parquet")
+            model = results_move.fit(rows, provenance=made_from)
             model_path = p.models / "results_move.joblib"
             results_move.save(model, model_path)
             typer.echo(
@@ -333,8 +335,14 @@ def score(
     if not in_path.exists():
         _fail(f"input file does not exist: {in_path}", FAILED)
 
+    from sentinel.scoring.daily import CURRENT_DAYS
+
     rows = pd.read_parquet(in_path)
-    typer.echo(f"Loaded {len(rows):,} rows from {in_path.name}")
+    rows["as_of"] = pd.to_datetime(rows["as_of"])
+    # Only companies still trading, as the daily scores: a company's newest row from years ago may
+    # be one a model learned from, which the approved models refuse (V2-49)
+    rows = rows[rows["as_of"] >= rows["as_of"].max() - pd.Timedelta(days=CURRENT_DAYS)]
+    typer.echo(f"Loaded {len(rows):,} rows of companies still trading from {in_path.name}")
 
     targets = [question] if question != "all" else ["results_move", "dilution", "volatility"]
     preds = {}
@@ -346,12 +354,15 @@ def score(
 
         if q == "results_move":
             m_res = results_move.load(model_path)
-            res = results_move.predict(m_res, rows)
+            # a company's earlier moves after 2022 are sealed until the holdout test (010): its
+            # history is missing unless the rows carry it
+            history = {c: rows.get(c, float("nan")) for c in results_move.HISTORY}
+            res = results_move.predict(m_res, rows.assign(**history))
             preds[q] = res
             el = res[res["eligible"]]
             typer.echo(
                 f"  results_move: scored {len(el):,} eligible rows "
-                f"(median pred move: {el['pred_move'].median():.2%})"
+                f"(mean chance of a move above 10%: {el['p_move_10'].mean():.1%})"
             )
         elif q == "dilution":
             m_dil = dilution.load(model_path)

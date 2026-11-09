@@ -153,7 +153,22 @@ holds and what does not:
   which learns only from answers known before its cutoff and forecasts only rows dated after it
   (V2-49). **007 approved on 5 Nov (V2-52): LightGBM**, log loss 0.225 against 0.302 for the
   offering rule, better in every test year; packaged in `src/sentinel/models/dilution.py` (the
-  notebook imports it, same numbers). Merged by #92 (9 Nov), #78 closed. Next: 006.
+  notebook imports it, same numbers). Merged by #92 (9 Nov), #78 closed. **006 started 9 Nov**
+  (branch `006-results-move-model`): spec rewritten to V2-41/46/49/50, bands by the chance above
+  10% (V2-53); plan with a design check on 2016–2018 only (one forecast of the log move per
+  level, three Platt calibrations; from 2010; sector left out, not point-in-time); the three
+  release-timing features left out (V2-54). Notebook rebuilt and run (9 Nov, 7 min, outputs
+  for the researcher): **LightGBM chosen** by V2-50, mean log loss of the three chances 0.404
+  against 0.409 ridge, 0.421 rule, 0.433 baseline, 0.469 base rates, better than the ridge every
+  year (the textbook rule would keep the ridge); bands rise every year; H-R1 to H-R6 supported;
+  frozen candidate passes the dry run. **006 approved on 9 Nov (V2-55): LightGBM**, packaged in
+  `src/sentinel/models/results_move.py` (the notebook imports it, same numbers); `sentinel train` and
+  `sentinel score results_move` work; the paused daily scores store the chance above 10% (V2-53)
+  and live outcomes compare it with a move above 10%. Next: its pull request; then 008 and 010
+  (005 only if time allows, V2-48). Before the daily scores resume (009): train the approved
+  models into `data/models/` (`sentinel train results_move`, `sentinel train dilution`; the folder
+  still holds Gemini's unapproved files of 2 Nov) and give `prev4_mean` the moves after 2022, which
+  the holdout test computes.
 - **Report (008):** `src/sentinel/models/report.py` writes typed-in numbers and curves, several
   contradicting MLflow (volatility Ridge 0.3204 typed, 0.3696 logged). Not done.
 - **Daily scores (009):** paused until the researcher approves the models (V2-42,

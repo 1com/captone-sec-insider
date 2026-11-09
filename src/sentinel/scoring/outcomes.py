@@ -126,7 +126,8 @@ def evaluate_outcomes(
         )
         counts["dilution"] = len(evaluated_dil)
 
-    # 3. Results-day move outcomes (join with label.results_move)
+    # 3. Results-day move outcomes (join with label.results_move). The forecast value is the chance
+    # of a move above 10% (V2-53, V2-55); the outcome is whether the move was above 10%
     res_rows = con.execute("""
         select
             s.cik,
@@ -136,8 +137,8 @@ def evaluate_outcomes(
             l.close_after as window_end,
             s.forecast_val,
             s.band as forecast_band,
-            l.move as actual_val,
-            (s.forecast_val - l.move) as error
+            cast(l.move > 0.10 as double) as actual_val,
+            (s.forecast_val - cast(l.move > 0.10 as double)) as error
         from score.daily s
         join label.results_move l using (cik, as_of)
         where s.question = 'results_move'
@@ -148,8 +149,8 @@ def evaluate_outcomes(
         evaluated_res = []
         for r in res_rows:
             cik, as_of, q, m_ver, w_end, f_val, f_band, act_val, err = r
-            # Hit definition: prediction within 5 percentage points of actual move
-            is_hit = bool(abs(err) <= 0.05)
+            # Hit: the move was above 10%, so a band's share of hits is its real rate (D47)
+            is_hit = bool(act_val == 1.0)
             evaluated_res.append(
                 (cik, as_of, q, m_ver, w_end, f_val, f_band, act_val, err, is_hit, now_ts)
             )

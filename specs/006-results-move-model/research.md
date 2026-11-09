@@ -1,127 +1,214 @@
 # Research: Results-day move model (006)
 
-## R1. Target transformation and back-transformation
+Decisions taken while planning (9 Nov), each with why and what else was considered. Numbers come
+from the export of 9 November 2026 and `notebooks/004-eda-results-move.ipynb`. This file replaces
+Gemini's research of 30 Oct, which predates the audit of 4 Nov.
 
-**Decision**: Model the natural log of the move with a small floor,
-$z = \log(\max(\text{move}, \varepsilon))$ with $\varepsilon = 10^{-4}$ (0.01%, one basis point),
-and transform predictions back to the move scale using the empirical smearing / median adjustment on
-the training residuals:
-- For **point predictions targeting MAE** (mean absolute error is minimised by the conditional
-  median): $\hat{m}_{\text{med}}(x) = \exp(\hat{z}(x) + \text{median}(r_{\text{train}}))$, where
-  $r_{\text{train}} = z_{\text{train}} - \hat{z}_{\text{train}}$.
-- We also check conditional mean smearing $\hat{m}_{\text{mean}}(x) = \exp(\hat{z}(x)) \cdot \overline{\exp(r_{\text{train}})}$
-  on inner validation and use the median-adjusted back-transform because `move` is right-skewed and
-  MAE is minimised by the conditional median.
+**The design check behind R3, R4 and R9.** Choices about the method are made on years *before*
+every test year (spec: "chosen in the plan and on validation years, never on the test years").
+For each of 2016, 2017 and 2018, LightGBM learned from the releases whose moves were known before
+that year and scored the releases dated in it (about 12,600 a year); the three chances were
+calibrated per event (Platt) cross-fitted by half-year inside the year, the same for every variant.
+No row dated 2019 or later was read. Mean log loss of the three chances (lower is better):
 
-**Rationale**: The EDA (`notebooks/004-eda-results-move.ipynb` §6) showed `move` is heavily
-right-skewed (median 3.7%, mean 5.8%, 99th percentile 31%, max > 100%, and 5 rows with `move == 0`).
-Fitting models directly on raw `move` with squared error lets a few 80%+ moves dominate the fit and
-inflates predictions for ordinary releases (the exact reason `prev4_mean` has worse MAE than a
-constant median). Modelling $z = \log(\max(\text{move}, 10^{-4}))$ stabilises variance across small
-and large stocks and produces homoscedastic residuals on the log scale.
+| Variant | 2016 | 2017 | 2018 | Mean | vs reference |
+|---|---|---|---|---|---|
+| Base rates (one chance for every release) | 0.4398 | 0.4188 | 0.4496 | 0.4361 | +0.068 |
+| `prev4_mean` turned into chances (the naive baseline) | 0.3981 | 0.3771 | 0.4034 | 0.3929 | +0.025 |
+| **Reference**: one forecast of the log move, from 2010, all features | 0.3694 | 0.3560 | 0.3796 | 0.3683 | — |
+| Training from 2012 instead of 2010 | 0.3712 | 0.3564 | 0.3797 | 0.3691 | +0.0008 |
+| Without the three release-timing features (R4) | 0.3699 | 0.3581 | 0.3795 | 0.3691 | +0.0008 |
+| With the sector as an input | 0.3696 | 0.3549 | 0.3776 | 0.3673 | −0.0010 |
+| Three direct yes/no models instead of one forecast | 0.3686 | 0.3560 | 0.3789 | 0.3678 | −0.0005 |
 
-**Alternatives considered**: Raw-scale L1/quantile regression (slower for Ridge, doesn't directly
-give a unified scale-location residual distribution for probability calibration). We also test
-LightGBM with `objective="regression_l1"` vs `objective="regression"` on $z$ in inner validation.
+Fixed settings (31 leaves, 200 releases per leaf, learning rate 0.05); the best number of trees
+was 200, the smallest tried, in 14 of 15 fits. Every variant is within 0.001 of the reference,
+against a lead of 0.025 over the baseline: none of these choices decides the model's quality;
+they are decided on simplicity, honesty and the product. Script:
+`specs/006-results-move-model/design_check.py`.
 
-## R2. Evaluation metrics and primary selection criterion (D60)
+## R1 · Rows and features
 
-**Decision**: Report five complementary metrics on every test year (2019, 2020, 2021, 2022) and
-their mean ± standard error across the four years ($n = 4$ folds, $\text{SE} = s / \sqrt{4}$):
-1. **Spearman rank correlation ($\rho$)** between predicted move and actual `move` (higher is better).
-2. **Mean Absolute Error (MAE)** on the move scale, $|\hat{m} - \text{move}|$ (lower is better).
-3. **Median Absolute Error (MedAE)** on the move scale (lower is better).
-4. **Log MAE** on the log-move scale, $|\log(\max(\hat{m}, 10^{-4})) - \log(\max(\text{move}, 10^{-4}))|$ (lower is better).
-5. **Mean Brier score** (and log loss) averaged across the three calibrated event probabilities
-   $\text{move} > 5\%$, $\text{move} > 10\%$ and $\text{move} > 20\%$ (lower is better).
+- **Rows**: `sentinel.eda.load("results_move")` (releases dated by 31 Dec 2022), `eligible` true
+  and `move` present: 156,926 releases, 5,937 companies. Sorted by `cik`, `as_of`. No row is
+  dropped for doubt: the EDA found no doubtful answers in this set (the 69 company-years with five
+  or six releases were found real by the validation round, V2-25).
+- **Features**: the 95 columns of `sentinel.eda.features()` plus `prev4_mean` and `n_prev`
+  (declared in the spec, FR-002), minus the three release-timing features (V2-54, R4): 94
+  inputs. Never `move`, `close_after`, `filing_date`, `report_date`, `cik`, `as_of`, the flags,
+  `sector` (R9) or `cum_split_after` (look-ahead: the split ratios after the row's day, V2-38).
+  `eda.features()` no longer returns `cum_split_after`; the model also excludes it by name.
+- **`prev4_mean` is point-in-time**: the label code (`labels/risk.py`) averages the company's
+  previous four moves, and each of them ended before the release's `as_of` (checked on 9 Nov:
+  0 of 170,879 rows overlap). The EDA's suggested median of the previous four is not in the
+  export, and the holdout test (010) and the daily scores receive only `prev4_mean`; the rule uses
+  `prev4_mean` on the log scale instead (R5).
 
-For the **one-standard-error rule** across the four levels (Level 0 → Level 1 → Level 2 → Level 3),
-we check both **Spearman rank correlation** and **Log MAE / Mean Brier score** (the EDA specifically
-warned that raw MAE alone is a weak discriminator because a single constant gets 0.042–0.052). All
-three criteria agree on which levels are within 1 SE of the best, and the comparison table displays
-the 1-SE threshold for each metric explicitly.
+## R2 · Folds
 
-**Rationale**: Matches the notebook header instructions ("Measures: rank correlation, mean and
-median absolute error, and for the chances the Brier score and log loss") and the EDA's advice.
+- **Decision**: `eda.folds(rows, "results_move")`, checked by `eda.check_folds`, exactly as 007:
+  for test year Y, models learn from **inner** releases (move known, `close_after`, before
+  1 Jan Y−1); settings, calibration and band edges come from the **validation** year Y−1
+  (releases dated in Y−1 with moves known before Y); **test** releases are dated in Y. Counts
+  equal `eda.purge_table(rows, "close_after")`.
+- **Rationale**: windows are 2–14 days long, so the purge and the gap remove only a few releases a
+  year; one time-ordered validation year serves settings and calibration without touching the
+  test year, and mirrors the frozen model (R11).
 
-## R3. Design of the four levels
+## R3 · How each level gives three chances
 
-**Decision**:
-- **Level 0 (Naive baseline)**: `prev4_mean` from `results_move.parquet`. For the ~0.9% of releases
-  where a company has no prior release (`n_prev == 0`, so `prev4_mean` is NaN), fill with the fold's
-  training median move so every test row can be scored fairly; also print the metric on the `n_prev >= 1`
-  subset and the constant-median floor.
-- **Level 1 (Explainable rule)**: Combine the two strongest signals found by the EDA—the company's
-  historical results-day move (`prev4_mean`) and its recent stock volatility (`vol_63`)—with
-  empirical-Bayes shrinkage for companies with few prior releases:
-  1. Shrink `log(prev4_mean)` toward the training sector median log-move using weight
-     $w = \frac{n_{\text{prev}}}{n_{\text{prev}} + k}$ (with $k = 2$, so a company with 4 prior
-     releases gets $2/3$ weight on its own history, and a company with 0 gets the sector median),
-     adjusted by the training median ratio between `move` and `prev4_mean` (since the mean of 4
-     skewed moves is systematically higher than the median move).
-  2. Convert `vol_63` (annualised daily volatility) to a 1-day move scale via the training median
-     ratio of `move` to `vol_63 / sqrt(252)`.
-  3. Combine the two on the log scale with weights fitted by 2-variable linear regression on the
-     fold's training rows only.
-- **Level 2 (Classic model — Ridge regression)**:
-  - Prune redundant feature pairs ($|\rho| \ge 0.90$ on training data, keeping the more complete /
-    interpretable member of each pair, e.g. `log_market_cap` over `market_cap`, `log_addv20` over
-    `addv20`, `log_close` over `close`, `vol_63` and `idio_vol_252` over `vol_252`, etc.).
-  - Include `log_prev4_mean` ($\log(\max(\text{prev4\_mean}, 10^{-4}))$), `n_prev`, and one-hot
-    sector indicators.
-  - Clip every continuous feature at its training 1st and 99th percentiles (V2-33).
-  - Add a binary `_missing` indicator for every feature with training missing rate $\ge 1\%$ (plus
-    `prev4_mean`), impute missing values with the training median, and standardise (`StandardScaler`)
-    on the training fold.
-  - Fit `Ridge` on $z = \log(\max(\text{move}, 10^{-4}))$, choosing `alpha` from
-    `[10.0, 100.0, 1000.0, 5000.0]` via time-ordered inner validation (the last training year,
-    purged).
-- **Level 3 (LightGBM)**:
-  - Uses the full allowed feature set (plus `prev4_mean`, `n_prev`, and `sector` encoded via
-    training-fold statistics / categorical codes), with training 1st/99th percentile clipping on
-    extreme ratios and explicit missing-value handling.
-  - Tuned on time-ordered inner validation (the last two training years, purged) over a small,
-    regularised grid (`num_leaves` $\in \{15, 31\}$, `min_child_samples` $\in \{100, 200\}$,
-    `learning_rate` $= 0.05$, early stopping on inner validation, `random_state = 0`,
-    `deterministic = True`, `force_col_wise = True`).
+- **Decision**: every level forecasts **one number per release, the log of its move's typical
+  size**; three calibrations turn it into the chances of a move above 5%, 10% and 20%. Each
+  calibration is a Platt scaling (a logistic fit of "moved more than X" on the forecast) on the
+  validation year, a `Dated` with the test year's cutoff; its slope must be positive (a bigger
+  forecast never lowers a chance). Where two calibrations would cross (only at extreme
+  forecasts), the chances are put in order: above 10% at most above 5%, above 20% at most above
+  10% (SC-006); the notebook counts how often this happens.
+- **Rationale**: a results-day move is roughly the stock's usual size of move times a random
+  factor that is the same for every stock, so on the log scale one location forecast carries the
+  three chances (the three events differ only in their cut-off); the design check found three
+  direct yes/no models only 0.0005 better (two of three years), at three times the fits. One
+  forecast also gives a typical size, which V2-41's "absolute and log errors reported beside it"
+  need, keeps the three chances consistent, and makes the hypothesis checks a third as long.
+- **Alternatives**: three direct yes/no models per level (rejected above); one ordered model with
+  a common slope (equivalent here, less familiar); the empirical spread of past errors (assumes
+  the forecast is unbiased, which shrunk forecasts are not; Platt corrects that).
 
-**Rationale**: Follows D60 and the notebook instructions verbatim while keeping every step fast,
-transparent and 100% point-in-time.
+## R4 · The three release-timing features are left out (V2-54)
 
-## R4. Calibrating the chances (> 5%, > 10%, > 20%) and building the 5 bands
+- **Decision** (researcher, 9 Nov, before any clean 006 result): leave out `days_since_results`,
+  `days_to_next_results` and `months_since_report`.
+- **Why**: on a release eve, the rows this model learns from, they describe the release's own
+  timing (about 90 days since the last release, about 0 days to the expected one, about 3 months
+  since the last report); on any other day they mean something else (a company that released
+  results last week has 7 days since its last release, a value no release eve has). The holdout
+  test (010) scores release eves like the training rows, but the daily scores and the app will
+  score each company's latest row, any day of the quarter: there the model would extrapolate, or
+  009 would have to invent eve values. Leaving them out means the model tested on the holdout is
+  the model the app uses. Cost in the design check: +0.0008 (mixed: +0.0004, +0.0021, −0.0001); they carry 3% of the trees' gain.
+- **Alternatives**: keep them and have 009 set each company's timing features to their expected
+  eve values (an invented input, the same for nearly every company); keep them and score daily
+  only on release eves (no forecast between releases).
 
-**Decision**:
-- From the model's log-move prediction $\hat{z}(x)$, compute out-of-sample-style inner-validation
-  (or cross-fitted time-ordered training) residuals $r = z - \hat{z}$.
-- For each threshold $\tau \in \{0.05, 0.10, 0.20\}$, fit an `IsotonicRegression(out_of_bounds="clip",
-  y_min=0.001, y_max=0.999)` mapping $\hat{z}$ to $\mathbb{I}(\text{move} > \tau)$ on the fold's
-  purged inner validation / training predictions, enforcing monotonicity across thresholds:
-  $p_{20}(x) \le p_{10}(x) \le p_{5}(x)$.
-- **Five risk bands**: Cut $\hat{m}(x)$ at the training quintiles (20th, 40th, 60th, 80th
-  percentiles of training predictions) to assign Band 1 (lowest predicted move) through Band 5
-  (highest predicted move). Record for each band the observed median move, 25th–75th percentile
-  range (interquartile range), and observed hit rates for > 5%, > 10% and > 20% moves across the
-  test years.
+## R5 · The four levels
 
-**Rationale**: Isotonic regression on the single monotone score $\hat{z}(x)$ guarantees that a stock
-with a higher predicted move always has at least as high a chance of a > 5%, > 10% and > 20% move
-and never produces impossible probabilities outside $[0, 1]$.
+| Level | The forecast of the log move | Fitted on |
+|---|---|---|
+| 0 Naive baseline | `log(prev4_mean)`; a company's first release gets the inner releases' typical (median) move | — |
+| 1 Rule | `a + b·log(history) + c·log(vol_63)`, where history is `prev4_mean` shrunk toward the inner releases' typical move by `m / (m + k)`, `m = min(n_prev, 4)` | `a, b, c` by least squares on inner releases; `k` in {1, 2, 4} on the validation year |
+| 2 Classic | ridge regression of the log move on the features | inner releases; `alpha` in {1, 10, 100, 1000} on the validation year |
+| 3 Trees | LightGBM regression of the log move | inner releases; settings on the validation year |
 
-## R5. Holdout-readiness for `latest.parquet` and `feature_snapshot.parquet`
+- **Constant base rates** (the shares of releases known before the test year that moved more than
+  5%, 10% and 20%) are shown beside every level as the floor every level must beat (SC-004); they
+  are not a level, since the pre-registered naive baseline is `prev4_mean`.
+- **Rule** (the EDA's advice, without the sector: R9): the company's own typical results-day move,
+  trusted more the more releases it has, combined with how much the stock moves on ordinary days.
+  Its two weights say how much each counts.
+- **Classic preprocessing** (fitted on inner releases only, inside the model, V2-33): positive
+  size-of-move measures enter as logs (`prev4_mean`, the volatilities: the log of the move rises
+  with their logs); one of each pair with |Spearman| ≥ 0.9 dropped (`eda.redundant_pairs` on the
+  first fold's inner releases, fixed for every fold, keeping the log versions); every column cut
+  at its 1st and 99th percentiles; missing values filled with the median plus a "was missing"
+  indicator; standardised. All families stay in (the hypotheses judge macro, insider and short
+  volume, V2-46).
+- **Trees**: missing values left to the trees; fixed learning rate 0.05, feature and row fraction
+  0.8 (rows every iteration), `deterministic=True`, 8 threads, `seed=0`. Grid on the validation
+  year: `num_leaves` {15, 63} × `min_child_samples` {100, 500}, and the number of trees from
+  {50, 100, 150, 200, 300, 400, 600, 800} (the design check chose 200, its smallest), read from
+  one fit of 800 trees, never by early stopping (V2-49).
+- **Settings are chosen by the deciding measure**: for each candidate, the validation year's mean
+  log loss of the three chances after their Platt calibration on that year (two numbers per
+  event on about 13,000 releases: no candidate gains from it more than another).
+- **Alternatives**: LightGBM's quantile or absolute loss (the log already tames the tail; Platt
+  re-calibrates); the median of the previous four in the rule (not available to the holdout and
+  daily rows, R1).
 
-**Decision**:
-`results_move.parquet` (and the 010 holdout `results_move` table) includes `prev4_mean` and `n_prev`
-computed by `labels/risk.py`. However, `latest.parquet` and `feature_snapshot.parquet` (which the
-dry run in step 4 of the notebook instructions scores) contain only the 110 columns of
-`feature.snapshot` and do not carry `prev4_mean` or `n_prev`.
-Therefore, the saved model bundle stores a lookup dictionary `history_by_cik: dict[str, tuple[float, int]]`
-of each company's latest known `(prev4_mean, n_prev)` at the end of the training period (2022-12-31).
-When `predict(model, rows)` is called:
-- If `prev4_mean` and `n_prev` are present in `rows` (as in walk-forward test folds and the 010
-  holdout evaluation), it uses them directly.
-- If they are absent from `rows` (as in `latest.parquet` or `feature_snapshot.parquet`), it fills
-  them by looking up `cik` in `model.history_by_cik` (or `(NaN, 0)` for CIKs with no prior training
-  release, which the model's imputer then handles cleanly).
+## R6 · Measures and the choice
 
-**Rationale**: Guarantees that `predict(model, rows)` works identically on `results_move.parquet`,
-`latest.parquet`, and `feature_snapshot.parquet` with zero missing-column errors.
+- **Deciding measure** (V2-41): per test year, the mean of the three log losses. Beside it: each
+  event's log loss and Brier score (with the base rates' Brier), the rank correlation of the
+  chance above 10% with the move, and, from the forecast size (exp of the log forecast;
+  `prev4_mean` itself for level 0), the mean absolute error and the mean absolute log error.
+- **Choice** (V2-50): order baseline, rule, classic, trees; each level's gap to the best per test
+  year; of the levels whose mean gap is within one standard error of its four yearly gaps, the
+  simplest. The textbook version is printed for reference, as in 007.
+- **Rationale**: as 007 (V2-37, V2-50); log loss judges ranking and honest chances together.
+
+## R7 · Calibration and bands
+
+- **Calibration**: R3. Calibration charts per event and test year (forecast against real share,
+  in tenths of the forecast).
+- **Bands** (V2-53): five groups by the calibrated chance above 10%, edges at the quintiles of the
+  level's forecast on the validation year (a `Dated` with the test year's cutoff): calibration
+  keeps the forecast's order, so these are the quintiles of the chance above 10% without
+  re-scoring releases the calibration learned from (as 007). Per band and test year: releases, the
+  forecast and real shares above 5%, 10% and 20%, and the median move. The table the app's hit
+  rates come from (via 008).
+
+## R8 · Checks asked by D60 and the EDA
+
+- **Training from 2012 against 2010** (FR-012): the chosen level is refitted from 2012 on every
+  fold and both are shown on the test years. The start is fixed at 2010 by the design check
+  (2010 better by 0.0008) before any test year is read; the test-year check reports, it does not
+  choose.
+- **Long windows** (FR-012): the chosen level's measures on the test years with and without the
+  releases whose 8-K came 5 or more days after the release (`filing_date − report_date`, 1.9%,
+  EDA); reported only, the window rule is pre-registered.
+
+## R9 · The sector is left out
+
+- **Decision**: `sector` is not an input to any level, and the rule shrinks toward the typical
+  move of all inner releases, not the sector's.
+- **Rationale**: `ref.sector` is each company's sector from its **current** SIC code
+  (`reference/build.py`), applied to every past row: not point-in-time (constitution I). A
+  blank-check company that later merges with a drug developer is "health" in its rows from before
+  the merger. The design check found it worth −0.0010 (two of three years); the price features
+  already tell calm sectors (utilities, median move 1.8%) from wild ones (technology, 5.4%). The
+  sector stays available for tables (results by sector) in the notebook.
+- **Alternatives**: use it as the EDA suggested (rejected: look-ahead); a point-in-time SIC
+  history (not in the data; a pipeline change).
+
+## R10 · What the model uses, the leak check and the hypotheses
+
+- **Importance**: trees' gain (top 20), the classic model's standardised coefficients (top 20).
+- **Leak check**: no input is a non-feature column; no single feature reaches an AUC of 0.95 for
+  any event.
+- **Hypotheses** (V2-46, FR-013): family check on the chosen level (LightGBM if a rule level is
+  chosen, as 007), five seeds (one for ridge, which has none), every fold, with each fold's
+  settings: refit without the family, the deciding measure's change per test year, "adds" if the
+  mean worsening exceeds one standard error of the four yearly changes. Families: H-R1 history
+  (`prev4_mean`, `n_prev`); H-R2 volatility (`vol_21`, `vol_63`, `vol_252`, `range_vol_21`,
+  `idio_vol_252`); H-R3 size and trading (both families); H-R4 financials (the family); H-R5
+  macro (the family); H-R6 insider and short volume (both families; expected to add nothing).
+  Direction checks (rank correlation with the move per test year, expected sign in at least three
+  of four): H-R1 `prev4_mean` (+), H-R2 `idio_vol_252` (+), H-R3 `log_market_cap` (−), H-R4
+  `loss_making` (+), H-R5 `vix` (+). H-R1 also needs the baseline's rank correlation above 0.
+
+## R11 · The frozen model and the dry run
+
+- **Decision**: the chosen level made for target year 2023 exactly as for a test year (inner:
+  moves known before 2022; settings, calibration and band edges from the releases of 2022). One
+  object (`ResultsMoveModel`, contracts/) with the forecast model, the three calibrations and the
+  band edges, each a `Dated` with its cutoff, plus the feature list, eligibility flag `eligible`,
+  seed, git commit, export date and data hash; `predict(model, rows)` gives the three chances and
+  the band. Fitted twice in the notebook: identical predictions (SC-002).
+- **Dry run**: the 54,767 eligible release-eve rows of `feature_snapshot.parquet` dated 2023 or
+  later, and the eligible rows of `latest.parquet` (the code path the daily scores use), with
+  `prev4_mean` and `n_prev` given explicitly as missing: their moves after 2022 are sealed until
+  the holdout test, which computes them inside its guarded command. Checks: one prediction per
+  eligible row, chances in [0, 1] and in order, bands 1–5.
+
+## R12 · MLflow, run time and the move to the package
+
+- **MLflow**: `sqlite:///data/mlflow.db`, artifacts in `data/mlartifacts/`, experiment
+  `006-results-move`: one run per level and test year, one for the checks, one for the frozen
+  model; tags: git commit, export date, data hash (as 007, R9 there).
+- **Run time**: the design check fitted LightGBM in 4–7 seconds; the notebook's largest part is
+  the hypothesis checks (six families, five seeds, four folds: about 140 fits). Expected under
+  30 minutes.
+- **After approval** (FR-019): the code moves to `src/sentinel/models/results_move.py`, replacing
+  Gemini's (never evaluated as packaged, audit of 4 Nov); `sentinel train results_move` builds the
+  frozen model; `scoring/daily.py` reads the new output (the chance above 10% as the forecast
+  value, the three chances and the band name as extras), still paused (V2-42); the notebook
+  imports the module and gives the same numbers; unit tests as `test_models_dilution.py`.

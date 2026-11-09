@@ -168,18 +168,18 @@ def test_daily_scoring_and_idempotence(mock_db_con, mock_paths):
         )
 
     def mock_res_predict(m, rows):
+        assert {"prev4_mean", "n_prev"} <= set(rows.columns)  # history given, missing if sealed
         sub = rows[rows["eligible"]].copy()
         return pd.DataFrame(
             {
                 "cik": sub["cik"],
                 "as_of": sub["as_of"],
                 "eligible": True,
-                "pred_move": 0.065,
-                "band": 2,
                 "p_move_5": 0.60,
                 "p_move_10": 0.25,
                 "p_move_20": 0.05,
-                "band_median": 0.058,
+                "move_band": 3,
+                "move_band_name": "3 · Moderate risk",
             }
         )
 
@@ -197,6 +197,12 @@ def test_daily_scoring_and_idempotence(mock_db_con, mock_paths):
 
         total_rows = mock_db_con.execute("select count(*) from score.daily").fetchone()[0]
         assert total_rows == 6
+        res = mock_db_con.execute(
+            "select forecast_val, band, extra_json from score.daily where question = 'results_move'"
+        ).fetchall()
+        assert {(v, b) for v, b, _ in res} == {(0.25, 3)}  # the chance above 10% (V2-53)
+        assert all('"band_name": "3' in extra and '"p_move_20": 0.05' in extra
+                   for _, _, extra in res)  # fmt: skip
 
         # Second scoring run on the same date (Idempotence check)
         counts_second = daily.score_snapshot(mock_db_con, mock_paths)
@@ -223,7 +229,7 @@ def test_outcome_tracking(mock_db_con):
          '{extra_vol}', timestamp '2022-05-01 16:00:00'),
         ('0000000001', date '{past_date}', 'dilution', 'lgbm_v1', 0.15, 4, 'full',
          '{extra_dil}', timestamp '2022-05-01 16:00:00'),
-        ('0000000001', date '{past_date}', 'results_move', 'lgbm_v1', 0.08, 3, 'full',
+        ('0000000001', date '{past_date}', 'results_move', 'lgbm_v1', 0.35, 3, 'full',
          '{extra_res}', timestamp '2022-05-01 16:00:00')
     """)
 
@@ -238,7 +244,7 @@ def test_outcome_tracking(mock_db_con):
     """)
     mock_db_con.execute(f"""
         insert into label.results_move values
-        ('0000000001', date '{past_date}', 0.075, date '2022-05-03')
+        ('0000000001', date '{past_date}', 0.12, date '2022-05-03')
     """)
 
     # Evaluate outcomes
@@ -259,6 +265,8 @@ def test_outcome_tracking(mock_db_con):
     dil_row = outcomes_df[outcomes_df["question"] == "dilution"].iloc[0]
     assert dil_row["is_hit"] is True or dil_row["is_hit"] == 1
 
-    # Check results_move outcome: abs(0.08 - 0.075) = 0.005 <= 0.05 -> is_hit is True
+    # Check results_move outcome: a 35% chance of a move above 10%, and the move was 12%: the
+    # event happened (actual 1), so it counts in its band's real rate (D47)
     res_row = outcomes_df[outcomes_df["question"] == "results_move"].iloc[0]
+    assert res_row["actual_val"] == 1.0 and np.isclose(res_row["error"], 0.35 - 1.0)
     assert res_row["is_hit"] is True or res_row["is_hit"] == 1
