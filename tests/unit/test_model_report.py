@@ -135,6 +135,13 @@ def test_the_holdout_record_is_shown_unedited(store, tmp_path):
     assert card["dilution"]["holdout"]["rows"] == 12345 and card["volatility"]["holdout"] is None
 
 
+def test_a_named_index_is_kept_and_row_numbers_are_dropped():
+    years = pd.DataFrame({"x": [1.0, 2.0]}, index=pd.RangeIndex(2019, 2021, name="year"))
+    assert report._value(years) == {"columns": ["year", "x"], "data": [[2019, 1.0], [2020, 2.0]]}
+    stacked = pd.concat([pd.DataFrame({"x": [1.0]}), pd.DataFrame({"x": [2.0]})])  # index 0, 0
+    assert report._value(stacked) == {"columns": ["x"], "data": [[1.0], [2.0]]}
+
+
 def test_the_command_reports_missing_records(monkeypatch):
     def missing(*args, **kwargs):
         raise report.MissingRecords("no report record for dilution")

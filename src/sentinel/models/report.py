@@ -72,7 +72,9 @@ def _value(obj):
     if isinstance(obj, pd.Series):
         obj = obj.to_frame()
     if isinstance(obj, pd.DataFrame):
-        frame = obj if isinstance(obj.index, pd.RangeIndex) else obj.reset_index()
+        # a named index (year, level, hypothesis) is a column; an unnamed one is row numbers
+        named = isinstance(obj.index, pd.MultiIndex) or obj.index.name is not None
+        frame = obj.reset_index() if named else obj.reset_index(drop=True)
         cols = [" ".join(map(str, c)) if isinstance(c, tuple) else str(c) for c in frame.columns]
         return {
             "columns": cols,
@@ -221,9 +223,10 @@ def _figures(q: str, t: dict, out: Path) -> list[str]:
     names = []
     res, measure = _frame(t["results"]), t["deciding"]["measure"]
     plt.figure(figsize=(7, 4))
-    for level in t["levels"]:
+    for level in t.get("reference", []) + t["levels"]:
         g = res[res["level"] == level].sort_values("year")
-        plt.plot(g["year"].astype(int), g[measure], marker="o", label=level)
+        style = "--" if level in t.get("reference", []) else "-"
+        plt.plot(g["year"].astype(int), g[measure], style, marker="o", label=level)
     plt.xticks(sorted(res["year"].astype(int).unique()))
     plt.ylabel(t["deciding"]["label"])
     plt.title(f"{QUESTIONS[q][2]}: {t['deciding']['label']} per test year (lower is better)")
@@ -267,6 +270,7 @@ def _section(n: int, q: str, rec: dict, hold: dict | None, labels: dict, out: Pa
     src = _source(run)
     src["experiment"] = experiment
     res, levels = _frame(t["results"]), t["levels"]
+    shown = t.get("reference", []) + levels  # reference rows (the base rates) shown as the floor
     measure, label = t["deciding"]["measure"], t["deciding"]["label"]
     lines = [
         f"## {n}. {title} ({feature})",
@@ -308,7 +312,7 @@ def _section(n: int, q: str, rec: dict, hold: dict | None, labels: dict, out: Pa
         "",
         f"### Results: {label} (deciding; lower is better)",
         "",
-        _md(_pivot(res, measure, levels)),
+        _md(_pivot(res, measure, shown)),
     ]
     others = [
         c
@@ -316,7 +320,7 @@ def _section(n: int, q: str, rec: dict, hold: dict | None, labels: dict, out: Pa
         if c not in ("level", "year", measure) and pd.api.types.is_numeric_dtype(res[c])
     ]
     for c in others:
-        lines += ["", f"**{c}**", "", _md(_pivot(res, c, levels))]
+        lines += ["", f"**{c}**", "", _md(_pivot(res, c, shown))]
     figs = _figures(q, t, out)
     lines += [
         "",
