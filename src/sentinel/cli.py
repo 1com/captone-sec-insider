@@ -293,8 +293,10 @@ def train(
                 f"  Saved {q} model to {model_path} ({len(model.features)} features) "
                 f"in {time.monotonic() - started:.1f}s"
             )
-        elif q == "volatility":
-            model = volatility.fit(dev_df, level=level)
+        elif q == "volatility":  # the approved model (V2-58); `--level` does not apply
+            rows = volatility.learnable(dev_df)
+            made_from = dilution.provenance(eda.EXPORT / "volatility.parquet")
+            model = volatility.fit(rows, provenance=made_from, echo=typer.echo)  # minutes
             model_path = p.models / "volatility.joblib"
             volatility.save(model, model_path)
             typer.echo(

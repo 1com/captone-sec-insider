@@ -57,19 +57,16 @@ def score_snapshot(
     vol_eligible = pred_vol_df[pred_vol_df["eligible"]].copy()
 
     if not vol_eligible.empty:
-        # Determine volatility risk band based on annualized volatility
-        # Standard financial volatility bands:
-        # Band 1: < 20% (low vol)
-        # Band 2: 20% - 30% (moderate vol)
-        # Band 3: 30% - 45% (elevated vol)
-        # Band 4: 45% - 70% (high vol)
-        # Band 5: > 70% (extreme / speculative vol)
-        vol_edges = [0.20, 0.30, 0.45, 0.70]
-        v_bands = np.digitize(vol_eligible["vol_forecast"].to_numpy(), vol_edges) + 1
-
+        # The approved model's five bands (V2-58): edges at the quintiles of earlier years'
+        # out-of-sample forecasts, each band with its past outcomes (D47)
         extras = [
-            json.dumps({"vol_low_80": float(low), "vol_high_80": float(hi)})
-            for low, hi in zip(vol_eligible["vol_low_80"], vol_eligible["vol_high_80"], strict=True)
+            json.dumps({"vol_low_80": float(low), "vol_high_80": float(hi), "band_name": str(n)})
+            for low, hi, n in zip(
+                vol_eligible["vol_low_80"],
+                vol_eligible["vol_high_80"],
+                vol_eligible["vol_band_name"],
+                strict=True,
+            )
         ]
         sub_cov = snap_df.loc[vol_eligible.index, "coverage"].fillna("full").tolist()
 
@@ -80,7 +77,7 @@ def score_snapshot(
                 "question": "volatility",
                 "model_version": f"{model_vol.level}_v1",
                 "forecast_val": vol_eligible["vol_forecast"].astype(float),
-                "band": v_bands.astype(int),
+                "band": vol_eligible["vol_band"].astype(int),
                 "coverage": sub_cov,
                 "extra_json": extras,
                 "scored_at": now_ts,
