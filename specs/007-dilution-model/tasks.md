@@ -128,7 +128,7 @@ a named choice.
 
 - [X] T024 Move `DilutionModel`, fitting and `predict` into `src/sentinel/models/dilution.py`; the notebook imports them and gives the same numbers (5 Nov: same numbers, every table identical)
 - [X] T025 [P] Unit tests in `tests/unit/test_models_dilution.py`: feature list excludes non-features and `cum_split_after`; predict skips ineligible rows; deterministic output; missing feature column raises (5 Nov: same numbers, every table identical)
-- [ ] T026 Pull request into `main` after the researcher agrees; close issue #78
+- [X] T026 Pull request into `main` after the researcher agrees; close issue #78 (#92, merged 9 Nov; #78 closed)
 
 ---
 
