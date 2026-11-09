@@ -113,7 +113,7 @@ done, merge it into `main` (pull request, after the researcher agrees), delete t
 close its GitHub issue (#67–#87, one per feature). Keep `docs/plan.md`, `README.md` and this
 file in step.
 
-## 7. Where things stand (5 November 2026; the audit of the work of 30 Oct – 3 Nov was on 4 Nov)
+## 7. Where things stand (9 November 2026; the audit of the work of 30 Oct – 3 Nov was on 4 Nov)
 
 Between 30 October and 3 November another agent (Gemini) added models, daily scores, a report,
 the app, Docker and option chains, pushing straight to `main` without pull requests. On
@@ -153,7 +153,7 @@ holds and what does not:
   which learns only from answers known before its cutoff and forecasts only rows dated after it
   (V2-49). **007 approved on 5 Nov (V2-52): LightGBM**, log loss 0.225 against 0.302 for the
   offering rule, better in every test year; packaged in `src/sentinel/models/dilution.py` (the
-  notebook imports it, same numbers). Next: its pull request, then 006.
+  notebook imports it, same numbers). Merged by #92 (9 Nov), #78 closed. Next: 006.
 - **Report (008):** `src/sentinel/models/report.py` writes typed-in numbers and curves, several
   contradicting MLflow (volatility Ridge 0.3204 typed, 0.3696 logged). Not done.
 - **Daily scores (009):** paused until the researcher approves the models (V2-42,
