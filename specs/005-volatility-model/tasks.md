@@ -96,15 +96,15 @@ named choice.
 ## Phase 7: Polish
 
 - [X] T017 Trial run with `SENTINEL_TRIAL=1`, then the full run under the memory cap (`systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 uv run jupyter nbconvert --to notebook --execute --inplace notebooks/005-volatility-model.ipynb`); note the run time; check quickstart.md items 1–9 (9 Nov: trial 143 s; first full run 1,112 s: LightGBM best in 2019–2021, worst in 2022, the rule chose the baseline)
-- [ ] T018 Findings cell of `notebooks/005-volatility-model.ipynb` from the outputs (aggregates only): the chosen level and why, its skill per test year against the baseline and the rule, the range's coverage, the bands, the hypothesis verdicts, what moves to `src/sentinel/models/`, open questions; export date and data hash on top
-- [ ] T019 [P] Tick tasks here; update `AGENTS.md` and `docs/plan.md`; commit the notebook (outputs stripped) and the specs; show the researcher the executed notebook by the evening of 11 November (SC-008, V2-48)
+- [X] T018 Findings cell of `notebooks/005-volatility-model.ipynb` from the outputs (aggregates only): the chosen level and why, its skill per test year against the baseline and the rule, the range's coverage, the bands, the hypothesis verdicts, what moves to `src/sentinel/models/`, open questions; export date and data hash on top
+- [X] T019 [P] Tick tasks here; update `AGENTS.md` and `docs/plan.md`; commit the notebook (outputs stripped) and the specs; show the researcher the executed notebook by the evening of 11 November (SC-008, V2-48)
 
 ---
 
 ## Phase 7b: The researcher's answer after the first run (9 Nov, V2-57)
 
-- [ ] T023 Section 1 of `notebooks/005-volatility-model.ipynb`: `MACRO` (the 16 macro features) and `MODEL_FEATURES` (the 79 others); the ridge (redundant pairs found among `MODEL_FEATURES`) and LightGBM learn from `MODEL_FEATURES`; section 9b checks H-V4 by adding macro back; the instruction and section cells say so (FR-020)
-- [ ] T024 Re-run the notebook start to finish under the memory cap; findings (T018) from the re-run, saying that V2-57 was decided after seeing the test years; tick T018–T019; show the researcher
+- [X] T023 Section 1 of `notebooks/005-volatility-model.ipynb`: `MACRO` (the 16 macro features) and `MODEL_FEATURES` (the 79 others); the ridge (redundant pairs found among `MODEL_FEATURES`) and LightGBM learn from `MODEL_FEATURES`; section 9b checks H-V4 by adding macro back; the instruction and section cells say so (FR-020)
+- [X] T024 Re-run the notebook start to finish under the memory cap; findings (T018) from the re-run, saying that V2-57 was decided after seeing the test years; tick T018–T019; show the researcher (9 Nov: re-run 1,196 s; LightGBM chosen, best in every test year; shown)
 
 ---
 

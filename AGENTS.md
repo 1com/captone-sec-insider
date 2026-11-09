@@ -164,7 +164,14 @@ holds and what does not:
   frozen candidate passes the dry run. **006 approved on 9 Nov (V2-55): LightGBM**, packaged in
   `src/sentinel/models/results_move.py` (the notebook imports it, same numbers); `sentinel train` and
   `sentinel score results_move` work; the paused daily scores store the chance above 10% (V2-53)
-  and live outcomes compare it with a move above 10%. Merged by #94 (9 Nov), #77 closed. Next: 008 and 010
+  and live outcomes compare it with a move above 10%. Merged by #94 (9 Nov), #77 closed. **005 built
+  9 Nov** (branch `005-volatility-model`, V2-48 cutoff: approved by 11 Nov evening or left out):
+  deciding measure the mean absolute log error (V2-56); ridge and LightGBM forecast the change from
+  past volatility; the 80% range on all earlier years' out-of-sample errors (walk-forward from
+  2014, V2-10). First run: LightGBM worst in 2022, baseline chosen; macro left out after it
+  (V2-57, after seeing the test years: as V2-36). Re-run: **LightGBM chosen**, 0.279 against 0.290
+  ridge, 0.326 rule, 0.346 baseline, best every year; range coverage 78/72/84/88%; waiting for the
+  researcher's approval. Then 008 and 010
   (005 only if time allows, V2-48). Before the daily scores resume (009): train the approved
   models into `data/models/` (`sentinel train results_move`, `sentinel train dilution`; the folder
   still holds Gemini's unapproved files of 2 Nov) and give `prev4_mean` the moves after 2022, which
