@@ -1,8 +1,9 @@
 # Contract: the frozen results-move model
 
-What 009 (daily scores) and 010 (the holdout test) can rely on. Defined in the notebook now and
-moved unchanged to `src/sentinel/models/results_move.py` after the researcher's approval
-(replacing Gemini's module and contract of 30 Oct, which were never evaluated as packaged).
+What 009 (daily scores) and 010 (the holdout test) can rely on. Implemented in
+`src/sentinel/models/results_move.py` (approved 9 Nov, V2-55; replacing Gemini's module and
+contract of 30 Oct, which were never evaluated as packaged); the notebook imports it and gives the
+same numbers.
 
 ## The object: `ResultsMoveModel`
 

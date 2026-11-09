@@ -5,7 +5,8 @@
 **Created**: 2026-10-30 (Gemini); **rewritten 2026-11-09** after the audit of 4 Nov
 
 **Status**: Second version: rewritten to the decisions of 4–5 Nov (V2-41, V2-46, V2-49, V2-50)
-before any clean result; the bands' order decided 9 Nov (V2-53)
+before any clean result; the bands' order decided 9 Nov (V2-53). **Approved 9 Nov (V2-55):
+LightGBM**, packaged in `src/sentinel/models/results_move.py`
 
 **Input**: User description: "Feature 006 · Results-day move model (roadmap 006, issue #77): the
 chances that a company's share price moves more than 5%, 10% and 20% beyond the market on its

@@ -161,8 +161,14 @@ holds and what does not:
   for the researcher): **LightGBM chosen** by V2-50, mean log loss of the three chances 0.404
   against 0.409 ridge, 0.421 rule, 0.433 baseline, 0.469 base rates, better than the ridge every
   year (the textbook rule would keep the ridge); bands rise every year; H-R1 to H-R6 supported;
-  frozen candidate passes the dry run. Waiting for the researcher's approval; then T024–T026
-  (package into `src/sentinel/models/results_move.py`, tests, pull request).
+  frozen candidate passes the dry run. **006 approved on 9 Nov (V2-55): LightGBM**, packaged in
+  `src/sentinel/models/results_move.py` (the notebook imports it, same numbers); `sentinel train` and
+  `sentinel score results_move` work; the paused daily scores store the chance above 10% (V2-53)
+  and live outcomes compare it with a move above 10%. Next: its pull request; then 008 and 010
+  (005 only if time allows, V2-48). Before the daily scores resume (009): train the approved
+  models into `data/models/` (`sentinel train results_move`, `sentinel train dilution`; the folder
+  still holds Gemini's unapproved files of 2 Nov) and give `prev4_mean` the moves after 2022, which
+  the holdout test computes.
 - **Report (008):** `src/sentinel/models/report.py` writes typed-in numbers and curves, several
   contradicting MLflow (volatility Ridge 0.3204 typed, 0.3696 logged). Not done.
 - **Daily scores (009):** paused until the researcher approves the models (V2-42,
