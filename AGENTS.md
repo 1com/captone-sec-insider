@@ -164,7 +164,7 @@ holds and what does not:
   frozen candidate passes the dry run. **006 approved on 9 Nov (V2-55): LightGBM**, packaged in
   `src/sentinel/models/results_move.py` (the notebook imports it, same numbers); `sentinel train` and
   `sentinel score results_move` work; the paused daily scores store the chance above 10% (V2-53)
-  and live outcomes compare it with a move above 10%. Next: its pull request; then 008 and 010
+  and live outcomes compare it with a move above 10%. Merged by #94 (9 Nov), #77 closed. Next: 008 and 010
   (005 only if time allows, V2-48). Before the daily scores resume (009): train the approved
   models into `data/models/` (`sentinel train results_move`, `sentinel train dilution`; the folder
   still holds Gemini's unapproved files of 2 Nov) and give `prev4_mean` the moves after 2022, which
