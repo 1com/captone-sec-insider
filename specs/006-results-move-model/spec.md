@@ -5,7 +5,7 @@
 **Created**: 2026-10-30 (Gemini); **rewritten 2026-11-09** after the audit of 4 Nov
 
 **Status**: Second version: rewritten to the decisions of 4–5 Nov (V2-41, V2-46, V2-49, V2-50)
-before any clean result
+before any clean result; the bands' order decided 9 Nov (V2-53)
 
 **Input**: User description: "Feature 006 · Results-day move model (roadmap 006, issue #77): the
 chances that a company's share price moves more than 5%, 10% and 20% beyond the market on its
@@ -215,11 +215,9 @@ feature rows.
   the validation year (V2-49).
 - **FR-010**: The three chances MUST be calibrated on earlier years only and never contradict each
   other (above 20% ≤ above 10% ≤ above 5%) for any release.
-- **FR-011**: Releases MUST be grouped into five bands ordered by
-  [NEEDS CLARIFICATION: which forecast orders the five bands: the chance of a move above 10%, the
-  mean of the three chances, or the forecast typical move?], with band edges set on earlier years
-  only; each band shows, per test year, its count, its forecast and real shares above 5%, 10% and
-  20%, and its median move.
+- **FR-011**: Releases MUST be grouped into five bands ordered by the chance of a move above 10%
+  (V2-53, 9 Nov), with band edges set on earlier years only; each band shows, per test year, its
+  count, its forecast and real shares above 5%, 10% and 20%, and its median move.
 - **FR-012**: The notebook MUST include D60's and the EDA's checks: training from 2012 against
   2010; the test years with and without windows of 5 days or more.
 - **FR-013**: The notebook MUST show the chosen level's strongest features and end with a verdict

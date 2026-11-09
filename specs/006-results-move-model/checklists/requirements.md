@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain (one: FR-011, which forecast orders the five bands)
+- [X] No [NEEDS CLARIFICATION] markers remain (FR-011, the bands' order, decided 9 Nov: V2-53)
 - [X] Requirements are testable and unambiguous
 - [X] Success criteria are measurable
 - [X] Success criteria are technology-agnostic (no implementation details)
