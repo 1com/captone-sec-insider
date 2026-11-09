@@ -422,12 +422,15 @@ def serve(
 
 @app.command()
 def report() -> None:
-    """Compile out-of-sample performance report and charts into docs/ (Feature 008)."""
+    """Write the model report, its figures and the model card data into docs/report/ from the
+    records the approved model notebooks wrote in MLflow (feature 008)."""
     from sentinel import config
     from sentinel.models import report as model_report
 
-    p = config.paths()
-    model_report.generate_report(p, echo=typer.echo)
+    try:
+        model_report.generate_report(config.paths(), echo=typer.echo)
+    except model_report.MissingRecords as e:
+        _fail(str(e), FAILED)
 
 
 @app.command()

@@ -1,202 +1,464 @@
-"""Model evaluation report and visualization generator (Feature 008).
+"""The model report and the model card data (feature 008), generated from the records the approved
+model notebooks write (`specs/008-model-report/contracts/report-record.md`).
 
-Compiles out-of-sample walk-forward test metrics across Levels 0–3, calibration curves,
-and feature importances for all three risk forecasting models.
+Each notebook's last code cell calls `record`: one MLflow run named `report` in its experiment,
+with the notebook's tables as one artifact `report.json`. `generate_report` reads the newest
+record of each question that is not a trial, and the holdout records of feature 010 when they
+exist, and writes `docs/report/model_report.md`, its figures and `docs/report/model_card.json`.
+No number is typed in here: every number comes from a record, every definition from
+`config/risk_params.yaml`. It fits nothing, and the same records give byte-identical files.
 """
 
+import json
+import os
+import tempfile
 from pathlib import Path
-from typing import Any
 
-import matplotlib
+os.environ.setdefault("MLFLOW_DISABLE_AGENT_HINT", "1")
+
+import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+import mlflow  # noqa: E402
 import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+from mlflow.tracking import MlflowClient  # noqa: E402
 
+from sentinel import config  # noqa: E402
 from sentinel.config import Paths  # noqa: E402
 
+# question: experiment, feature, title, notebook (in the product's order, D62)
+QUESTIONS = {
+    "dilution": ("007-dilution", "007", "Dilution", "notebooks/007-dilution-model.ipynb"),
+    "results_move": (
+        "006-results-move",
+        "006",
+        "Results-day move",
+        "notebooks/006-results-move-model.ipynb",
+    ),
+    "volatility": ("005-volatility", "005", "Volatility", "notebooks/005-volatility-model.ipynb"),
+}
+HOLDOUT_EXPERIMENT = "010-holdout"
+COUNTS = ("rows", "releases", "inputs")  # count columns: summed when pooling, shown as integers
 
-def generate_report(p: Paths, echo: Any = print) -> Path:
-    """Generate comprehensive model evaluation report and figures in docs/."""
-    docs_dir = p.root / "docs"
-    fig_dir = docs_dir / "figures"
-    fig_dir.mkdir(parents=True, exist_ok=True)
 
-    echo("Generating model report figures...")
+class MissingRecords(RuntimeError):
+    """A question has no report record: its notebook has not been run (with its recording cell)."""
 
-    # 1. Figure: Dilution Calibration Curve (Reliability Diagram)
-    fig, ax = plt.subplots(figsize=(7, 5), dpi=150)
-    pred_p = np.array([0.005, 0.012, 0.028, 0.055, 0.092, 0.145, 0.220, 0.315, 0.420, 0.580])
-    obs_p = np.array([0.004, 0.011, 0.026, 0.052, 0.089, 0.141, 0.218, 0.320, 0.415, 0.565])
 
-    ax.plot([0, 0.6], [0, 0.6], "k--", label="Perfect Calibration (Ideal)", alpha=0.6)
-    ax.plot(
-        pred_p,
-        obs_p,
-        "o-",
-        color="#0284c7",
-        lw=2,
-        markersize=6,
-        label="LightGBM Dilution Model (OOS)",
+# --- writing a record (the notebooks) ---
+
+
+def _plain(v):
+    """A JSON value: numbers as numbers, missing as null, dates as ISO text."""
+    if v is None or v is pd.NA or v is pd.NaT or (isinstance(v, float) and not np.isfinite(v)):
+        return None
+    if isinstance(v, (bool, np.bool_)):
+        return bool(v)
+    if isinstance(v, (int, np.integer)):
+        return int(v)
+    if isinstance(v, (float, np.floating)):
+        return None if not np.isfinite(v) else float(v)
+    if isinstance(v, pd.Timestamp):
+        return v.date().isoformat() if v == v.normalize() else v.isoformat()
+    if hasattr(v, "isoformat"):
+        return v.isoformat()
+    return v if isinstance(v, str) else str(v)
+
+
+def _value(obj):
+    """Tables as {"columns", "data"}; dicts and lists element by element."""
+    if isinstance(obj, pd.Series):
+        obj = obj.to_frame()
+    if isinstance(obj, pd.DataFrame):
+        frame = obj if isinstance(obj.index, pd.RangeIndex) else obj.reset_index()
+        cols = [" ".join(map(str, c)) if isinstance(c, tuple) else str(c) for c in frame.columns]
+        return {
+            "columns": cols,
+            "data": [[_plain(v) for v in row] for row in frame.itertuples(index=False)],
+        }
+    if isinstance(obj, dict):
+        return {str(k): _value(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_value(v) for v in obj]
+    return _plain(obj)
+
+
+def record(question: str, tables: dict, tags: dict) -> str:
+    """Write one report record: an MLflow run named `report` in the active experiment, tagged
+    `report=true`, `question` and `tags` (`trial` defaults to False), with `tables` as the artifact
+    `report.json`. Returns the run id."""
+    if question not in QUESTIONS:
+        raise ValueError(f"unknown question {question!r}")
+    payload = {"question": question, **{k: _value(v) for k, v in tables.items()}}
+    text = json.dumps(payload, indent=1, ensure_ascii=False, allow_nan=False)
+    run_tags = {**{k: str(v) for k, v in tags.items()}, "report": "true", "question": question}
+    run_tags["trial"] = str(tags.get("trial", "False"))
+    with tempfile.TemporaryDirectory() as tmp, mlflow.start_run(run_name="report") as run:
+        mlflow.set_tags(run_tags)
+        path = Path(tmp) / "report.json"
+        path.write_text(text, encoding="utf-8")
+        mlflow.log_artifact(str(path))
+        return run.info.run_id
+
+
+# --- reading the records ---
+
+
+def _newest(client: MlflowClient, experiment: str, filter_string: str):
+    exp = client.get_experiment_by_name(experiment)
+    if exp is None:
+        return None
+    runs = client.search_runs(
+        [exp.experiment_id],
+        filter_string=filter_string,
+        order_by=["attributes.start_time DESC"],
+        max_results=1,
     )
-    ax.set_title(
-        "Dilution Model: Reliability Calibration Diagram (Walk-Forward 2019–2022)",
-        fontsize=11,
-        fontweight="bold",
-    )
-    ax.set_xlabel("Mean Predicted Dilution Probability", fontsize=10)
-    ax.set_ylabel("Empirical Realized Dilution Rate", fontsize=10)
-    ax.legend(loc="upper left", frameon=True)
-    ax.grid(True, linestyle="--", alpha=0.5)
-    plt.tight_layout()
-    fig.savefig(fig_dir / "dilution_calibration.png")
-    plt.close(fig)
+    return runs[0] if runs else None
 
-    # 2. Figure: Volatility Interval Coverage
-    fig, ax = plt.subplots(figsize=(7, 4.5), dpi=150)
-    years = [2019, 2020, 2021, 2022]
-    nominal_target = 80.0
-    empirical_cov = [78.4, 81.2, 79.6, 80.8]
 
-    ax.axhline(nominal_target, color="black", linestyle="--", label="Nominal Target (80%)")
-    bars = ax.bar(
-        years,
-        empirical_cov,
-        color="#0d9488",
-        width=0.45,
-        alpha=0.85,
-        label="Empirical Realized Hit Rate",
-    )
-    for bar in bars:
-        h = bar.get_height()
-        ax.annotate(
-            f"{h:.1f}%",
-            xy=(bar.get_x() + bar.get_width() / 2, h),
-            xytext=(0, 3),
-            textcoords="offset points",
-            ha="center",
-            va="bottom",
-            fontsize=9,
-            fontweight="bold",
+def _artifact(run, name: str, uri: str) -> dict:
+    with tempfile.TemporaryDirectory() as tmp:
+        path = mlflow.artifacts.download_artifacts(
+            run_id=run.info.run_id, artifact_path=name, dst_path=tmp, tracking_uri=uri
         )
-    ax.set_ylim(0, 100)
-    ax.set_title(
-        "Volatility Model: 80% Prediction Interval Out-Of-Sample Coverage",
-        fontsize=11,
-        fontweight="bold",
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def load_records(tracking_uri: str) -> tuple[dict, dict]:
+    """Per question the newest report record that is not a trial (its tables and its run), and the
+    newest holdout record of feature 010 when one exists. A missing record raises
+    `MissingRecords` naming the notebooks to run."""
+    client = MlflowClient(tracking_uri=tracking_uri)
+    records, holdouts, missing = {}, {}, []
+    for q, (experiment, _, _, notebook) in QUESTIONS.items():
+        run = _newest(
+            client,
+            experiment,
+            "attributes.run_name = 'report' and tags.report = 'true' and tags.trial = 'False'",
+        )
+        if run is None:
+            missing.append(f"{q} ({notebook})")
+            continue
+        records[q] = {"run": run, "tables": _artifact(run, "report.json", tracking_uri)}
+        hold = _newest(
+            client, HOLDOUT_EXPERIMENT, f"tags.holdout = 'true' and tags.question = '{q}'"
+        )
+        if hold is not None:
+            holdouts[q] = {"run": hold, "tables": _artifact(hold, "holdout.json", tracking_uri)}
+    if missing:
+        raise MissingRecords(
+            "no report record for " + ", ".join(missing) + ": run the notebook(s) "
+            "start to finish first (specs/008-model-report/quickstart.md)"
+        )
+    return records, holdouts
+
+
+# --- rendering ---
+
+
+def _frame(table: dict) -> pd.DataFrame:
+    return pd.DataFrame(table["data"], columns=table["columns"])
+
+
+def _cell(v, column: str = "") -> str:
+    if v is None or (isinstance(v, float) and not np.isfinite(v)):
+        return "–"
+    if isinstance(v, bool):
+        return "yes" if v else "no"
+    if isinstance(v, int) or (isinstance(v, float) and column in COUNTS and float(v).is_integer()):
+        return f"{int(v):,}" if column != "year" else str(int(v))
+    if isinstance(v, float):
+        return f"{v:.4f}"
+    return str(v).replace("|", "\\|").replace("\n", " ")
+
+
+def _md(frame: pd.DataFrame) -> str:
+    cols = [str(c) for c in frame.columns]
+    lines = ["| " + " | ".join(cols) + " |", "|" + "---|" * len(cols)]
+    for row in frame.itertuples(index=False):
+        cells = [
+            _cell(v.item() if hasattr(v, "item") else v, c) for v, c in zip(row, cols, strict=True)
+        ]
+        lines.append("| " + " | ".join(cells) + " |")
+    return "\n".join(lines)
+
+
+def _pivot(results: pd.DataFrame, measure: str, levels: list) -> pd.DataFrame:
+    """Level × test year for one measure, with the mean of the years."""
+    t = results.pivot(index="level", columns="year", values=measure)
+    t = t.reindex([lv for lv in levels if lv in t.index])
+    t.columns = [str(int(c)) for c in t.columns]
+    t["mean"] = t.mean(axis=1)
+    return t.reset_index()
+
+
+def _pooled(bands: pd.DataFrame) -> pd.DataFrame:
+    """The bands over all test years: counts summed, shares and means weighted by the rows;
+    medians are kept per year only (they do not pool)."""
+    count = next(c for c in bands.columns if c in COUNTS)
+    keep = [c for c in bands.columns if c not in ("year", "band", count) and "median" not in c]
+    out = []
+    for band, g in bands.groupby("band", sort=True):
+        w = g[count].astype(float)
+        row = {"band": int(band), count: int(w.sum())}
+        for c in keep:
+            row[c] = float(np.average(g[c].astype(float), weights=w))
+        out.append(row)
+    return pd.DataFrame(out)
+
+
+def _figure(path: Path) -> None:
+    plt.tight_layout()
+    plt.savefig(path, dpi=110, metadata={"Software": None})
+    plt.close("all")
+
+
+def _figures(q: str, t: dict, out: Path) -> list[str]:
+    """The deciding measure by level and year, and the calibration (or forecast against real)."""
+    names = []
+    res, measure = _frame(t["results"]), t["deciding"]["measure"]
+    plt.figure(figsize=(7, 4))
+    for level in t["levels"]:
+        g = res[res["level"] == level].sort_values("year")
+        plt.plot(g["year"].astype(int), g[measure], marker="o", label=level)
+    plt.xticks(sorted(res["year"].astype(int).unique()))
+    plt.ylabel(t["deciding"]["label"])
+    plt.title(f"{QUESTIONS[q][2]}: {t['deciding']['label']} per test year (lower is better)")
+    plt.legend()
+    names.append(f"figures/{q}_results.png")
+    _figure(out / names[-1])
+    cal = _frame(t["calibration"])
+    events = sorted(cal["event"].unique()) if "event" in cal.columns else [None]
+    fig, axes = plt.subplots(1, len(events), figsize=(5 * len(events), 4), squeeze=False)
+    for ax, event in zip(axes[0], events, strict=True):
+        c = cal if event is None else cal[cal["event"] == event]
+        top = float(max(c["forecast"].max(), c["real"].max()))
+        ax.plot([0, top], [0, top], color="grey", lw=1, ls="--")
+        for year, g in c.groupby("year", sort=True):
+            ax.plot(g["forecast"], g["real"], marker="o", ms=3, label=str(int(year)))
+        ax.set_xlabel("forecast (ten groups)")
+        ax.set_ylabel("real")
+        ax.set_title(
+            t.get("calibration_title", "calibration") + ("" if event is None else f": {event}")
+        )
+        ax.legend(fontsize=8)
+    names.append(f"figures/{q}_calibration.png")
+    _figure(out / names[-1])
+    return names
+
+
+def _source(run) -> dict:
+    tags = run.data.tags
+    return {
+        "experiment": tags.get("mlflow.experimentName", ""),
+        "run": run.info.run_id,
+        "git_commit": tags.get("git_commit", ""),
+        "export_date": tags.get("export_date", ""),
+        "data_hash": tags.get("data_hash", ""),
+    }
+
+
+def _section(n: int, q: str, rec: dict, hold: dict | None, labels: dict, out: Path) -> str:
+    t, run = rec["tables"], rec["run"]
+    experiment, feature, title, notebook = QUESTIONS[q]
+    src = _source(run)
+    src["experiment"] = experiment
+    res, levels = _frame(t["results"]), t["levels"]
+    measure, label = t["deciding"]["measure"], t["deciding"]["label"]
+    lines = [
+        f"## {n}. {title} ({feature})",
+        "",
+        f"*Record: experiment `{experiment}`, run `{src['run']}`, "
+        f"commit `{src['git_commit'][:7]}`, export of {src['export_date']}, "
+        f"data hash `{src['data_hash']}`; from `{notebook}`. "
+        f"Approved: {t.get('approved', '–')}.*",
+        "",
+        f"**The question.** {t.get('question_text', '')}",
+        "",
+        "**The answer, as pre-registered** (`config/risk_params.yaml`, labels):",
+        "",
+    ]
+    lines += [f"- `{k}`: {v}" for k, v in labels.items()]
+    lines += ["", "### The data", ""]
+    lines += [
+        f"- {k}: {_cell(v.item() if hasattr(v, 'item') else v, k)}"
+        for k, v in t.get("data", {}).items()
+    ]
+    lines += [
+        "",
+        "### The method",
+        "",
+        "Four levels, simplest first: " + ", ".join(f"`{lv}`" for lv in levels) + ". Each "
+        "learns only from rows whose answers were known before the year it is judged on "
+        "(walk-forward test years, purged; every fitted step a `Dated`, V2-49); settings, "
+        "calibration and band edges come from the year before; the simplest level within one "
+        "standard error of the yearly gaps to the best is chosen (V2-50).",
+        "",
+        "Rows per test year:",
+        "",
+        _md(_frame(t["folds"])),
+    ]
+    if t.get("decisions"):
+        lines += ["", "### The decisions that shaped the model", ""]
+        lines += [f"- {d}" for d in t["decisions"]]
+    lines += [
+        "",
+        f"### Results: {label} (deciding; lower is better)",
+        "",
+        _md(_pivot(res, measure, levels)),
+    ]
+    others = [
+        c
+        for c in res.columns
+        if c not in ("level", "year", measure) and pd.api.types.is_numeric_dtype(res[c])
+    ]
+    for c in others:
+        lines += ["", f"**{c}**", "", _md(_pivot(res, c, levels))]
+    figs = _figures(q, t, out)
+    lines += [
+        "",
+        f"![{title}: results per test year]({figs[0]})",
+        "",
+        "### The choice",
+        "",
+        _md(_frame(t["choice"])),
+        "",
+        f"Chosen: **`{t['chosen']}`** (V2-50). For reference, the textbook rule (one standard "
+        f"error of the best level's own yearly scores) would choose `{t['textbook']}`.",
+        "",
+        f"### {t.get('calibration_title', 'Calibration').capitalize()}",
+        "",
+        f"![{title}: calibration]({figs[1]})",
+        "",
+        "### The bands",
+        "",
+        _md(_frame(t["bands"])),
+        "",
+        "Over the test years (counts summed, shares weighted by rows; medians per year only):",
+        "",
+        _md(_pooled(_frame(t["bands"]))),
+    ]
+    if "coverage" in t:
+        lines += ["", "### The 80% range", "", _md(_frame(t["coverage"]))]
+    lines += ["", "### The hypotheses (`docs/hypotheses.md`)", "", _md(_frame(t["hypotheses"]))]
+    if "family_checks" in t:
+        lines += [
+            "",
+            "Family checks (change in the deciding measure without the family, per test year):",
+            "",
+            _md(_frame(t["family_checks"])),
+        ]
+    for name, table in t.get("checks", {}).items():
+        lines += ["", f"### Check: {name}", "", _md(_frame(table))]
+    lines += ["", "### The frozen model", ""]
+    lines += [f"- {k}: {v}" for k, v in t.get("frozen", {}).items()]
+    lines += ["", "### The holdout test (010)", ""]
+    if hold is None:
+        lines += [
+            "Not run yet: the guarded command of feature 010 runs it once (16 November 2026); "
+            "its results will appear here as they came out."
+        ]
+    else:
+        h = hold["tables"]
+        lines += [
+            f"*Run on {h.get('date', '–')} (experiment `{HOLDOUT_EXPERIMENT}`, run "
+            f"`{hold['run'].info.run_id}`); {h.get('rows', '–')} rows; shown unedited.*",
+            "",
+        ]
+        for name in ("results", "bands", "coverage"):
+            if name in h:
+                lines += [f"**{name}**", "", _md(_frame(h[name])), ""]
+    return "\n".join(lines)
+
+
+def _card(q: str, rec: dict, hold: dict | None) -> dict:
+    t = rec["tables"]
+    res = _frame(t["results"])
+    measure = t["deciding"]["measure"]
+    simpler = t["levels"][: t["levels"].index(t["chosen"]) + 1]
+    years = {
+        str(int(y)): {
+            lv: _plain(g.loc[g["level"] == lv, measure].iloc[0])
+            for lv in simpler
+            if (g["level"] == lv).any()
+        }
+        for y, g in res.groupby("year", sort=True)
+    }
+    bands = _frame(t["bands"])
+    return {
+        "title": QUESTIONS[q][2],
+        "feature": QUESTIONS[q][1],
+        "approved": t.get("approved"),
+        "chosen": t["chosen"],
+        "measure": {"name": measure, **{k: v for k, v in t["deciding"].items() if k != "measure"}},
+        "test_years": years,
+        "bands": _value(bands),
+        "bands_pooled": _value(_pooled(bands)),
+        "coverage": t.get("coverage"),
+        "holdout": None if hold is None else hold["tables"],
+        "source": {**_source(rec["run"]), "experiment": QUESTIONS[q][0]},
+    }
+
+
+def generate_report(
+    p: Paths, tracking_uri: str | None = None, out: Path | None = None, echo=print
+) -> Path:
+    """Write the model report, its figures and the model card data from the records (module
+    docstring). Returns the report's path."""
+    uri = tracking_uri or f"sqlite:///{p.mlflow_db}"
+    if tracking_uri is None and not p.mlflow_db.exists():
+        raise MissingRecords(
+            f"no MLflow store at {p.mlflow_db}: run the model notebooks first "
+            "(specs/008-model-report/quickstart.md)"
+        )
+    records, holdouts = load_records(uri)
+    out = out or p.root / "docs" / "report"
+    (out / "figures").mkdir(parents=True, exist_ok=True)
+    labels = config.risk_params(p)["labels"]
+    summary = []
+    for q, rec in records.items():
+        t = rec["tables"]
+        res = _frame(t["results"])
+        m = res.groupby("level")[t["deciding"]["measure"]].mean()
+        summary.append(
+            {
+                "question": f"{QUESTIONS[q][2]} ({QUESTIONS[q][1]})",
+                "chosen": t["chosen"],
+                "deciding measure (lower is better)": t["deciding"]["label"],
+                "chosen, mean of the test years": float(m[t["chosen"]]),
+                "simplest level": t["levels"][0],
+                "simplest, mean": float(m[t["levels"][0]]),
+                "approved": t.get("approved", "–"),
+                "holdout": "run" if q in holdouts else "not run yet",
+            }
+        )
+    head = [
+        "# EDGAR-SENTINEL · Model report",
+        "",
+        "*Generated by `sentinel report` (feature 008) from the records the approved model "
+        "notebooks wrote in MLflow; never edited by hand. Regenerate it with the commands of "
+        "`specs/008-model-report/quickstart.md`. Every number below is an aggregate over many "
+        "companies.*",
+        "",
+        "## Summary",
+        "",
+    ]
+    head += [_md(pd.DataFrame(summary)), ""]
+    body = [
+        _section(i, q, rec, holdouts.get(q), labels[q], out)
+        for i, (q, rec) in enumerate(records.items(), start=1)
+    ]
+    report = out / "model_report.md"
+    report.write_text("\n".join(head) + "\n" + "\n\n".join(body) + "\n", encoding="utf-8")
+    card = {q: _card(q, rec, holdouts.get(q)) for q, rec in records.items()}
+    (out / "model_card.json").write_text(
+        json.dumps(card, indent=1, ensure_ascii=False, allow_nan=False) + "\n", encoding="utf-8"
     )
-    ax.set_xlabel("Walk-Forward Test Fold", fontsize=10)
-    ax.set_ylabel("Percentage of Realized Volatilities Inside Interval", fontsize=10)
-    ax.legend(loc="lower right", frameon=True)
-    ax.grid(True, linestyle="--", alpha=0.5)
-    plt.tight_layout()
-    fig.savefig(fig_dir / "volatility_intervals.png")
-    plt.close(fig)
-
-    # 3. Figure: Feature Importance by Gain
-    fig, ax = plt.subplots(figsize=(8, 5.5), dpi=150)
-    feat_names = [
-        "n_offering_12m",
-        "n_offering_3m",
-        "vol_63",
-        "ret_12_1",
-        "market_cap",
-        "cash_runway_years",
-        "share_growth_12m",
-        "loss_making",
-        "current_ratio",
-        "n_unregistered_sale_12m",
-        "leverage",
-        "ret_3m",
-        "book_to_market",
-        "near_high_252",
-        "days_to_next_results",
-    ]
-    gains = [28.4, 14.2, 8.6, 7.3, 6.5, 5.8, 5.2, 4.7, 4.1, 3.8, 3.2, 2.7, 2.1, 1.8, 1.6]
-    y_pos = np.arange(len(feat_names))
-
-    ax.barh(y_pos, gains[::-1], color="#6366f1", alpha=0.85)
-    ax.set_yticks(y_pos)
-    ax.set_yticklabels(feat_names[::-1], fontsize=9)
-    ax.set_xlabel("Relative Gain Importance (%)", fontsize=10)
-    ax.set_title("Top 15 Predictive Features by LightGBM Tree Gain", fontsize=11, fontweight="bold")
-    ax.grid(True, linestyle="--", alpha=0.5)
-    plt.tight_layout()
-    fig.savefig(fig_dir / "feature_importance.png")
-    plt.close(fig)
-
-    echo("Writing model report markdown...")
-    report_md_path = docs_dir / "model_report.md"
-
-    content = [
-        "# EDGAR-SENTINEL v2: Formal Model Evaluation Report",
-        "",
-        "**Generated**: Automatically compiled via `sentinel report` (Feature 008).",
-        "**Data Baseline**: Frozen export of October 30, 2026 (`data/exports/ml/`).",
-        "**Validation Design**: Four yearly walk-forward folds (2019, 2020, 2021, 2022).",
-        "",
-        "---",
-        "",
-        "## 1. Executive Summary",
-        "",
-        "EDGAR-SENTINEL models three orthogonal market risks for US-traded equities.",
-        "Across all three questions, histogram gradient-boosted trees decisively outperform",
-        "naive market baselines, heuristic regulatory rules, and linear models out-of-sample.",
-        "",
-        "| Risk Question | Best Level | Metric | Model vs. Base | 1-SE Verdict |",
-        "|---|---|---|---|---|",
-        "| **Dilution (007)** | Level 3 (LightGBM) | Log Loss | **0.226 vs 0.343** | Level 3 |",
-        "| **Volatility (005)** | Level 3 (XGBoost) | Log MAE | **0.312 vs 0.346** | Level 3 |",
-        "| **Results-Day Move (006)** | Level 3 (LGBM) | Log MAE | **0.874 vs 0.958** | Level 3 |",
-        "",
-        "---",
-        "",
-        "## 2. Model 007: 6-Month Share Dilution",
-        "",
-        "| Level | Estimator | Log Loss (Mean ± SE) | AUC | Brier | Lift (Top 10%) |",
-        "|---|---|---|---|---|---|",
-        "| Level 0 | Base Rate | 0.343 ± 0.027 | 0.500 | 0.087 | 1.00× |",
-        "| Level 1 | Recent Offering | 0.302 ± 0.021 | 0.725 | 0.082 | 2.05× |",
-        "| Level 2 | Logistic Reg | 0.250 ± 0.013 | 0.868 | 0.071 | 4.45× |",
-        "| Level 3 | **LightGBM** | **0.226 ± 0.011** | **0.892** | **0.065** | **5.02×** |",
-        "",
-        "![Dilution Calibration](figures/dilution_calibration.png)",
-        "",
-        "---",
-        "",
-        "## 3. Model 005: 3-Month Volatility Forecast",
-        "",
-        "| Level | Estimator | Log MAE (Mean ± SE) | Raw MAE | Spearman ρ | 80% Hit Rate |",
-        "|---|---|---|---|---|---|",
-        "| Level 0 | Past 63-Session Vol | 0.3457 ± 0.024 | 14.82% | 0.652 | — |",
-        "| Level 1 | Mean Reversion | 0.3263 ± 0.021 | 13.94% | 0.698 | — |",
-        "| Level 2 | Ridge Reg | 0.3204 ± 0.018 | 13.62% | 0.715 | 78.2% |",
-        "| Level 3 | **XGBoost** | **0.3119 ± 0.015** | **13.25%** | **0.742** | **80.0%** |",
-        "",
-        "![Volatility Intervals](figures/volatility_intervals.png)",
-        "",
-        "---",
-        "",
-        "## 4. Model 006: Results-Day Move Forecast",
-        "",
-        "| Level | Estimator | Log MAE (Mean ± SE) | Spearman ρ |",
-        "|---|---|---|---|",
-        "| Level 0 | Previous 4 Moves Mean | 0.9582 ± 0.038 | 0.3332 |",
-        "| Level 1 | Cross-Sectional Median | 0.9412 ± 0.032 | 0.3450 |",
-        "| Level 2 | Ridge Regression | 0.8850 ± 0.022 | 0.4133 |",
-        "| Level 3 | **LightGBM (Chosen)** | **0.8744 ± 0.019** | **0.4262** |",
-        "",
-        "---",
-        "",
-        "## 5. Feature Importances",
-        "",
-        "![Feature Importances](figures/feature_importance.png)",
-        "",
-        "- **Public Offerings (`n_offering_12m`)**: Strongest single predictor of dilution.",
-        "- **Historical Volatility (`vol_63`)**: Fundamental volatility drives market risk.",
-        "- **Cash Runway (`cash_runway_years`)**: Balance sheet solvency dictates financing.",
-    ]
-
-    report_md_path.write_text("\n".join(content) + "\n", encoding="utf-8")
-    echo(f"Report saved to {report_md_path}")
-    return report_md_path
+    echo(
+        f"Report saved to {report} (figures in {out / 'figures'}; model card data in "
+        f"{out / 'model_card.json'})"
+    )
+    return report
