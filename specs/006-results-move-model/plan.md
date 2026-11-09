@@ -52,7 +52,8 @@ LightGBM on 8 threads).
 module and a command.
 
 **Performance Goals**: the notebook runs start to finish in under about 30 minutes (LightGBM fits
-took 4–7 seconds in the design check; the hypothesis checks are about 140 fits).
+took 4–7 seconds in the design check; the hypothesis checks are about 140 fits). Measured on
+9 Nov: 424 s.
 
 **Constraints**: deterministic (sorted rows, `SEED = 0`, LightGBM `deterministic=True`, fixed
 threads); no 2023+ move computed or read; outputs never committed (nbstripout); written findings

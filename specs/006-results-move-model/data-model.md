@@ -46,7 +46,8 @@ Always `0 ≤ p_move_20 ≤ p_move_10 ≤ p_move_5 ≤ 1` (SC-006). From the for
 
 ## Band (five)
 
-Edges at the quintiles of `p_move_10` on the validation year (V2-53). Per band and test year:
+Ordered by `p_move_10` (V2-53); the edges are the quintiles of the forecast on the validation
+year, the same order since calibration keeps it. Per band and test year:
 releases, mean forecast and real share above 5%, 10% and 20%, median move. Names as 007:
 "1 · Very low risk" … "5 · Very high risk".
 

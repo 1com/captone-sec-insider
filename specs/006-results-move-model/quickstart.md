@@ -14,8 +14,9 @@
 systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 uv run jupyter nbconvert --to notebook --execute --inplace notebooks/006-results-move-model.ipynb
 ```
 
-Expected: finishes without errors in about 20–30 minutes (007 took 17 minutes on 2.6 times as
-many rows, with one model per fold; 006 fits one model per fold and level, and three calibrations).
+Expected: finishes without errors in about 7 minutes (424 s on 9 Nov). With `SENTINEL_TRIAL=1`
+it runs one setting and one seed in about 80 s (a check of the code, logged to the experiment
+`006-results-move-trial`).
 
 ## What to check (maps to the spec's success criteria)
 

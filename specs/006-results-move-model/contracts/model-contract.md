@@ -12,7 +12,7 @@ moved unchanged to `src/sentinel/models/results_move.py` after the researcher's 
 | `features` | list[str] | input columns, selected by name from the rows |
 | `forecast` | `Dated` | the level's forecast of the log move; cutoff 1 Jan 2022 (moves known before it) |
 | `calibrators` | dict[float, `Dated`] | Platt scaling per event (0.05, 0.10, 0.20) on the forecast; cutoff 1 Jan 2023 |
-| `bands` | `Dated` | four inner edges of `p_move_10` splitting releases into bands 1–5; cutoff 1 Jan 2023 |
+| `bands` | `Dated` | four inner edges of the forecast (the same order as `p_move_10`: calibration keeps it) splitting releases into bands 1–5; cutoff 1 Jan 2023 |
 | `setting` | dict | the chosen setting (e.g. leaves, releases per leaf, trees; or alpha; or k) |
 | `eligibility_col` | str | `"eligible"`: only rows where it is true are scored |
 | `seed` | int | 0 |

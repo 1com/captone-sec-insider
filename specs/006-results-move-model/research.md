@@ -139,8 +139,10 @@ they are decided on simplicity, honesty and the product. Script:
 
 - **Calibration**: R3. Calibration charts per event and test year (forecast against real share,
   in tenths of the forecast).
-- **Bands** (V2-53): five groups by the calibrated chance above 10%, edges at its quintiles on the
-  validation year (a `Dated` with the test year's cutoff). Per band and test year: releases, the
+- **Bands** (V2-53): five groups by the calibrated chance above 10%, edges at the quintiles of the
+  level's forecast on the validation year (a `Dated` with the test year's cutoff): calibration
+  keeps the forecast's order, so these are the quintiles of the chance above 10% without
+  re-scoring releases the calibration learned from (as 007). Per band and test year: releases, the
   forecast and real shares above 5%, 10% and 20%, and the median move. The table the app's hit
   rates come from (via 008).
 
