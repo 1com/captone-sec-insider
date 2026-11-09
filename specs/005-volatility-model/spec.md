@@ -6,7 +6,8 @@
 
 **Status**: First version, written to the decisions of 4–9 Nov (V2-46, V2-48, V2-49, V2-50) before
 any clean result; the deciding measure decided 9 Nov (V2-56); after the first full run, the
-macro family left out of the ridge and LightGBM (V2-57)
+macro family left out of the ridge and LightGBM (V2-57). **Approved 9 Nov (V2-58): LightGBM**,
+packaged in `src/sentinel/models/volatility.py`
 
 **Input**: User description: "Feature 005 · Volatility model (roadmap 005, issue #67): how much a
 stock's price will swing over the next three months, built, run and tuned in

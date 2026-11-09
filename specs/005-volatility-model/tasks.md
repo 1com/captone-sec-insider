@@ -110,8 +110,8 @@ named choice.
 
 ## Phase 8: After the researcher's approval (FR-019)
 
-- [ ] T020 Move `VolatilityModel`, the fitting with its range history, `predict`, `save`, `load` into `src/sentinel/models/volatility.py` (replacing Gemini's module); `sentinel train volatility` in `src/sentinel/cli.py`; `src/sentinel/scoring/daily.py` uses the model's bands (still paused, V2-42); the notebook imports the module and gives the same numbers
-- [ ] T021 [P] Unit tests in `tests/unit/test_models_volatility.py` (features exclude the non-features, `sector`, `cum_split_after`; low below level below high; ineligible rows get no forecast; a missing column raises; a row dated before a cutoff is refused; identical output on two runs); Gemini's volatility test in `tests/unit/test_models.py` replaced
+- [X] T020 Move `VolatilityModel`, the fitting with its range history, `predict`, `save`, `load` into `src/sentinel/models/volatility.py` (replacing Gemini's module); `sentinel train volatility` in `src/sentinel/cli.py`; `src/sentinel/scoring/daily.py` uses the model's bands (still paused, V2-42); the notebook imports the module and gives the same numbers (9 Nov: re-run at `d246a61`, every number identical)
+- [X] T021 [P] Unit tests in `tests/unit/test_models_volatility.py` (features exclude the non-features, `sector`, `cum_split_after`; low below level below high; ineligible rows get no forecast; a missing column raises; a row dated before a cutoff is refused; identical output on two runs); Gemini's volatility test in `tests/unit/test_models.py` replaced
 - [ ] T022 Log the approval in `docs/decisions.md`; pull request into `main` after the researcher agrees; close issue #67
 
 ---

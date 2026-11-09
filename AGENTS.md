@@ -170,8 +170,10 @@ holds and what does not:
   past volatility; the 80% range on all earlier years' out-of-sample errors (walk-forward from
   2014, V2-10). First run: LightGBM worst in 2022, baseline chosen; macro left out after it
   (V2-57, after seeing the test years: as V2-36). Re-run: **LightGBM chosen**, 0.279 against 0.290
-  ridge, 0.326 rule, 0.346 baseline, best every year; range coverage 78/72/84/88%; waiting for the
-  researcher's approval. Then 008 and 010
+  ridge, 0.326 rule, 0.346 baseline, best every year; range coverage 78/72/84/88%. **005 approved
+  on 9 Nov (V2-58)**, packaged in `src/sentinel/models/volatility.py` (the notebook imports it,
+  same numbers); `sentinel train volatility` computes its range history from 2014 itself
+  (minutes); the paused daily scores use its bands. Next: its pull request; then 008 and 010
   (005 only if time allows, V2-48). Before the daily scores resume (009): train the approved
   models into `data/models/` (`sentinel train results_move`, `sentinel train dilution`; the folder
   still holds Gemini's unapproved files of 2 Nov) and give `prev4_mean` the moves after 2022, which

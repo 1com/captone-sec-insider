@@ -1,8 +1,9 @@
 # Contract: the frozen volatility model
 
-What 009 (daily scores) and 010 (the holdout test) can rely on. Defined in the notebook first and
-moved unchanged to `src/sentinel/models/volatility.py` after the researcher's approval (replacing
-Gemini's module, whose range was scaled on its training rows and covered 65–67%, audit of 4 Nov).
+What 009 (daily scores) and 010 (the holdout test) can rely on. Implemented in
+`src/sentinel/models/volatility.py` (approved 9 Nov, V2-58; replacing Gemini's module, whose range
+was scaled on its training rows and covered 65–67%, audit of 4 Nov); the notebook imports it and
+gives the same numbers. The object also keeps `history_years`, the years behind its range.
 
 ## The object: `VolatilityModel`
 
