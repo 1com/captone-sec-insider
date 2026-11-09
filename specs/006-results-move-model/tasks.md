@@ -102,7 +102,7 @@ named choice.
 
 - [X] T021 Trial run with a small grid, then the full run under the memory cap (`systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 uv run jupyter nbconvert --to notebook --execute --inplace notebooks/006-results-move-model.ipynb`); note the run time; check quickstart.md items 1–9 (9 Nov: trial 77 s; full run 424 s, every check passed)
 - [X] T022 Findings cell of `notebooks/006-results-move-model.ipynb` from the outputs (aggregates only): the chosen level and why, its skill per test year against the base rates, the baseline and the rule, the bands and their hit rates, the checks, the hypothesis verdicts, what moves to `src/sentinel/models/`, open questions; export date and data hash on top
-- [ ] T023 [P] Tick tasks here; update `AGENTS.md` and `docs/plan.md`; commit the notebook (outputs stripped) and the specs; push the branch; show the researcher the executed notebook (SC-008)
+- [X] T023 [P] Tick tasks here; update `AGENTS.md` and `docs/plan.md`; commit the notebook (outputs stripped) and the specs; push the branch; show the researcher the executed notebook (SC-008) (9 Nov: shown; LightGBM approved, V2-55)
 
 ---
 
@@ -110,7 +110,7 @@ named choice.
 
 - [X] T024 Move `ResultsMoveModel`, `fit`, `predict`, `save`, `load` into `src/sentinel/models/results_move.py` (replacing Gemini's module); `sentinel train results_move` in `src/sentinel/cli.py`; `src/sentinel/scoring/daily.py` reads the new output (`forecast_val` = `p_move_10`, the three chances and the band name in `extra_json`; still paused, V2-42); the notebook imports the module and gives the same numbers (9 Nov: re-run at `ad232a7`, every number identical; `sentinel train`/`score results_move` checked into a scratch folder)
 - [X] T025 [P] Unit tests in `tests/unit/test_models_results_move.py` (features exclude the non-features, `sector`, `cum_split_after` and the timing features; chances in [0, 1] and in order; ineligible rows get no chance; a missing column raises; a row dated before a cutoff is refused; identical output on two runs); Gemini's results-move tests in `tests/unit/test_models.py` replaced
-- [ ] T026 Log the approval in `docs/decisions.md`; pull request into `main` after the researcher agrees; close issue #77
+- [ ] T026 Log the approval in `docs/decisions.md`; pull request into `main` after the researcher agrees; close issue #77 (V2-55 logged; pull request #94 open, checks green; merge on the researcher's word)
 
 ---
 
