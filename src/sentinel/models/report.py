@@ -234,8 +234,8 @@ def _figures(q: str, t: dict, out: Path) -> list[str]:
     names.append(f"figures/{q}_results.png")
     _figure(out / names[-1])
     cal = _frame(t["calibration"])
-    events = sorted(cal["event"].unique()) if "event" in cal.columns else [None]
-    fig, axes = plt.subplots(1, len(events), figsize=(5 * len(events), 4), squeeze=False)
+    events = list(pd.unique(cal["event"])) if "event" in cal.columns else [None]  # as recorded
+    fig, axes = plt.subplots(1, len(events), figsize=(5 * len(events), 4.4), squeeze=False)
     for ax, event in zip(axes[0], events, strict=True):
         c = cal if event is None else cal[cal["event"] == event]
         top = float(max(c["forecast"].max(), c["real"].max()))
@@ -244,10 +244,10 @@ def _figures(q: str, t: dict, out: Path) -> list[str]:
             ax.plot(g["forecast"], g["real"], marker="o", ms=3, label=str(int(year)))
         ax.set_xlabel("forecast (ten groups)")
         ax.set_ylabel("real")
-        ax.set_title(
-            t.get("calibration_title", "calibration") + ("" if event is None else f": {event}")
-        )
+        if event is not None:
+            ax.set_title(str(event))
         ax.legend(fontsize=8)
+    fig.suptitle(f"{QUESTIONS[q][2]}: {t.get('calibration_title', 'calibration')}")
     names.append(f"figures/{q}_calibration.png")
     _figure(out / names[-1])
     return names
