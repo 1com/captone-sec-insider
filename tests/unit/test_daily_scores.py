@@ -151,6 +151,8 @@ def test_daily_scoring_and_idempotence(mock_db_con, mock_paths):
                 "vol_forecast": 0.285,
                 "vol_low_80": 0.220,
                 "vol_high_80": 0.350,
+                "vol_band": 2,
+                "vol_band_name": "2 · Low risk",
             }
         )
 
