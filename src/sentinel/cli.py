@@ -274,9 +274,17 @@ def train(
                 f"  Saved {q} model to {model_path} ({len(model.features)} features) "
                 f"in {time.monotonic() - started:.1f}s"
             )
-        elif q == "dilution":
-            lvl = "hist_gradient_boosting" if level == "hist_gradient_boosting" else level
-            model = dilution.fit(dev_df, level=lvl)
+        elif q == "dilution":  # the approved model (V2-52); `--level` does not apply
+            import duckdb
+
+            from sentinel import db
+
+            with duckdb.connect(str(p.build_db), read_only=True,
+                                config={"memory_limit": db.MEMORY_LIMIT}) as con:  # fmt: skip
+                split_like = dilution.split_like_answers(con)
+            rows = dilution.learnable(dev_df, split_like)
+            made_from = dilution.provenance(eda.EXPORT / "dilution.parquet")
+            model = dilution.fit(rows, provenance=made_from)
             model_path = p.models / "dilution.joblib"
             dilution.save(model, model_path)
             typer.echo(

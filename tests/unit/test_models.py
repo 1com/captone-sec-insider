@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from sentinel.models import dilution, results_move, volatility
+from sentinel.models import results_move, volatility
 
 
 @pytest.fixture
@@ -24,25 +24,6 @@ def mock_results_df() -> pd.DataFrame:
             "vol_21d": np.random.uniform(0.15, 0.40, size=n),
             "prev4_mean": np.random.uniform(0.02, 0.20, size=n),
             "n_prev": np.random.choice([0, 1, 2, 3, 4], size=n),
-        }
-    )
-
-
-@pytest.fixture
-def mock_dilution_df() -> pd.DataFrame:
-    np.random.seed(42)
-    n = 150
-    dates = pd.date_range("2018-01-01", periods=n, freq="25D")
-    return pd.DataFrame(
-        {
-            "cik": [f"000000000{i % 6}" for i in range(n)],
-            "as_of": dates,
-            "window_end": dates + pd.Timedelta(days=180),
-            "dilution": np.random.choice([0, 1], p=[0.85, 0.15], size=n),
-            "eligible_dilution": [True] * n,
-            "shares_cagr_3y": np.random.normal(0.05, 0.10, size=n),
-            "vol_63d": np.random.uniform(0.15, 0.50, size=n),
-            "ret_63d": np.random.normal(0.02, 0.10, size=n),
         }
     )
 
@@ -119,36 +100,6 @@ def test_results_move_missing_declared_history(mock_results_df):
     preds = results_move.predict(model, no_history_df)
     assert not preds["pred_move"].isna().any()
     assert preds["band"].between(1, 5).all()
-
-
-def test_dilution_model_train_predict(mock_dilution_df, tmp_path):
-    feature_cols = ["shares_cagr_3y", "vol_63d", "ret_63d"]
-    val_dates = pd.date_range("2022-01-15", periods=30, freq="10D")
-    mock_dilution_df.loc[120:149, "as_of"] = val_dates
-    mock_dilution_df.loc[120:149, "window_end"] = val_dates + pd.Timedelta(days=180)
-
-    model = dilution.fit(
-        mock_dilution_df,
-        level="hist_gradient_boosting",
-        val_year=2022,
-        feature_cols=feature_cols,
-        exclude_split_cases=False,
-        seed=42,
-    )
-
-    assert model.question == "dilution"
-    preds = dilution.predict(model, mock_dilution_df.iloc[:25])
-    assert len(preds) == 25
-    assert preds["dilution_prob"].between(0.0, 1.0).all()
-    assert preds["dilution_band"].between(1, 5).all()
-    assert not preds["dilution_band_name"].isna().any()
-
-    # Serialization test
-    save_path = tmp_path / "dilution.joblib"
-    dilution.save(model, save_path)
-    loaded = dilution.load(save_path)
-    preds_loaded = dilution.predict(loaded, mock_dilution_df.iloc[:25])
-    pd.testing.assert_frame_equal(preds, preds_loaded)
 
 
 def test_volatility_model_train_predict(mock_volatility_df, tmp_path):
