@@ -2,252 +2,293 @@
 
 **Feature Branch**: `006-results-move-model`
 
-**Created**: 2026-10-30
+**Created**: 2026-10-30 (Gemini); **rewritten 2026-11-09** after the audit of 4 Nov
 
-**Status**: Draft
+**Status**: Second version: rewritten to the decisions of 4–5 Nov (V2-41, V2-46, V2-49, V2-50)
+before any clean result
 
-**Input**: User description: "Step 5: build the results-day move model (feature 006, issue #77)."
+**Input**: User description: "Feature 006 · Results-day move model (roadmap 006, issue #77): the
+chances that a company's share price moves more than 5%, 10% and 20% beyond the market on its
+results day, built, run and tuned in `notebooks/006-results-move-model.ipynb` under the evaluation
+fixed in D60, chosen by the mean log loss of the three chances (V2-41), holdout-ready, approved by
+the researcher before its code moves to `src/sentinel/models/`."
 
 ## Context
 
-When a company reports its quarterly (10-Q) or annual (10-K) results, its share price often jumps or
-falls sharply in a single day. A retail investor holding or considering the stock before results day
-wants to know how violent that move is likely to be—not which direction it will go (which cannot be
-predicted reliably), and not a single bare percentage that pretends to be exact, but a risk band
-(1 to 5), the typical range of past moves in that band, and the calibrated chances of a move larger
-than 5%, 10% and 20% beyond the market (decisions D60, D61, D62; `config/risk_params.yaml` v5).
+When a company publishes its quarterly or annual results, its share price often jumps or falls far
+more than on an ordinary day: a stock that usually moves 1–2% a day may move 8% the day after its
+results. A retail investor holding the stock before results day wants to know how violent that
+move is likely to be. Not its direction, which cannot be forecast reliably, and not one bare
+number that pretends to be exact, but **the chances of a move larger than 5%, 10% and 20%**, shown
+in one of five bands with that band's past hit rates (D47, D62).
 
-The training set (`data/exports/ml/results_move.parquet`) has one row per results announcement
-(8-K item 2.02 belonging to a 10-Q or 10-K) from 2010 to 2022, with features measured as of the
-close before the release (`as_of`) and the answer `move`: the absolute return from that close to the
-close after the 8-K was filed (`close_after`), minus the S&P 500 ETF (SPY) return over the same
-days. The pre-registered naive baseline is `prev4_mean`, the mean of the company's previous four
-results-day moves (`n_prev` counts how many earlier moves the company had).
+The question and its answer are pre-registered (`config/risk_params.yaml` v5, tag
+`prereg-risk-v5`, D61, D63) and are not changed by this feature:
 
-The EDA (`notebooks/004-eda-results-move.ipynb`) found that:
-- 157,566 development releases (5,947 companies) are eligible with an answer.
-- The naive baseline (`prev4_mean`) ranks releases well (rank correlation 0.30–0.39 across test
-  years 2019–2022), but because individual moves are skewed, the mean of four moves has a mean
-  absolute error (0.046–0.052) no better than predicting one constant median for every stock
-  (0.042–0.052).
-- Recent stock volatility (`idio_vol_252`, `range_vol_21`, `vol_252`, `vol_63`) ranks the move just
-  as strongly as the company's own results-day history ($\rho \approx 0.33$).
-- Financial features are mostly missing in 2010–2011 (before XBRL tagging became widespread in
-  2011–2012).
-- About 1.9% of releases have windows of 5 or more calendar days between the release and the 8-K
-  filing.
+| | |
+|---|---|
+| One row | a company's results announcement (the last 8-K item 2.02 belonging to a 10-Q or 10-K), 2010–2022 (`data/exports/ml/results_move.parquet`) |
+| Answer `move` | the absolute return from the close before the release (`as_of`) to the close after the 8-K was filed (`close_after`), minus SPY's return over the same days |
+| The three events | `move` above 0.05, above 0.10, above 0.20 |
+| Rows to learn from | `eligible` true and `move` present: 156,926 releases, 5,937 companies (export of 9 Nov); no foreign filers (they file no 8-K item 2.02) |
+| Base rates | 39.8% above 5%, 17.1% above 10%, 4.0% above 20%; median move 3.7%, 99th percentile 31% |
+| Naive baseline (pre-registered) | `prev4_mean`: the mean of the company's previous four moves (`n_prev` counts them; 1,346 releases are a company's first, with none) |
+| Features | the snapshot's features known at `as_of`'s close, plus `prev4_mean` and `n_prev` |
 
-Per `AGENTS.md` and `docs/plan.md`, the model is first built, run and tuned end to end in
-`notebooks/006-results-move-model.ipynb` so the researcher can inspect every table, chart and
-choice. Once the researcher approves the chosen model level, its code moves into
-`src/sentinel/models/` with tests and a CLI command, and the notebook imports that code and
-reproduces the exact same numbers.
+`prev4_mean` uses only earlier moves whose windows had closed before the release's `as_of`
+(checked on 9 Nov: 0 of 170,879 rows overlap).
+
+The EDA (`notebooks/004-eda-results-move.ipynb`, Findings) found: the baseline ranks releases
+(rank correlation 0.30–0.39 in 2019–2022) but its size is no more accurate than one constant
+for everyone; recent volatility ranks the move as well as the company's own history (about 0.33);
+then drawdown, distance from the high, beta, loss-making, cash share and size; the tail is long
+(model the log of the move or use a quantile loss); financial features are mostly missing in
+2010–2011 (consider training from 2012); a small share of windows last 5 days or more (check the
+test years with and without them). The pipeline's cleaning is frozen (V2-33): any further cleaning
+is part of this model.
+
+Gemini's first version (30 Oct – 3 Nov) is void: it used `cum_split_after` (the product of split
+ratios *after* the row's day, a look-ahead input), applied no one-standard-error rule, chose
+settings with early stopping, and its packaged model differed from the evaluated one (audit of
+4 Nov). Its numbers in MLflow are for reference only; this feature starts the comparison again.
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Build, compare and choose the model in the notebook (Priority: P1)
+### User Story 1 - Compare the four levels by their chances and choose one (Priority: P1)
 
-The researcher opens `notebooks/006-results-move-model.ipynb`, runs it from top to bottom with one
-command under the machine's 5 GB memory cap, and reads every step of the D60 evaluation on the
-purged walk-forward test years 2019, 2020, 2021 and 2022:
-- **Level 0 (Naive baseline)**: `prev4_mean` (with the training median as fallback when a company
-  has no prior release, plus the constant training median shown alongside as a floor);
-- **Level 1 (Simple rule)**: an explainable combination of the company's prior moves (shrunk toward
-  the sector median when `n_prev` is small) and its recent price volatility, fitted on each fold's
-  training rows only;
-- **Level 2 (Classic model)**: a regularised linear model on the log of the move with one feature
-  kept per redundant pair, extreme ratios clipped at the training 1st and 99th percentiles, missing
-  values filled with the training median plus a "was missing" indicator, and standardised;
-- **Level 3 (LightGBM)**: gradient-boosted trees predicting the log move, tuned using time-ordered
-  validation inside the training years only (never touching the test year), with fixed seeds.
+The four levels required by D60 are built in the model notebook: (0) the naive baseline,
+(1) a simple rule, (2) a classic model, (3) LightGBM. Each level gives, for every release, three
+chances: of a move above 5%, above 10% and above 20%. Each is trained only on releases whose
+moves were known before each test year (2019, 2020, 2021, 2022) and scored on that test year. One
+table shows every level against every test year; the deciding measure is the mean log loss of the
+three chances (V2-41); the simplest level within one standard error of the best is chosen, the
+standard error being that of the four yearly differences (V2-50). The researcher reads the
+executed notebook and sees how the choice was made.
 
-The notebook compares all four levels across the four test years, selects the **simplest level
-within one standard error of the best**, shows what the model relies on, and explains every choice
-in plain English in the Findings section.
+**Why this priority**: without a fair comparison against the baseline and the rule there is no
+honest answer to "is a model worth showing at all?", and every later step builds on the choice.
 
-**Why this priority**: the researcher must see and approve the model and its evidence in the
-notebook before any production model code is frozen.
-
-**Independent Test**: run `notebooks/006-results-move-model.ipynb` end to end under the 5 GB memory
-cap; it finishes without errors, logs the runs, and outputs the comparison table, charts and
-written Findings.
+**Independent Test**: run the notebook start to finish by one command; it ends with the comparison
+table and a named choice.
 
 **Acceptance Scenarios**:
 
-1. **Given** the development export `data/exports/ml/results_move.parquet`, **When** the notebook is
-   executed from start to finish, **Then** it uses only eligible rows with `as_of <= 2022-12-31`,
-   purges training rows whose `close_after` falls on or after 1 January of each test year, and
-   reports train, purged and test row counts for 2019, 2020, 2021 and 2022.
-2. **Given** the four model levels (Level 0 baseline, Level 1 rule, Level 2 classic, Level 3
-   LightGBM), **When** each level is evaluated on test years 2019–2022, **Then** the notebook
-   reports per-year and mean ± standard error for rank correlation (Spearman), mean absolute error,
-   median absolute error, and log-scale error, and applies the one-standard-error rule to select the
-   winning level.
-3. **Given** the EDA's questions (training from 2012 vs 2010; test performance with and without
-   windows of 5+ days; ablation of insider and macro families over 5 seeds), **When** the notebook
-   runs, **Then** each check is shown with its numbers and explained in plain words.
+1. **Given** the current export, **When** the notebook runs start to finish, **Then** it shows,
+   per test year, the training rows, purged rows and test rows.
+2. **Given** each level, **When** it is scored, **Then** each test year shows the log loss of each
+   of the three chances and their mean (deciding), the Brier score of each chance next to the
+   base rate's, and, for the ranking, the rank correlation of the level's score with the move.
+3. **Given** the comparison table, **When** the reader looks for the choice, **Then** it names the
+   level, shows each level's yearly scores and its yearly leads over the simpler levels with their
+   standard errors, and explains why the chosen level is the simplest within one standard error
+   of the best.
+4. **Given** a chosen level that does not clearly beat the rule in every test year, **When** the
+   findings are written, **Then** they say so plainly and recommend the rule rather than the
+   model.
 
 ---
 
-### User Story 2 - Turn predictions into calibrated chances and five risk bands (Priority: P1)
+### User Story 2 - Honest chances in five bands (Priority: P2)
 
-A retail investor does not want a raw regression number; they want to know the chance that the
-results-day move will exceed 5%, 10% and 20%, and which of five risk bands (1 = calmest to 5 = most
-volatile) the release falls into, together with what actually happened in past releases in that band
-(median move, middle-half range, and hit rates for 5%+, 10%+ and 20%+ moves).
+The chosen level's chances are calibrated on earlier years only and its releases grouped into five
+bands. For each band and test year the notebook shows the forecast chances and the real share of
+moves above 5%, 10% and 20%, and the band's median move, so the app can say "releases in this band
+moved more than 10% in X% of cases".
 
-**Why this priority**: constitution Principle IV and decision D62 require forecasts to be presented
-as calibrated chances and five bands with historical hit rates, never as a bare number.
+**Why this priority**: the product never shows a bare number (D47, D62); bands with hit rates are
+what the user actually sees.
 
-**Independent Test**: inspect section 8 of the notebook (and the saved model output); for each test
-year 2019–2022, the predicted probabilities for moves > 5%, > 10% and > 20% are compared against
-observed frequencies (calibration table, Brier score and log loss), and the five risk bands show
-monotonically increasing observed median moves and hit rates.
+**Independent Test**: from the chosen level's test-year forecasts, the band table and a calibration
+chart per event can be produced and read on their own.
 
 **Acceptance Scenarios**:
 
-1. **Given** a fold's training predictions and residuals, **When** probabilities of `move > 0.05`,
-   `move > 0.10` and `move > 0.20` are calibrated using only training data, **Then** on the test
-   years 2019–2022 the predicted chances beat the constant base-rate Brier score and match observed
-   rates closely across probability bins.
-2. **Given** five risk bands (quintiles of predicted move set on the training data), **When** test
-   releases are placed into bands 1–5, **Then** each band reports its release count, observed median
-   move, 25th–75th percentile range, and observed hit rates for > 5%, > 10% and > 20% moves.
+1. **Given** the chosen level, **When** calibration is applied, **Then** it is fitted only on
+   releases whose moves were known before the period it is judged on, never on the test year.
+2. **Given** any release, **When** its three chances are read, **Then** they never contradict each
+   other: the chance above 20% is at most the chance above 10%, which is at most the chance above
+   5%.
+3. **Given** the five bands, **When** the reader compares them, **Then** the real share above 10%
+   and the median move rise from the lowest to the highest band in every test year, and each
+   band's forecast and real rates are shown side by side.
 
 ---
 
-### User Story 3 - Freeze the approved model in `src/sentinel/models/` and verify holdout readiness (Priority: P2)
+### User Story 3 - Understand what the model uses and judge the hypotheses (Priority: P3)
 
-After the researcher reviews the executed notebook and approves the chosen model level, the model's
-training, calibration, band assignment, MLflow logging and `predict(model, rows)` scoring move into
-`src/sentinel/models/` with unit tests and a CLI command. The notebook is updated to import that
-module and must produce the exact same numbers. A dry run scores `latest.parquet` and the 2023+ rows
-of `feature_snapshot.parquet` (features only, no answers) to prove the frozen model is ready for
-daily scoring (009) and the one-shot holdout test (010).
+The notebook shows which features the chosen level relies on, checks that none leaks the answer,
+and ends with a verdict on each results-move hypothesis of `docs/hypotheses.md` (H-R1 to H-R6):
+a family check (refit without the family, five seeds, every test year) and a direction check (the
+expected sign in at least three of the four test years).
 
-**Why this priority**: required so `sentinel update` can score companies daily without running a
-notebook, and so the sealed holdout test on 16 November cannot fail on column mismatches or missing
-values.
+**Why this priority**: the researcher must be able to trust and explain the forecast; a leak would
+make every number meaningless; the verdicts are the report's claims.
 
-**Independent Test**: run unit tests and run the model command twice; predictions are bit-identical,
-MLflow records the run with git commit and data version, the dry run on 2023+ feature rows produces
-zero unexpected NaNs on eligible rows, and re-executing the notebook gives the exact same metrics.
+**Independent Test**: the importance table, the family checks and the verdict table can be read
+without the rest of the notebook.
 
 **Acceptance Scenarios**:
 
-1. **Given** the approved model in `src/sentinel/models/`, **When** trained and evaluated twice with
-   the fixed seed (`SEED = 0`), **Then** every test-year prediction, probability and band is
-   identical.
-2. **Given** the saved model artefact in MLflow, **When** `predict(model, rows)` is called on
-   `data/exports/ml/latest.parquet` and on the 2023+ rows of `feature_snapshot.parquet`, **Then**
-   features are selected by name, all preprocessing uses training-fitted parameters only, and every
-   eligible row receives a valid predicted move, band (1–5) and probabilities (`p_move_5`,
-   `p_move_10`, `p_move_20`) in $[0, 1]$.
+1. **Given** the chosen level, **When** its strongest features are listed, **Then** each is known
+   at the release's `as_of` close, and none of the answer, its dates, identifiers, flags or
+   `cum_split_after` appears among the inputs.
+2. **Given** each hypothesis family, **When** it is removed and the level refitted, **Then** the
+   change in the deciding measure is shown with its spread over five seeds and the verdict
+   (supported, not supported, opposite) follows the rule written in `docs/hypotheses.md`.
+
+---
+
+### User Story 4 - A model ready for the one holdout test (Priority: P4)
+
+The chosen model is saved as one frozen object that the guarded holdout command (feature 010) can
+score without the notebook. A dry run on the 2023-and-later feature rows (which carry no answers)
+proves it scores them without error.
+
+**Why this priority**: the holdout test runs once, on 16 November; a model that cannot be scored
+then has no test result.
+
+**Independent Test**: load the saved object in a fresh session and score the 2023+ results-eve
+feature rows.
+
+**Acceptance Scenarios**:
+
+1. **Given** the saved object, **When** it is loaded, **Then** it holds its feature list (selected
+   by name), all preprocessing, the eligibility flag, the seed, the git commit, the export date
+   and the cutoff of every fitted step.
+2. **Given** the 2023+ feature rows, **When** the dry run scores them, **Then** every eligible row
+   gets three chances and a band, and no move for those years is computed or read (so
+   `prev4_mean` and `n_prev` are absent there and the model handles them as missing).
+3. **Given** two runs from the same commit and export, **When** their predictions are compared,
+   **Then** they are identical.
 
 ### Edge Cases
 
-- **First results release of a company (`n_prev == 0`, `prev4_mean` missing)**: 1,355 eligible
-  development rows have no prior release; when scoring `latest.parquet` or `feature_snapshot.parquet`
-  directly, `prev4_mean` and `n_prev` may also be absent from the input columns unless looked up
-  from prior training releases. The model's preprocessing must populate `prev4_mean` and `n_prev`
-  from known training releases when absent and impute any remaining missing value with the training
-  sector/overall median plus a missingness flag, so every eligible row gets a valid forecast.
-- **Zero or tiny moves**: 5 eligible development releases have `move == 0.0`; log transformations
-  must use a small floor (e.g. `log(max(move, 1e-4))` or `log(move + epsilon)`) fitted/fixed without
-  look-ahead so logs are always finite.
-- **Extreme feature ratios and 2010–2011 missing financials**: financial ratios have long tails and
-  are largely missing in 2010–2011; clipping at the training 1st/99th percentiles and median
-  imputation with missingness indicators must be fitted strictly on each fold's training set.
-- **Sealed holdout protection**: no answer from 2023 or later may be read or computed; `data/exports/reference/`
-  is never opened.
-- **Memory cap**: all training, walk-forward evaluation and dry-run scoring must complete within the
-  5 GB memory cap (`MemoryMax=5G MemorySwapMax=0`).
+- **A company's first release** (`n_prev` 0, no `prev4_mean`; 1,346 rows): every level still gives
+  three chances (the rule falls back to the sector or overall typical move; the models see a "was
+  missing" indicator).
+- **Moves of zero** (a handful of rows): any log of the move uses a fixed small floor, so it is
+  always finite.
+- **Extreme ratios and the missing financials of 2010–2011**: cut at the 1st and 99th percentiles
+  of each fit's training rows; missing values filled from the training rows with "was missing"
+  indicators; never using the test year's values.
+- **Long windows** (8-K filed 5 or more days after the release): kept; the test years are also
+  reported without them (D60, EDA).
+- **The 2020 test year** (the pandemic) is hard for every level; the year-by-year rule (V2-50)
+  compares levels within each year so it does not count as doubt.
+- **The 20% event is rare** (4% of releases, about 500 per test year): its log loss and band rates
+  are shown with their counts; a band with too few cases is flagged, not hidden.
+- **A company appears in many releases over time**: releases are never split at random; every
+  split is by date.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: The model MUST be developed, evaluated and documented in
-  `notebooks/006-results-move-model.ipynb` following the ten sections in its header instructions.
-- **FR-002**: The model MUST read only development rows (`as_of <= 2022-12-31`) from
-  `data/exports/ml/results_move.parquet` (via `sentinel.eda.load("results_move")`), filtered to
-  `eligible == True` and `move` present, sorted deterministically by `cik`, `as_of`.
-- **FR-003**: `prev4_mean` and `n_prev` are explicitly declared as allowed input features alongside
-  the point-in-time feature snapshot columns; identifier, date, flag and outcome columns (`move`,
-  `close_after`, `filing_date`, `report_date`, `cik`, `as_of`, and eligibility/coverage flags) MUST
-  NOT be used as features.
-- **FR-004**: Evaluation MUST use the four purged walk-forward folds for test years 2019, 2020, 2021
-  and 2022 (`as_of < Y-01-01` and `close_after < Y-01-01` for training); random splits MUST NOT be
-  used anywhere.
-- **FR-005**: All four model levels of D60 MUST be implemented and compared on the exact same test
-  rows in each test year:
-  - Level 0: naive baseline (`prev4_mean`, with training median fallback when `n_prev == 0`, and
-    the constant training median reported alongside);
-  - Level 1: a simple explainable rule combining shrunk company history (`prev4_mean` shrunk toward
-    sector median by `n_prev`) and recent volatility (`vol_63` / `range_vol_21`);
-  - Level 2: a regularised linear model (`Ridge`) on log-move with redundant features removed,
-    1st/99th percentile clipping, median imputation + missing flags, and standardisation;
-  - Level 3: a gradient-boosted tree model (`LightGBM`) on log-move tuned via time-ordered
-    validation within the training years only, with fixed seed `SEED = 0`.
-- **FR-006**: Primary selection across levels MUST follow the pre-registered one-standard-error rule
-  of D60 (pick the simplest level whose mean test score across 2019–2022 is within one standard
-  error of the best level), reporting Spearman rank correlation, mean absolute error, median
-  absolute error, log-scale MAE, and calibrated probability Brier score / log loss.
-- **FR-007**: The model MUST produce calibrated probabilities for `move > 0.05`, `move > 0.10` and
-  `move > 0.20` (`p_move_5`, `p_move_10`, `p_move_20`) and assign each prediction to one of 5 risk
-  bands (quintiles of predicted move fitted on training data) carrying historical hit rates, median
-  move and interquartile range (25th–75th percentile).
-- **FR-008**: The notebook MUST include the three diagnostic checks requested by D60 and the EDA:
-  (a) training from 2012 vs 2010; (b) test metrics on all releases vs releases with windows under 5
-  days; (c) feature-family ablation (refitting without insider features and without macro features
-  across 5 seeds).
-- **FR-009**: Every model run MUST be logged to MLflow (`data/mlflow.db`) with its git commit,
-  export date, feature list, eligibility flag (`eligible`), seed, and per-year walk-forward metrics.
-- **FR-010**: Once the researcher approves the notebook, the chosen model and its `predict(model, rows)`
-  function MUST live in `src/sentinel/models/` (with unit tests and a CLI entrypoint), and the
-  notebook MUST import it and produce identical numbers.
-- **FR-011**: The saved model object MUST be self-contained (feature names, preprocessing parameters,
-  calibrators, band cutoffs, training move history per CIK for fallback lookup, eligibility column
-  name, seed, git commit, export date) and pass a dry run on `latest.parquet` and the 2023+ rows of
-  `feature_snapshot.parquet`.
+- **FR-001**: The model MUST learn and be tested only on releases with `eligible` true and `move`
+  present, dated 2022 or earlier, read through the project's development-row loader.
+- **FR-002**: The model MUST NOT use as inputs `move`, `close_after`, `filing_date`,
+  `report_date`, `cik`, `as_of`, any eligibility, coverage or row-type flag, or `cum_split_after`
+  (look-ahead). `prev4_mean` and `n_prev` ARE allowed inputs (declared here).
+- **FR-003**: The model MUST NOT read the private reference copies (`data/exports/reference/`) or
+  compute or read any move whose window starts in 2023 or later.
+- **FR-004**: Every evaluation MUST be walk-forward by date: for each test year 2019–2022, learn
+  only from releases whose moves were known (`close_after`) before the period judged, with the
+  purge counted and shown. No random split anywhere, including inside training for tuning. The
+  folds MUST come from `eda.folds` and pass `eda.check_folds`: inner rows for the models, the
+  validation year for settings, calibration and band edges.
+- **FR-005**: Four levels MUST be built and scored, each giving the three chances: (0) the naive
+  baseline `prev4_mean` turned into chances on earlier years only, with the constant base rates
+  shown beside it as a floor; (1) a rule (at least the EDA's: the company's typical past move,
+  shrunk toward its sector's when it has few releases, combined with recent volatility); (2) a
+  classic model; (3) LightGBM.
+- **FR-006**: The deciding measure MUST be the mean log loss of the three chances (V2-41); each
+  chance's log loss and Brier score (beside the base rate's), and the rank correlation of each
+  level's score with the move, MUST be reported for every test year.
+- **FR-007**: The chosen level MUST be the simplest within one standard error of the best on the
+  deciding measure, the standard error being that of the four yearly differences from the best
+  level (V2-50), with each level's yearly scores and leads shown and the reasoning written out.
+- **FR-008**: Model-side cleaning (V2-33) MUST be fitted on each fit's training rows only: extreme
+  ratios cut at the 1st/99th percentiles, missing values filled from the training rows plus "was
+  missing" indicators, one feature of each highly redundant pair in the classic model.
+- **FR-009**: Settings MUST be chosen by time-ordered validation inside the training years, never
+  on the test year; no early stopping inside a fit: the number of trees is chosen by predicting
+  the validation year (V2-49).
+- **FR-010**: The three chances MUST be calibrated on earlier years only and never contradict each
+  other (above 20% ≤ above 10% ≤ above 5%) for any release.
+- **FR-011**: Releases MUST be grouped into five bands ordered by
+  [NEEDS CLARIFICATION: which forecast orders the five bands: the chance of a move above 10%, the
+  mean of the three chances, or the forecast typical move?], with band edges set on earlier years
+  only; each band shows, per test year, its count, its forecast and real shares above 5%, 10% and
+  20%, and its median move.
+- **FR-012**: The notebook MUST include D60's and the EDA's checks: training from 2012 against
+  2010; the test years with and without windows of 5 days or more.
+- **FR-013**: The notebook MUST show the chosen level's strongest features and end with a verdict
+  on each hypothesis H-R1 to H-R6 (V2-46): a family check on the chosen level (five seeds, every
+  test year) and a direction check per test year.
+- **FR-014**: Each run MUST be logged with its settings, results, git commit and data (export)
+  version, with fixed seeds so that two runs give identical predictions.
+- **FR-015**: Every fitted step (each model, calibration and set of band edges) MUST be a
+  `sentinel.models.dated.Dated` (V2-49): it learns only from releases whose moves were known
+  before its cutoff and refuses to forecast rows dated before it.
+- **FR-016**: The chosen model MUST be saved as one frozen object with its feature list, all
+  preprocessing, the eligibility flag, seed, commit and export date, plus one scoring function
+  taking the model and feature rows; a dry run on the 2023+ results-eve feature rows MUST
+  succeed without any 2023+ move.
+- **FR-017**: The notebook MUST run start to finish by one command under the memory cap and MUST
+  be committed without outputs; written findings MUST quote aggregates only.
+- **FR-018**: The notebook MUST end with plain-language findings: the chosen level and why, its
+  skill per test year against the baseline and the rule, the bands and their hit rates, the
+  hypothesis verdicts, what moves to `src/sentinel/models/`, and open questions.
+- **FR-019**: After the researcher approves the level, the model's code MUST move into
+  `src/sentinel/models/` with tests, replacing Gemini's `results_move.py`, and the notebook MUST
+  then use that code and give the same numbers.
 
 ### Key Entities
 
-- **Results-Move Release Row**: one company results announcement (`cik`, `as_of`), with 97 snapshot
-  features, `sector`, and historical results-move summary (`prev4_mean`, `n_prev`), plus the target
-  `move` and window end `close_after` in development data.
-- **Fitted Results-Move Model Bundle**: a serialisable object containing the exact feature list,
-  fitted preprocessor (clipper, imputer, missing indicators, scaler/encoder), estimator, probability
-  calibrators for 5%/10%/20% thresholds, 5-band thresholds and summary table, known training release
-  history per CIK, and provenance metadata.
-- **Results-Move Forecast**: for any eligible row, the predicted move size, risk band (1–5), band
-  historical median and interquartile range, and calibrated probabilities `p_move_5`, `p_move_10`,
-  `p_move_20`.
+- **Release row**: a company's results announcement with its features at `as_of`, `prev4_mean`,
+  `n_prev`, its eligibility flag and its answer (`move`, known at `close_after`).
+- **Fold**: one test year (2019–2022) with its inner training rows, validation year and purge.
+- **Level**: one way of forecasting the three chances, with its scores per fold.
+- **Band**: one of five groups of releases by forecast, with its real hit rates and median move
+  per test year.
+- **Frozen model**: the chosen level as one saved object with everything needed to score new rows.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: `notebooks/006-results-move-model.ipynb` executes start to finish in under 10 minutes
-  under the 5 GB memory cap (`MemoryMax=5G MemorySwapMax=0`) and produces identical predictions on a
-  second run.
-- **SC-002**: The chosen model beats the Level 0 naive baseline (`prev4_mean`) on every test year
-  2019–2022 in both Spearman rank correlation and mean absolute error, and beats the base-rate
-  Brier score on the 5%, 10% and 20% move probabilities in every test year.
-- **SC-003**: Across the 5 predicted risk bands on the pooled test years 2019–2022, observed median
-  moves and observed hit rates for > 5%, > 10% and > 20% moves increase strictly from Band 1 to
-  Band 5.
-- **SC-004**: Dry-run scoring on `latest.parquet` and on the 2023+ rows of `feature_snapshot.parquet`
-  completes with 0 unexpected missing predictions across all eligible rows and all probabilities in
-  $[0, 1]$.
-- **SC-005**: No committed notebook contains output cells, and written Findings quote aggregates
-  only (never a single company's Tiingo-derived prices or returns).
+- **SC-001**: The notebook runs start to finish from a fresh clone plus the private export by one
+  command, under the 5 GB memory cap, without errors.
+- **SC-002**: Two runs from the same commit and export give identical predictions for every
+  release.
+- **SC-003**: Every level is reported for all four test years with every measure; the chosen level
+  is named with its reasoning.
+- **SC-004**: The chosen level's mean log loss beats the constant base rates in every test year; if
+  it does not also clearly beat the rule in every test year, the findings recommend the rule.
+- **SC-005**: Across the five bands the real share above 10% and the median move rise from the
+  lowest to the highest band in every test year.
+- **SC-006**: For 100% of releases the three chances are in order (above 20% ≤ above 10% ≤ above
+  5%).
+- **SC-007**: The frozen model scores 100% of the eligible 2023+ results-eve feature rows in the
+  dry run, and no 2023+ move is computed or read.
+- **SC-008**: The researcher approves the chosen level after reading the executed notebook.
 
 ## Assumptions
 
-- The export in `data/exports/ml/` is the cleaned 30 October 2026 export (pipeline cleaning frozen
-  at V2-32 per V2-33).
-- In workflow step 1–3 (`AGENTS.md` Step 5), the model is built, executed and presented to the
-  researcher in `notebooks/006-results-move-model.ipynb` first; step 4 (moving the approved model to
-  `src/sentinel/models/` with CLI and unit tests) proceeds immediately after the researcher approves
-  the executed notebook.
+- The export of 9 November 2026 (`data/exports/ml/results_move.parquet`, cleaning V2-22 to V2-32,
+  with V2-44 and V2-45) is the data of record; a later export means re-running the notebook.
+- The deciding measure is fixed (V2-41); the rank correlation and absolute errors of Gemini's
+  version are reported only as context.
+- The classic model is a regularised regression or logistic regression; the trees are LightGBM,
+  both already in the project. Whether a level forecasts the move's size and derives the three
+  chances from it, or forecasts each chance directly, is chosen in the plan and on validation
+  years, never on the test years.
+- Run logging uses MLflow, already a project dependency.
+- Daily scores (009) of the results move need `prev4_mean` from moves after 2022, which are sealed
+  until the holdout test (010); until then the daily score treats it as missing or is not shown.
+  The holdout test itself computes the 2023+ moves, and with them `prev4_mean`, inside its guarded
+  command.
+- Gemini's `plan.md`, `research.md`, `data-model.md`, `tasks.md` and `contracts/` in this folder
+  predate the audit and are rewritten by the plan and tasks steps.
+- Out of scope: changing the pre-registered definition, the daily scoring (009), the report (008),
+  the app (011–018) and the holdout test itself (010).
