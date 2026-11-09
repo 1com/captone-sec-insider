@@ -33,7 +33,7 @@ The question and its answer are pre-registered (`config/risk_params.yaml` v5, ta
 | Rows to learn from | `eligible` true and `move` present: 156,926 releases, 5,937 companies (export of 9 Nov); no foreign filers (they file no 8-K item 2.02) |
 | Base rates | 39.8% above 5%, 17.1% above 10%, 4.0% above 20%; median move 3.7%, 99th percentile 31% |
 | Naive baseline (pre-registered) | `prev4_mean`: the mean of the company's previous four moves (`n_prev` counts them; 1,346 releases are a company's first, with none) |
-| Features | the snapshot's features known at `as_of`'s close, plus `prev4_mean` and `n_prev` |
+| Features | the snapshot's features known at `as_of`'s close, plus `prev4_mean` and `n_prev`, without the three release-timing features (V2-54) |
 
 `prev4_mean` uses only earlier moves whose windows had closed before the release's `as_of`
 (checked on 9 Nov: 0 of 170,879 rows overlap).
@@ -187,8 +187,11 @@ feature rows.
 - **FR-001**: The model MUST learn and be tested only on releases with `eligible` true and `move`
   present, dated 2022 or earlier, read through the project's development-row loader.
 - **FR-002**: The model MUST NOT use as inputs `move`, `close_after`, `filing_date`,
-  `report_date`, `cik`, `as_of`, any eligibility, coverage or row-type flag, or `cum_split_after`
-  (look-ahead). `prev4_mean` and `n_prev` ARE allowed inputs (declared here).
+  `report_date`, `cik`, `as_of`, any eligibility, coverage or row-type flag, `cum_split_after`
+  (look-ahead), `sector` (the current SIC's sector, not point-in-time) or the three release-timing
+  features `days_since_results`, `days_to_next_results` and `months_since_report` (they mean
+  something else on any day but a release eve, V2-54, 9 Nov). `prev4_mean` and `n_prev` ARE
+  allowed inputs (declared here).
 - **FR-003**: The model MUST NOT read the private reference copies (`data/exports/reference/`) or
   compute or read any move whose window starts in 2023 or later.
 - **FR-004**: Every evaluation MUST be walk-forward by date: for each test year 2019–2022, learn

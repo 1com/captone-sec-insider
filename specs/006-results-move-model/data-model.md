@@ -16,7 +16,7 @@ One results announcement of one company, read through `sentinel.eda.load("result
 | `move` | the answer: absolute return beyond SPY's from `as_of` to `close_after` |
 | `prev4_mean`, `n_prev` | the company's mean of its previous four moves and how many earlier moves it had: inputs (declared, FR-002) |
 | `eligible` | this question's flag: only rows where it is true are learned from and scored |
-| the 95 features of `eda.features()` | inputs (minus the three release-timing features if R4 is accepted) |
+| the 95 features of `eda.features()` | inputs, minus the three release-timing features (V2-54): 92, with `prev4_mean` and `n_prev` 94 |
 | `sector`, `coverage`, `cum_split_after`, other flags | never inputs (R9: sector is not point-in-time; `cum_split_after` is look-ahead) |
 
 Derived per row: `log_move = log(max(move, 0.0001))`; `above_5`, `above_10`, `above_20`

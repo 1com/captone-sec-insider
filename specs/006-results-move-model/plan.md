@@ -21,8 +21,8 @@ is a `Dated` (V2-49). Runs are logged in MLflow.
 
 The method's open choices were settled on 2016–2018, before every test year (research, design
 check): one forecast rather than three direct models, training from 2010, the sector left out
-(not point-in-time, R9), fewer trees. One choice waits for the researcher: leaving out the three
-release-timing features (R4). Moving the code to `src/sentinel/models/` follows the researcher's
+(not point-in-time, R9), fewer trees. The researcher left out the three release-timing features
+(V2-54, 9 Nov; R4). Moving the code to `src/sentinel/models/` follows the researcher's
 approval (FR-019) and is the last part of this feature.
 
 ## Technical Context
@@ -58,7 +58,7 @@ took 4–7 seconds in the design check; the hypothesis checks are about 140 fits
 threads); no 2023+ move computed or read; outputs never committed (nbstripout); written findings
 quote aggregates only.
 
-**Scale/Scope**: 156,926 learnable releases × 97 inputs (94 if R4 is accepted); 4 folds × 4
+**Scale/Scope**: 156,926 learnable releases × 94 inputs (V2-54); 4 folds × 4
 levels; grids: ridge 4, rule 3, LightGBM 4 settings × 8 tree counts; hypothesis checks 6 families
 × 5 seeds × 4 folds.
 

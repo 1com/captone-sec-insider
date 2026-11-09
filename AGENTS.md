@@ -156,9 +156,8 @@ holds and what does not:
   notebook imports it, same numbers). Merged by #92 (9 Nov), #78 closed. **006 started 9 Nov**
   (branch `006-results-move-model`): spec rewritten to V2-41/46/49/50, bands by the chance above
   10% (V2-53); plan with a design check on 2016–2018 only (one forecast of the log move per
-  level, three Platt calibrations; from 2010; sector left out, not point-in-time). Waiting for
-  the researcher: leave out the three release-timing features (research R4). Then tasks and
-  the notebook.
+  level, three Platt calibrations; from 2010; sector left out, not point-in-time); the three
+  release-timing features left out (V2-54). Next: tasks, then the notebook.
 - **Report (008):** `src/sentinel/models/report.py` writes typed-in numbers and curves, several
   contradicting MLflow (volatility Ridge 0.3204 typed, 0.3696 logged). Not done.
 - **Daily scores (009):** paused until the researcher approves the models (V2-42,

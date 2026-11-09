@@ -34,8 +34,8 @@ they are decided on simplicity, honesty and the product. Script:
   dropped for doubt: the EDA found no doubtful answers in this set (the 69 company-years with five
   or six releases were found real by the validation round, V2-25).
 - **Features**: the 95 columns of `sentinel.eda.features()` plus `prev4_mean` and `n_prev`
-  (declared in the spec, FR-002), minus the three release-timing features if the researcher agrees
-  (R4). Never `move`, `close_after`, `filing_date`, `report_date`, `cik`, `as_of`, the flags,
+  (declared in the spec, FR-002), minus the three release-timing features (V2-54, R4): 94
+  inputs. Never `move`, `close_after`, `filing_date`, `report_date`, `cik`, `as_of`, the flags,
   `sector` (R9) or `cum_split_after` (look-ahead: the split ratios after the row's day, V2-38).
   `eda.features()` no longer returns `cum_split_after`; the model also excludes it by name.
 - **`prev4_mean` is point-in-time**: the label code (`labels/risk.py`) averages the company's
@@ -74,10 +74,10 @@ they are decided on simplicity, honesty and the product. Script:
   a common slope (equivalent here, less familiar); the empirical spread of past errors (assumes
   the forecast is unbiased, which shrunk forecasts are not; Platt corrects that).
 
-## R4 · The three release-timing features (proposed, for the researcher)
+## R4 · The three release-timing features are left out (V2-54)
 
-- **Proposal**: leave out `days_since_results`, `days_to_next_results` and
-  `months_since_report`.
+- **Decision** (researcher, 9 Nov, before any clean 006 result): leave out `days_since_results`,
+  `days_to_next_results` and `months_since_report`.
 - **Why**: on a release eve, the rows this model learns from, they describe the release's own
   timing (about 90 days since the last release, about 0 days to the expected one, about 3 months
   since the last report); on any other day they mean something else (a company that released
