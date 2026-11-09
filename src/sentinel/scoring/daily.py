@@ -144,9 +144,13 @@ def score_snapshot(
     else:
         counts["dilution"] = 0
 
-    # 3. Results-Day Move (Feature 006)
+    # 3. Results-Day Move (Feature 006, approved V2-55): the chances of a move above 5%, 10% and
+    # 20%, in five bands by the chance above 10% (V2-53), which is the forecast value. A company's
+    # earlier moves after 2022 are sealed until the holdout test (010), so its history is missing
+    # here unless the rows carry it.
     model_res = _load_model(p, "results_move")
-    pred_res_df = results_move.predict(model_res, snap_df)
+    history = {c: snap_df.get(c, np.nan) for c in results_move.HISTORY}
+    pred_res_df = results_move.predict(model_res, snap_df.assign(**history))
     res_eligible = pred_res_df[pred_res_df["eligible"]].copy()
 
     if not res_eligible.empty:
@@ -156,14 +160,14 @@ def score_snapshot(
                     "p_move_5": float(p5),
                     "p_move_10": float(p10),
                     "p_move_20": float(p20),
-                    "band_median": float(med),
+                    "band_name": str(name),
                 }
             )
-            for p5, p10, p20, med in zip(
+            for p5, p10, p20, name in zip(
                 res_eligible["p_move_5"],
                 res_eligible["p_move_10"],
                 res_eligible["p_move_20"],
-                res_eligible["band_median"],
+                res_eligible["move_band_name"],
                 strict=True,
             )
         ]
@@ -175,8 +179,8 @@ def score_snapshot(
                 "as_of": pd.to_datetime(res_eligible["as_of"]).dt.date,
                 "question": "results_move",
                 "model_version": f"{model_res.level}_v1",
-                "forecast_val": res_eligible["pred_move"].astype(float),
-                "band": res_eligible["band"].astype(int),
+                "forecast_val": res_eligible["p_move_10"].astype(float),
+                "band": res_eligible["move_band"].astype(int),
                 "coverage": sub_cov,
                 "extra_json": extras,
                 "scored_at": now_ts,

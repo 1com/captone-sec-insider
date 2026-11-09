@@ -1,31 +1,11 @@
-"""Unit tests for production models (005 Volatility, 006 Results Move, 007 Dilution)."""
+"""Unit tests for the volatility model (005) and the model commands; the approved results-move
+(006) and dilution (007) models have their own test files."""
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from sentinel.models import results_move, volatility
-
-
-@pytest.fixture
-def mock_results_df() -> pd.DataFrame:
-    np.random.seed(42)
-    n = 120
-    dates = pd.date_range("2018-01-01", periods=n, freq="30D")
-    return pd.DataFrame(
-        {
-            "cik": [f"000000000{i % 5}" for i in range(n)],
-            "as_of": dates,
-            "close_after": dates + pd.Timedelta(days=2),
-            "move": np.random.uniform(0.01, 0.25, size=n),
-            "sector": np.random.choice(["Technology", "Healthcare", "Financials"], size=n),
-            "eligible": [True] * n,
-            "ret_21d": np.random.normal(0, 0.05, size=n),
-            "vol_21d": np.random.uniform(0.15, 0.40, size=n),
-            "prev4_mean": np.random.uniform(0.02, 0.20, size=n),
-            "n_prev": np.random.choice([0, 1, 2, 3, 4], size=n),
-        }
-    )
+from sentinel.models import volatility
 
 
 @pytest.fixture
@@ -45,61 +25,6 @@ def mock_volatility_df() -> pd.DataFrame:
             "ret_63d": np.random.normal(0.01, 0.08, size=n),
         }
     )
-
-
-def test_results_move_model_train_predict(mock_results_df, tmp_path):
-    feature_cols = ["ret_21d", "vol_21d", "prev4_mean", "n_prev"]
-    val_year = 2022
-    val_dates = pd.date_range("2022-01-10", periods=20, freq="15D")
-    mock_results_df.loc[100:119, "as_of"] = val_dates
-    mock_results_df.loc[100:119, "close_after"] = val_dates + pd.Timedelta(days=2)
-
-    model = results_move.fit(
-        mock_results_df,
-        level="lightgbm",
-        val_year=val_year,
-        feature_cols=feature_cols,
-        seed=42,
-    )
-
-    assert model.question == "results_move"
-    assert len(model.band_edges) == 4
-
-    # Test prediction
-    preds = results_move.predict(model, mock_results_df.iloc[:20])
-    assert len(preds) == 20
-    assert (preds["p_move_5"] >= preds["p_move_10"]).all()
-    assert (preds["p_move_10"] >= preds["p_move_20"]).all()
-    assert preds["band"].between(1, 5).all()
-    assert (preds["pred_move"] > 0).all()
-
-    # Test serialization round-trip
-    save_path = tmp_path / "results_move.joblib"
-    results_move.save(model, save_path)
-    loaded = results_move.load(save_path)
-    preds_loaded = results_move.predict(loaded, mock_results_df.iloc[:20])
-    pd.testing.assert_frame_equal(preds, preds_loaded)
-
-
-def test_results_move_missing_declared_history(mock_results_df):
-    feature_cols = ["ret_21d", "vol_21d", "prev4_mean", "n_prev"]
-    val_dates = pd.date_range("2022-01-10", periods=20, freq="15D")
-    mock_results_df.loc[100:119, "as_of"] = val_dates
-    mock_results_df.loc[100:119, "close_after"] = val_dates + pd.Timedelta(days=2)
-
-    model = results_move.fit(
-        mock_results_df,
-        level="lightgbm",
-        val_year=2022,
-        feature_cols=feature_cols,
-        seed=42,
-    )
-
-    # Row without prev4_mean and n_prev (like latest.parquet)
-    no_history_df = mock_results_df.iloc[:10].drop(columns=["prev4_mean", "n_prev"])
-    preds = results_move.predict(model, no_history_df)
-    assert not preds["pred_move"].isna().any()
-    assert preds["band"].between(1, 5).all()
 
 
 def test_volatility_model_train_predict(mock_volatility_df, tmp_path):
