@@ -5,7 +5,7 @@
 **Created**: 2026-11-09
 
 **Status**: First version, written to the decisions of 4–9 Nov (V2-46, V2-48, V2-49, V2-50) before
-any clean result
+any clean result; the deciding measure decided 9 Nov (V2-56)
 
 **Input**: User description: "Feature 005 · Volatility model (roadmap 005, issue #67): how much a
 stock's price will swing over the next three months, built, run and tuned in
@@ -191,10 +191,9 @@ feature rows.
 - **FR-005**: Four levels MUST be built and scored, each forecasting the log of the answer: (0) the
   naive baseline `log(vol_63)`; (1) the mean-reversion rule `a + b · log(vol_63)` fitted on earlier
   years; (2) a classic model; (3) LightGBM.
-- **FR-006**: The deciding measure MUST be [NEEDS CLARIFICATION: the mean absolute error of the
-  log (the EDA's measure) or the root mean squared error of the log?] per test year; the other
-  log error, the rank correlation with the answer and the 80% range's coverage MUST be reported
-  beside it for every test year.
+- **FR-006**: The deciding measure MUST be the mean absolute error of the log per test year
+  (V2-56, 9 Nov); the root mean squared error of the log, the rank correlation with the answer and
+  the 80% range's coverage MUST be reported beside it for every test year.
 - **FR-007**: The chosen level MUST be the simplest within one standard error of the best on the
   deciding measure, the standard error being that of the four yearly differences from the best
   level (V2-50), with each level's yearly scores and gaps shown and the reasoning written out.

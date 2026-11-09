@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain (one: FR-006, the deciding measure)
+- [X] No [NEEDS CLARIFICATION] markers remain (FR-006, the deciding measure, decided 9 Nov: V2-56)
 - [X] Requirements are testable and unambiguous
 - [X] Success criteria are measurable
 - [X] Success criteria are technology-agnostic (no implementation details)
