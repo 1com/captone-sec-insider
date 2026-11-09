@@ -173,7 +173,9 @@ holds and what does not:
   ridge, 0.326 rule, 0.346 baseline, best every year; range coverage 78/72/84/88%. **005 approved
   on 9 Nov (V2-58)**, packaged in `src/sentinel/models/volatility.py` (the notebook imports it,
   same numbers); `sentinel train volatility` computes its range history from 2014 itself
-  (minutes); the paused daily scores use its bands. Next: its pull request; then 008 and 010
+  (minutes); the paused daily scores use its bands. Merged by #96 (9 Nov), #67 closed. All three
+  models are approved and in `main`. Next: 008 (the report from the MLflow runs) and 010 (the
+  guarded holdout command, 16 Nov)
   (005 only if time allows, V2-48). Before the daily scores resume (009): train the approved
   models into `data/models/` (`sentinel train results_move`, `sentinel train dilution`; the folder
   still holds Gemini's unapproved files of 2 Nov) and give `prev4_mean` the moves after 2022, which
