@@ -1,56 +1,46 @@
-# Contract: Results-day move model notebook and scoring interface
+# Contract: the frozen results-move model
 
-## 1. Notebook Section Contract (`notebooks/006-results-move-model.ipynb`)
+What 009 (daily scores) and 010 (the holdout test) can rely on. Defined in the notebook now and
+moved unchanged to `src/sentinel/models/results_move.py` after the researcher's approval
+(replacing Gemini's module and contract of 30 Oct, which were never evaluated as packaged).
 
-The notebook preserves the top instructional markdown cells and fills all ten numbered sections:
+## The object: `ResultsMoveModel`
 
-1. **Setup and data**: Load development rows via `sentinel.eda.load("results_move")`, filter to
-   `eligible == True` and `move.notna()`, define the allowed feature list (explicitly declaring
-   `prev4_mean` and `n_prev`), verify excluded columns are absent, and print rows and companies per
-   year.
-2. **Walk-forward folds**: Build the four purged folds (test years 2019, 2020, 2021, 2022) where
-   training rows satisfy `as_of < Y-01-01` and `close_after < Y-01-01`; print train, purged and test
-   counts per fold.
-3. **Level 0: the naive baseline**: Score `prev4_mean` (with training-median fallback where
-   `n_prev == 0`, plus the constant training median floor) on each test year 2019–2022; report
-   Spearman $\rho$, MAE, MedAE, Log MAE, and Brier/log-loss of empirical baseline probabilities.
-4. **Level 1: a rule**: Fit and evaluate the shrinkage + volatility rule on each fold's training
-   rows only; report per-year and mean ± SE metrics against Level 0.
-5. **Level 2: a classic model**: Prune redundant feature pairs ($|\rho| \ge 0.90$ on training rows),
-   clip ratios at training 1st/99th percentiles, impute medians with `_missing` flags, standardise,
-   and fit `Ridge` on log-move with inner time-ordered validation for `alpha`; report per-year and
-   mean ± SE metrics.
-6. **Level 3: LightGBM**: Fit gradient-boosted trees on log-move with fixed seed (`SEED = 0`),
-   inner time-ordered validation for hyperparameters and early stopping, plus checks for 2012+
-   training start; report per-year and mean ± SE metrics.
-7. **Comparison and choice**: Single unified comparison table across all four levels and all four
-   test years (2019–2022) with mean, standard error, and the 1-SE threshold; apply the 1-SE rule to
-   select the winning level; include the window-length check (< 5 days vs all) and 5-seed family
-   ablations (without insider, without macro); log runs to MLflow.
-8. **Calibration and bands**: Calibrate `p_move_5`, `p_move_10` and `p_move_20` using training data
-   only; check predicted vs observed rates per test year and overall (reliability chart, Brier score
-   and log loss vs base rate); construct the 5 risk bands and report each band's count, median move,
-   interquartile range (p25–p75) and hit rates; run the holdout-readiness dry run on
-   `latest.parquet` and 2023+ `feature_snapshot.parquet`.
-9. **What the model uses**: Show the strongest features (importance / standardized coefficients and
-   signs), verify economic sense and confirm zero leakage.
-10. **Findings**: Plain-English summary for the researcher: the chosen level and why, test-year
-    skill vs the baseline, calibration and band hit rates, diagnostic results, what moves into
-    `src/sentinel/models/`, and any open questions.
+| Field | Type | Meaning |
+|---|---|---|
+| `level` | str | `baseline`, `rule`, `ridge` or `lightgbm` |
+| `features` | list[str] | input columns, selected by name from the rows |
+| `forecast` | `Dated` | the level's forecast of the log move; cutoff 1 Jan 2022 (moves known before it) |
+| `calibrators` | dict[float, `Dated`] | Platt scaling per event (0.05, 0.10, 0.20) on the forecast; cutoff 1 Jan 2023 |
+| `bands` | `Dated` | four inner edges of `p_move_10` splitting releases into bands 1–5; cutoff 1 Jan 2023 |
+| `setting` | dict | the chosen setting (e.g. leaves, releases per leaf, trees; or alpha; or k) |
+| `eligibility_col` | str | `"eligible"`: only rows where it is true are scored |
+| `seed` | int | 0 |
+| `year` | int | 2023, the target year |
+| `trained_through` | str | the last `close_after` among the rows the forecast learned from |
+| `provenance` | dict | `git_commit`, `export_date`, `data_hash` (first 12 hex of the export's SHA-256) |
+| `question` | str | `"results_move"` |
 
-## 2. Package Interface Contract (`src/sentinel/models/results_move.py`, Phase 2 after approval)
+Saved with `joblib` as one file and logged as an MLflow artifact of the run tagged
+`frozen=candidate`.
 
-```python
-SEED = 0
-THRESHOLDS = (0.05, 0.10, 0.20)
-BANDS = 5
+## The function: `predict(model, rows) -> DataFrame`
 
-def fit(train_df: pd.DataFrame, *, level: str = "chosen", seed: int = SEED) -> ResultsMoveModel:
-    """Fit preprocessing, estimator, probability calibrators and 5-band cutoffs on `train_df`."""
+- **Input**: a DataFrame with `cik`, `as_of`, `model.eligibility_col` and every column in
+  `model.features`, including `prev4_mean` and `n_prev` (missing values allowed: a company's first
+  release, or rows whose earlier moves are sealed). Extra columns are ignored; a missing column is
+  an error. Rows dated before a step's cutoff are refused (`Dated`).
+- **Output**: one row per input row (same index): `cik`, `as_of`, `eligible`, and for eligible
+  rows `p_move_5`, `p_move_10`, `p_move_20` (floats in [0, 1], in order), `move_band` (1–5),
+  `move_band_name`; empty for the others.
+- **Guarantees**: deterministic (same rows, same output); never reads an answer; every
+  preprocessing step is inside `model`, fitted before its cutoff (nothing is fitted on the rows
+  being scored).
 
-def predict(model: ResultsMoveModel, rows: pd.DataFrame) -> pd.DataFrame:
-    """Score `rows` using `model.features` by name; returns the forecast DataFrame."""
+## Use by 009 and 010
 
-def evaluate_walk_forward(df: pd.DataFrame) -> dict[str, Any]:
-    """Run all 4 levels across 2019-2022 purged folds, log to MLflow, and return tables."""
-```
+- **010** scores the 2023+ releases computed inside its guarded command (with their `prev4_mean`
+  and `n_prev` from the label code with the later end date) and compares the log loss of the
+  three chances with the baseline's.
+- **009** (after 010, V2-42): `forecast_val` is `p_move_10` (the chance the bands are ordered by,
+  V2-53), `band` is `move_band`, and `extra_json` holds the three chances and the band name.
