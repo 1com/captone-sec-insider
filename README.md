@@ -168,3 +168,22 @@ uv run nbstripout --install --attributes .gitattributes   # once per clone: comm
 systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 \
   uv run jupyter nbconvert --to notebook --execute --inplace notebooks/004-eda-volatility.ipynb
 ```
+
+The three model notebooks build, compare and freeze the approved forecasts (`007-dilution-model`,
+`006-results-move-model`, `005-volatility-model`); their code lives in `src/sentinel/models/`,
+which they import. Each ends by recording its tables in MLflow (`data/mlflow.db`) for the model
+report (feature 008).
+
+## Model report
+
+`docs/report/model_report.md` (with `figures/` and `model_card.json`, the numbers the app's model
+card shows) is generated from those records, never edited by hand. From a fresh clone plus the
+data: build and export the data, run the three model notebooks start to finish (above, about 45
+minutes in all), then
+
+```bash
+uv run sentinel report   # seconds; the same records give identical files
+```
+
+Re-run it after any model notebook is re-run, and after the holdout test (feature 010), whose
+results it adds as they came out (`specs/008-model-report/quickstart.md`).
