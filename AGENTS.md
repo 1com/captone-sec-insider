@@ -179,8 +179,8 @@ holds and what does not:
   report` writes `docs/report/model_report.md`, figures and `model_card.json` from the newest
   non-trial records, in seconds, identical on identical records; it shows 010's holdout records
   (experiment `010-holdout`, contract in `specs/008-model-report/contracts/`) unedited when they
-  exist. Re-run the three notebooks and `sentinel report` after any model change. Next: its pull
-  request; then 010 (the guarded holdout command, 16 Nov)
+  exist. Re-run the three notebooks and `sentinel report` after any model change. Merged by #98
+  (10 Nov), #79 closed. Next: 010 (the guarded holdout command, 16 Nov)
   (005 only if time allows, V2-48). Before the daily scores resume (009): train the approved
   models into `data/models/` (`sentinel train results_move`, `sentinel train dilution`; the folder
   still holds Gemini's unapproved files of 2 Nov) and give `prev4_mean` the moves after 2022, which
