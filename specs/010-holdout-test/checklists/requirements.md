@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain (two: FR-002 which frozen models; FR-007 which simpler levels)
+- [ ] No [NEEDS CLARIFICATION] markers remain (one: FR-007 which simpler levels; FR-002 decided 10 Nov, V2-59)
 - [X] Requirements are testable and unambiguous
 - [X] Success criteria are measurable
 - [X] Success criteria are technology-agnostic (no implementation details)

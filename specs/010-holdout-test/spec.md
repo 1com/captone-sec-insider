@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-10
 
-**Status**: First version
+**Status**: First version; the models tested decided 10 Nov (V2-59)
 
 **Input**: User description: "Feature 010 · Risk holdout test (roadmap 010, issue #69): the one test
 of the three approved models on the answers from 2023 on, sealed until now: a guarded command the
@@ -125,9 +125,10 @@ later end date agree on every row whose window ended by 2022.
 - **FR-001**: One command (`sentinel holdout`) MUST run the test; `sentinel holdout --check` MUST
   check everything except the answers.
 - **FR-002**: The command MUST refuse unless: the frozen models of the three questions are
-  available as [NEEDS CLARIFICATION: which frozen models are tested: the objects the approved
-  notebooks froze and recorded in MLflow on the export of 9 November, or the same models retrained
-  with `sentinel train` on the run day's export?], each with its git commit and data hash; the
+  available as **the objects the approved notebooks froze and recorded in MLflow** (V2-59, 10 Nov):
+  per experiment the newest run named `frozen-…`, tagged approved, from the same notebook execution
+  (git commit) as the report record the model report shows, each with its git commit and data hash;
+  they are loaded and scored unchanged, never refit; the
   registration lock holds (`config/risk_params.yaml` equals its `prereg-risk-v5` version); and no
   earlier holdout run exists (no record in experiment `010-holdout` and no log entry).
 - **FR-003**: A second run MUST be refused, whatever the options; nothing may delete or override
