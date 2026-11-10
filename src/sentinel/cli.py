@@ -461,6 +461,29 @@ def serve(
     uvicorn.run("sentinel.app.main:app", host=host, port=port, reload=reload)
 
 
+WEB_PORT = 8100  # the stock research app (026); checked free in WSL and on Windows (10 Nov)
+
+
+@app.command()
+def web(
+    host: str = typer.Option(
+        "127.0.0.1", "--host", help="Interface to bind (default: this machine only)."
+    ),
+    port: int = typer.Option(WEB_PORT, "--port", help="Port (default 8100, checked free)."),
+) -> None:
+    """The stock research app (026): one page per company, dilution risk first, on a free port."""
+    import os
+
+    import uvicorn
+
+    os.environ.setdefault("MLFLOW_DISABLE_AGENT_HINT", "1")
+    problem = port_problem(host, port)
+    if problem is not None:
+        _fail(f"{problem}. Choose a free port with --port (nothing was stopped).", USAGE)
+    typer.echo(f"EDGAR-SENTINEL stock research app on http://localhost:{port} (binding {host})")
+    uvicorn.run("sentinel.web.main:app", host=host, port=port, log_level="warning")
+
+
 @app.command()
 def holdout(
     check: bool = typer.Option(False, "--check", help="Check everything but the answers (safe)."),

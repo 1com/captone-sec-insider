@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EDGAR-SENTINEL · Stock research</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/lightweight-charts.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/"><span class="logo">◆</span> EDGAR-SENTINEL <span class="brand-sub">stock research</span></a>
+  <div class="search">
+    <input id="q" type="search" placeholder="Search a US stock: ticker or company name" autocomplete="off" spellcheck="false">
+    <div id="suggest" class="suggest" hidden></div>
+  </div>
+  <div class="fresh" title="Each source's latest date, read from the data">
+    {% if fresh.prices %}Data current to <b id="fresh-date" data-date="{{ fresh.prices }}">{{ fresh.prices }}</b>{% endif %}
+  </div>
+</header>
+
+{% if error %}
+<div class="banner error">{{ error }}</div>
+{% endif %}
+
+<main id="landing" class="wrap">
+  <section class="hero">
+    <h1>Will this company issue many new shares soon?</h1>
+    <p>Search any US-traded stock to see its price and volume history, company facts, insider buying and selling,
+      SEC filings explained in plain English, and the <b>dilution risk</b>: the chance that the number of shares
+      rises by 10% or more within six months, which makes each existing share worth a smaller part of the company.</p>
+  </section>
+  <section class="card">
+    <div class="card-head"><h2>Highest dilution risk today</h2><span class="muted" id="top-meta"></span></div>
+    <table class="table" id="top-table"><tbody><tr><td class="muted">Loading…</td></tr></tbody></table>
+  </section>
+</main>
+
+<main id="stock" class="wrap" hidden>
+  <section class="card company">
+    <div class="company-main">
+      <h1 id="c-name"></h1>
+      <div id="c-tickers" class="chips"></div>
+      <div id="c-meta" class="meta"></div>
+    </div>
+    <div class="quote">
+      <div id="q-price" class="price"></div>
+      <div id="q-change" class="change"></div>
+      <div id="q-date" class="muted small"></div>
+    </div>
+  </section>
+
+  <section class="stats" id="stats"></section>
+
+  <div class="grid">
+    <section class="card span-8">
+      <div class="card-head">
+        <h2>Price and volume</h2>
+        <div class="ranges" id="ranges">
+          <button data-m="1">1M</button><button data-m="3">3M</button><button data-m="6">6M</button>
+          <button data-m="12" class="on">1Y</button><button data-m="60">5Y</button><button data-m="0">All</button>
+        </div>
+      </div>
+      <div id="price-legend" class="legend small"></div>
+      <div id="price-chart" class="chart tall"></div>
+      <div class="keys small">
+        <span><i class="dot buy"></i>Insider purchase</span><span><i class="dot sell"></i>Insider sale</span>
+        <span><i class="dot offer"></i>Filing that registers or reports new shares</span>
+        <span class="muted" id="price-source"></span>
+      </div>
+    </section>
+
+    <section class="card span-4 dilution" id="dilution"></section>
+  </div>
+
+  <div class="grid">
+    <section class="card span-8">
+      <div class="card-head">
+        <h2>Insider buying and selling</h2>
+        <label class="toggle small"><input type="checkbox" id="hide-planned"> Hide pre-planned sales
+          <span class="tip" data-tip="Insiders can set up a trading plan in advance (Rule 10b5-1) that sells shares on a schedule; such sales say less about their view of the company.">?</span></label>
+      </div>
+      <div id="insider-chart" class="chart"></div>
+      <div class="keys small"><span><i class="dot buy"></i>Bought (value per month)</span><span><i class="dot sell"></i>Sold</span>
+        <span class="muted">Officers, directors and owners of 10% or more report each trade on Form 4 within two business days.</span></div>
+    </section>
+    <section class="card span-4">
+      <div class="card-head"><h2>Share count over time</h2>
+        <span class="tip" data-tip="Shares outstanding as each report first stated them, adjusted for later stock splits so the line is comparable over time. A rising line means dilution.">?</span></div>
+      <div id="shares-chart" class="chart short"></div>
+      <div id="insider-summary" class="summary"></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-head"><h2>Insider trades</h2><span class="muted small" id="trades-meta"></span></div>
+    <div class="scroll"><table class="table" id="trades"></table></div>
+    <button class="more" id="trades-more" hidden>Show all trades</button>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>SEC filings</h2><span class="muted small">What the company filed with the SEC, newest first. Point at a form for its meaning.</span></div>
+    <div class="tabs" id="kind-tabs"></div>
+    <div class="scroll"><table class="table" id="filings"></table></div>
+    <button class="more" id="filings-more" hidden>Show more filings</button>
+  </section>
+
+  <div class="grid">
+    <section class="card span-4">
+      <div class="card-head"><h2>Short selling</h2>
+        <span class="tip" data-tip="Short selling: selling borrowed shares to buy them back later, hopefully cheaper. A high share can mean traders expect the price to fall.">?</span></div>
+      <div id="short"></div>
+    </section>
+    <section class="card span-8">
+      <div class="card-head"><h2>Diagnostics</h2><span class="muted small">How far to trust this page</span></div>
+      <div class="diag" id="diagnostics"></div>
+    </section>
+  </div>
+</main>
+
+<footer class="wrap footer small muted">
+  Data: SEC EDGAR (filings, financial statements, Form 4), Yahoo Finance and Tiingo (prices), FINRA (short-sale volume).
+  Updated every weekday. The dilution forecast comes from the approved model of this project; it is a research
+  estimate, not investment advice. Charts by <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts</a>.
+</footer>
+<script>window.KINDS = {{ kinds | tojson }};</script>
+<script src="/static/app.js"></script>
+</body>
+</html>

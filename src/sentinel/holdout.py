@@ -78,13 +78,16 @@ def _download(run, name: str, uri: str):
 # --- the frozen models and levels --------------------------------------------------------------
 
 
-def frozen_models(p: Paths) -> dict:
-    """Per question the frozen model of V2-59: the newest `frozen-…` run tagged approved from the
-    same notebook execution (git commit) as the report record the model report shows."""
+def frozen_models(p: Paths, questions: tuple[str, ...] | None = None) -> dict:
+    """Per question (all, or `questions`) the frozen model of V2-59: the newest `frozen-…` run
+    tagged approved from the same notebook execution (git commit) as the report record the model
+    report shows."""
     uri, out = _uri(p), {}
     client = MlflowClient(tracking_uri=uri)
     records, _ = report.load_records(uri)
     for q, rec in records.items():
+        if questions is not None and q not in questions:
+            continue
         commit = rec["run"].data.tags.get("git_commit", "")
         exp = client.get_experiment_by_name(report.QUESTIONS[q][0])
         runs = client.search_runs(
