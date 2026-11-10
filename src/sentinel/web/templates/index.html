@@ -123,7 +123,7 @@
   Updated every weekday. The dilution forecast comes from the approved model of this project; it is a research
   estimate, not investment advice. Charts by <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts</a>.
 </footer>
-<script>window.KINDS = {{ kinds | tojson }};</script>
+<script>window.KINDS = Object.fromEntries({{ kinds | tojson }});</script>
 <script src="/static/app.js"></script>
 </body>
 </html>
