@@ -482,11 +482,11 @@ def _question_rows(
     answered = int((_flag(raw, mod.ELIGIBILITY) & raw[value].notna()).sum())
     eligible = int(_flag(month, mod.ELIGIBILITY).sum())
     rows = volatility.learnable(raw) if q == "volatility" else dilution.learnable(raw, split_like)
-    dropped = "answer of 0" if q == "volatility" else "split-like answer"
+    dropped = "an answer of 0" if q == "volatility" else "a split-like answer"
     return rows, {
         "eligible month-ends": eligible,
         "no answer (window open or data missing)": eligible - answered,
-        f"left out: {dropped}": answered - len(rows),
+        f"left out ({dropped})": answered - len(rows),
         "scored": len(rows),
     }
 
@@ -578,7 +578,7 @@ def run(p: Paths, echo=print) -> dict:
         f.write(json.dumps(entry) + "\n")
     for q, s in summary.items():
         counts = scored[q][1]["row_counts"]
-        echo(f"  {q}: " + "; ".join(f"{k} {v:,}" for k, v in counts.items()))
+        echo(f"  {q}: " + "; ".join(f"{k}: {v:,}" for k, v in counts.items()))
         echo(f"  {q} ({DECIDING[q]}, 2023 on): " + "; ".join(f"{k} {v:.4f}" for k, v in s.items()))
     echo(
         f"  recorded in MLflow ({EXPERIMENT}) and logged in {log_path(p)}; "

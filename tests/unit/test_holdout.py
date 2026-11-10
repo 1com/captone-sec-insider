@@ -284,7 +284,7 @@ def test_the_rows_left_out_are_counted():
     assert n == {
         "eligible month-ends": 2,
         "no answer (window open or data missing)": 0,
-        "left out: answer of 0": 1,
+        "left out (an answer of 0)": 1,
         "scored": 1,
     }
     rows, n = holdout._question_rows("dilution", snap, months, moves, split_like)
@@ -292,7 +292,7 @@ def test_the_rows_left_out_are_counted():
     assert n == {
         "eligible month-ends": 3,
         "no answer (window open or data missing)": 1,
-        "left out: split-like answer": 1,
+        "left out (a split-like answer)": 1,
         "scored": 1,
     }
     rows, n = holdout._question_rows("results_move", snap, months, moves, split_like)

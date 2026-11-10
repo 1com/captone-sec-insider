@@ -369,11 +369,12 @@ def _section(n: int, q: str, rec: dict, hold: dict | None, labels: dict, out: Pa
         h = hold["tables"]
         lines += [
             f"*Run on {h.get('date', '–')} (experiment `{HOLDOUT_EXPERIMENT}`, run "
-            f"`{hold['run'].info.run_id}`); {h.get('rows', '–')} rows; shown unedited.*",
+            f"`{hold['run'].info.run_id}`); {_cell(h.get('rows'))} rows; shown unedited.*",
             "",
         ]
         if "row_counts" in h:
-            lines += ["Rows: " + "; ".join(f"{k} {v:,}" for k, v in h["row_counts"].items()), ""]
+            counts = "; ".join(f"{k}: {_cell(v)}" for k, v in h["row_counts"].items())
+            lines += [f"Rows: {counts}", ""]
         for name in ("results", "bands", "coverage"):
             if name in h:
                 lines += [f"**{name}**", "", _md(_frame(h[name])), ""]
