@@ -31,8 +31,8 @@
 
 ## Notes
 
-- Three questions are open, asked of the researcher one at a time (AGENTS.md): what the diagnostics
-  section shows (User Story 7, FR-015); daily short-sale volume or also short interest (User Story
+- Questions asked of the researcher one at a time (AGENTS.md): what the diagnostics
+  section shows (User Story 7, FR-015: answered 10 Nov, both parts); daily short-sale volume or also short interest (User Story
   5, FR-012); used on this machine only or published online (FR-020).
 - Project terms that name data layers ("serving copy", "daily update", "frozen model") are kept:
   they are the platform's vocabulary in every spec, not implementation choices of this feature.

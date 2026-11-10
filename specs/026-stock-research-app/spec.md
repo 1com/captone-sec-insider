@@ -192,10 +192,19 @@ promise.
 
 **Acceptance Scenarios**:
 
-1. **Given** any company, **When** the diagnostics section is opened, **Then** it shows
-   [NEEDS CLARIFICATION: what the diagnostics section shows: the data behind the page (sources,
-   dates, coverage, data-quality flags), the dilution model's workings (test results, calibration,
-   reasons), or both?].
+1. **Given** any company, **When** the diagnostics section is opened, **Then** its first part shows
+   the data behind the page (researcher, 10 Nov: both parts): per source where the company's data
+   comes from and the period it covers (prices: source, first and last day, days missing; the last
+   filing, the last insider filing, the last financial report and its period; short selling), and
+   the data-quality notes that apply to the company (price days removed as glitches, share counts
+   adjusted for splits or corrected, coverage level).
+2. **Given** an eligible company, **When** the diagnostics section is opened, **Then** its second
+   part shows how the dilution forecast works and how good it is: the model and its approval
+   (V2-52); its test results per test year 2019–2022 against the simpler levels; a calibration
+   chart (forecast chance against how often companies diluted); every factor behind this
+   company's forecast with its effect; the model's limits (no forecast for foreign filers; trained
+   on answers known before 2023); and, once the holdout test has run, its result on the years
+   2023 onwards, as recorded.
 
 ---
 
@@ -263,7 +272,11 @@ promise.
   with their filing dates; unreported values shown as missing.
 - **FR-014**: The page MUST show the date each source is current to (prices, filings, insider
   filings, short selling, financials), read from the data.
-- **FR-015**: The diagnostics section MUST show [NEEDS CLARIFICATION: see User Story 7].
+- **FR-015**: The diagnostics section MUST show two parts (researcher, 10 Nov): the data behind the
+  page (per source: origin, period covered, gaps, last items; the data-quality notes that apply
+  to the company) and the dilution model's workings (model and approval, test results per year
+  against the simpler levels, calibration, every factor behind the company's forecast, limits,
+  and the holdout result once recorded), all read from the data and the model report's records.
 - **FR-016**: Each market term on the page (dilution, market cap, CIK, Form 4, 10b5-1 plan, short
   selling, band, …) MUST have a short plain-English explanation on the page.
 - **FR-017**: The app MUST NOT show the expected volatility or the expected results-day move,
