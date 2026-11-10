@@ -35,6 +35,10 @@ def _serving(path):
           last_form4)"""
     )
     con.execute(
+        "alter table app.stock alter former_names type "
+        "struct(name varchar, valid_from varchar, valid_to varchar)[]"
+    )
+    con.execute(
         "create table app.company_card as select '1744489' as cik, DATE '2026-11-09' as as_of, "
         "false as foreign_filer, false as excluded, 'full' as coverage, true as eligible_dilution, "
         "2.0e11 as market_cap, 1.8e9 as shares_outstanding, 1.5e9 as addv20, "
@@ -50,14 +54,16 @@ def _serving(path):
         ('1744489', DATE '2026-11-09', 'yahoo', 101.0, 103.0, 100.0, 102.0, 2000.0, 1.0, false))
         t(cik, session, source, open, high, low, close, volume, cum_split_after, glitch)"""
     )
+    for col in ("open", "high", "low", "close", "volume", "cum_split_after"):
+        con.execute(f"alter table app.price_daily alter {col} type double")
     con.execute(
         """create table app.insider_activity as select * from (values
         ('1744489', 'a1', 'buy', DATE '2026-10-02', DATE '2026-10-01', DATE '2026-10-01',
-         'Jane Doe', 'e1', 'director', 50000.0, 500.0, 100.0, false, false, 'https://x/a1'),
+         ['Jane Doe'], 'e1', 'director', 50000.0, 500.0, 100.0, false, false, 'https://x/a1'),
         ('1744489', 'a2', 'sell', DATE '2026-10-20', DATE '2026-10-17', DATE '2026-10-17',
-         'John Roe', 'e2', 'ceo_cfo', 200000.0, 2000.0, 100.0, true, false, 'https://x/a2'),
+         ['John Roe'], 'e2', 'ceo_cfo', 200000.0, 2000.0, 100.0, true, false, 'https://x/a2'),
         ('1744489', 'a3', 'sell', DATE '2026-11-03', DATE '2026-11-02', DATE '2026-11-02',
-         'John Roe', 'e2', 'ceo_cfo', 30000.0, 300.0, 100.0, false, false, 'https://x/a3'))
+         ['John Roe'], 'e2', 'ceo_cfo', 30000.0, 300.0, 100.0, false, false, 'https://x/a3'))
         t(cik, accession, side, filing_date, min_trade_date, max_trade_date, owner_names,
           entity_id, entity_role, value_usd, shares, avg_price, planned, offering, url)"""
     )
@@ -122,8 +128,9 @@ def test_the_company_page_has_facts_and_the_dilution_forecast_only(client):
     assert c["freshness"]["insider_filings"] == "2026-11-06"
     for word in ("vol_forecast", "vol_low_80", "p_move", "move_band", "results_move"):
         assert word not in r.text  # no volatility or results-day forecast (V2-61)
-    # 0.9 billion shares on 4 Nov, before the 2-for-1 split: 1.8 billion in today's shares
-    assert [s["adjusted"] for s in c["shares"]] == [1.8e9, 1.8e9]
+    # both counts come before the 2-for-1 split (the first one before the first price day too):
+    # each is doubled into today's shares
+    assert [s["adjusted"] for s in c["shares"]] == [3.6e9, 1.8e9]
     assert client.get("/api/company/999").status_code == 404
 
 

@@ -10,6 +10,7 @@ import math
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import date, datetime
+from decimal import Decimal
 from pathlib import Path
 
 import duckdb
@@ -43,6 +44,8 @@ def _plain(v):
     """A JSON value: dates as ISO text, NaN as None."""
     if isinstance(v, (date, datetime)):
         return v.isoformat()[:10]
+    if isinstance(v, Decimal):
+        v = float(v)
     if isinstance(v, float) and not math.isfinite(v):
         return None
     if hasattr(v, "item"):  # numpy scalars
