@@ -45,7 +45,7 @@ store.
 ## Phase 6: Polish
 
 - [X] T012 [P] Tests in `tests/unit/test_model_report.py` (replacing Gemini's): synthetic records in a temporary store; the numbers equal the recorded ones; trial and older records ignored; a missing question stops the command; two runs identical; the holdout section with and without a record
-- [ ] T013 Remove Gemini's `docs/model_report.md` and `docs/figures/`; generate and commit `docs/report/`; README and `docs/plan.md`, `AGENTS.md`; ruff, format, tests; pull request after the researcher agrees; close issue #79
+- [X] T013 Remove Gemini's `docs/model_report.md` and `docs/figures/`; generate and commit `docs/report/`; README and `docs/plan.md`, `AGENTS.md`; ruff, format, tests; pull request after the researcher agrees; close issue #79 (#98 merged 10 Nov; #79 closed)
 
 ## Dependencies
 
