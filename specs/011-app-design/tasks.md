@@ -8,7 +8,7 @@ description: "Task list for feature 011: Web application & API"
 
 **Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [contracts/app-contract.md](contracts/app-contract.md)
 
-**Tests**: Unit and integration tests in `tests/unit/test_app_api.py`, manual server verification on port 8080.
+**Tests**: Unit and integration tests in `tests/unit/test_app_api.py`, manual server verification on port 8090 (moved from 8080, 10 Nov).
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -46,5 +46,5 @@ description: "Task list for feature 011: Web application & API"
 
 ## Phase 4: CLI & Polish
 
-- [X] T009 Add `sentinel serve --port 8080` CLI command in `src/sentinel/cli.py`
+- [X] T009 Add `sentinel serve` CLI command (port 8090 since 10 Nov) in `src/sentinel/cli.py`
 - [X] T010 Run code formatting (`ruff check`, `ruff format`) and test suite (`pytest -q`)

@@ -87,7 +87,10 @@ every weekday; the three forecasting models and the app are next. Hand-in: produ
   once. To see where a job peaks, sample its scope's `memory.stat` (`anon`) every 2 s.
 - `data/sentinel.duckdb` has **one writer at a time**. If a command reports a lock, ask what
   holds it (often the daily update or a notebook); do not kill processes you did not start.
-- **Port 8000 belongs to another application; never stop it.**
+- **Ports 8000 and 8080 belong to other projects; never stop them.** Before giving any project a
+  port, check it is free in WSL (`ss -ltn`) and on Windows (`/mnt/c/Windows/System32/netstat.exe
+  -ano`, German output) (the researcher, 10 Nov). The app serves on 8090; `sentinel serve` refuses
+  a busy or reserved port.
 - The daily update runs by itself on weekdays at 10:00 (Windows Task Scheduler, `sentinel
   schedule show`); its log is `data/logs/update-<date>.log`. It runs the code of whatever branch
   is checked out, so do not leave a broken branch checked out at 10:00.
@@ -304,11 +307,11 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
 
 ### Step 7 · The app (011–018), with the researcher
 - [ ] 011–017 (built by Gemini, not done: see section 7 for the faults to fix): on branch `011-app-design`. Design and forecast contract (`specs/011-app-design/contracts/`),
-  FastAPI read-only API over `data/serving.duckdb` (`src/sentinel/app/`, protected against port 8000), stock research terminal
+  FastAPI read-only API over `data/serving.duckdb` (`src/sentinel/app/`, on port 8090, refusing a busy port), stock research terminal
   with the four Sentinel intelligence panels, live interactive price chart, reported financials, Form 4 insider activity,
   and SEC filings. Multi-factor screener, market insider feed, and model card view. Tested with 8 unit tests in
-  `tests/unit/test_app_api.py`. CLI entrypoint: `sentinel serve --port 8080`.
-- [ ] 018 (not done: Tiingo-derived prices are served): Hosting / production deployment configuration with no Tiingo-derived value on a public page. Dockerfile and docker-compose.yml serving read-only over port 8080, audited by test_public_data.py.
+  `tests/unit/test_app_api.py`. CLI entrypoint: `sentinel serve` (port 8090, this machine only by default).
+- [ ] 018 (not done: Tiingo-derived prices are served): Hosting / production deployment configuration with no Tiingo-derived value on a public page. Dockerfile and docker-compose.yml serving read-only over port 8090, audited by test_public_data.py.
 
 ### Step 8 · 010 Holdout test (16 November)
 **Already true (checked 30 Oct):** the holdout rows (`feature_snapshot` from 2023 on, built from

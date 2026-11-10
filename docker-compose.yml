@@ -6,16 +6,16 @@ services:
     container_name: edgar-sentinel
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8090:8090"  # this machine only: the app serves private (Tiingo-derived) prices
     environment:
       - HOST=0.0.0.0
-      - PORT=8080
+      - PORT=8090
     volumes:
       # Mount read-only serving DuckDB and export directories
       - ./data/serving.duckdb:/app/data/serving.duckdb:ro
       - ./data/exports/app:/app/data/exports/app:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/freshness"]
+      test: ["CMD", "curl", "-f", "http://localhost:8090/api/freshness"]
       interval: 30s
       timeout: 5s
       retries: 3

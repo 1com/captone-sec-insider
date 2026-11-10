@@ -67,14 +67,14 @@ USER sentinel
 
 # Container environment
 ENV HOST=0.0.0.0
-ENV PORT=8080
+ENV PORT=8090
 ENV PYTHONUNBUFFERED=1
 
-EXPOSE 8080
+EXPOSE 8090
 
 # Production Health Check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8080/api/freshness || exit 1
+    CMD curl -f http://localhost:8090/api/freshness || exit 1
 
 # Launch the FastAPI equity research terminal
-CMD ["sentinel", "serve", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["sentinel", "serve", "--host", "0.0.0.0", "--port", "8090"]
