@@ -77,19 +77,26 @@ def extreme_returns(con: duckdb.DuckDBPyConnection, above: float = 10.0) -> pd.D
     ).df()
 
 
-def split_dilution(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+def split_dilution(
+    con: duckdb.DuckDBPyConnection, rows: pd.DataFrame | None = None
+) -> pd.DataFrame:
     """Check 3. Dilution answers of 1 whose two share counts (as `label.dilution` picks them: the
     last filed by the month-end, the last filed within the window) straddle a split in the price
     series: the raw count ratio, the split factor applied, and whether the increase is the split
-    itself (adjusted ratio within 10% of the factor or its inverse, or a raw count unchanged)."""
-    rows = con.execute(
-        f"select cik, as_of, window_end from label.dilution "
-        f"where dilution = 1 and as_of <= DATE '{DEV_END}'"
-    ).df()
+    itself (adjusted ratio within 10% of the factor or its inverse, or a raw count unchanged).
+    `rows` (cik, as_of, window_end of answers of 1): the answers to check instead of the
+    development label table (the holdout test's 2023+ answers, 010)."""
+    if rows is None:
+        rows = con.execute(
+            f"select cik, as_of, window_end from label.dilution "
+            f"where dilution = 1 and as_of <= DATE '{DEV_END}'"
+        ).df()
+    con.register("_split_ciks", pd.DataFrame({"cik": rows["cik"].astype(str).unique()}))
     shares = con.execute(
         "select cik, as_of as period_end, shares as value, filed from core.shares_outstanding "
-        "where cik in (select distinct cik from label.dilution where dilution = 1)"
+        "where cik in (select cik from _split_ciks)"
     ).df()
+    con.unregister("_split_ciks")
     steps = share_steps(shares)
     split = con.execute(
         "select s.cik, s.as_of as period_end, p.cum_split_after as cum "

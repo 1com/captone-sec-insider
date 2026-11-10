@@ -421,6 +421,38 @@ def serve(
 
 
 @app.command()
+def holdout(
+    check: bool = typer.Option(False, "--check", help="Check everything but the answers (safe)."),
+    freeze_levels: bool = typer.Option(
+        False, "--freeze-levels", help="Once, before the test: prove and freeze the simpler levels."
+    ),
+    run: bool = typer.Option(False, "--run", help="Once, on 16 November: THE holdout test."),
+) -> None:
+    """The holdout test (feature 010): the one test of the frozen models on the answers from 2023
+    on. `--check` any time; `--freeze-levels` once before the test; `--run` once. A second run is
+    refused."""
+    import os
+
+    os.environ.setdefault("MLFLOW_DISABLE_AGENT_HINT", "1")
+    from sentinel import config
+    from sentinel import holdout as h
+    from sentinel.models import report as model_report
+
+    if sum((check, freeze_levels, run)) != 1:
+        _fail("choose one of --check, --freeze-levels or --run (sentinel holdout --help)", USAGE)
+    p = config.paths()
+    try:
+        if check:
+            h.check(p, echo=typer.echo)
+        elif freeze_levels:
+            h.freeze_levels(p, echo=typer.echo)
+        else:
+            h.run(p, echo=typer.echo)
+    except (h.Refused, model_report.MissingRecords) as e:
+        _fail(f"refused: {e}", FAILED)
+
+
+@app.command()
 def report() -> None:
     """Write the model report, its figures and the model card data into docs/report/ from the
     records the approved model notebooks wrote in MLflow (feature 008)."""

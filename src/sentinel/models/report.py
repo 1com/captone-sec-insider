@@ -372,6 +372,8 @@ def _section(n: int, q: str, rec: dict, hold: dict | None, labels: dict, out: Pa
             f"`{hold['run'].info.run_id}`); {h.get('rows', '–')} rows; shown unedited.*",
             "",
         ]
+        if "row_counts" in h:
+            lines += ["Rows: " + "; ".join(f"{k} {v:,}" for k, v in h["row_counts"].items()), ""]
         for name in ("results", "bands", "coverage"):
             if name in h:
                 lines += [f"**{name}**", "", _md(_frame(h[name])), ""]

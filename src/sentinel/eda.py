@@ -51,13 +51,14 @@ NON_NEGATIVE = (r"n_\w+|buy_\w+|sell_\w+|buyers_14d|close|addv20|market_cap|shar
 SIZE_BANDS = [(300e6, "micro"), (2e9, "small"), (10e9, "mid"), (np.inf, "large")]
 
 
-def load(name: str, columns: list[str] | None = None) -> pd.DataFrame:
+def load(name: str, columns: list[str] | None = None, folder=None) -> pd.DataFrame:
     """The development rows of training set `name`, sorted by company and date; `columns` (with
-    `cik` and `as_of` always) to load fewer."""
+    `cik` and `as_of` always) to load fewer; `folder` to read a kept export instead of the current
+    one (the holdout test, 010)."""
     cols = None
     if columns is not None:
         cols = ["cik", "as_of", *[c for c in columns if c not in ("cik", "as_of")]]
-    table = pq.read_table(EXPORT / f"{name}.parquet", columns=cols,
+    table = pq.read_table((folder or EXPORT) / f"{name}.parquet", columns=cols,
                           filters=[("as_of", "<=", DEV_END)])  # fmt: skip
     frame = table.to_pandas()
     for c in DATES:

@@ -48,9 +48,13 @@ def features(rows: pd.DataFrame) -> list[str]:
             if c not in LOOK_AHEAD and eda.family(c) not in LEFT_OUT]  # fmt: skip
 
 
-def split_like_answers(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
-    """`cik`, `as_of` of the "yes" answers that are a stock split read as dilution (V2-39)."""
-    t = validation.split_dilution(con)
+def split_like_answers(
+    con: duckdb.DuckDBPyConnection, rows: pd.DataFrame | None = None
+) -> pd.DataFrame:
+    """`cik`, `as_of` of the "yes" answers that are a stock split read as dilution (V2-39); `rows`
+    (cik, as_of, window_end of answers of 1): the answers to check instead of the development
+    label table (the holdout test's 2023+ answers, 010)."""
+    t = validation.split_dilution(con, rows)
     if t.empty:
         return pd.DataFrame({"cik": pd.Series(dtype=str),
                              "as_of": pd.Series(dtype="datetime64[ns]")})  # fmt: skip
