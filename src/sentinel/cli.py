@@ -399,25 +399,98 @@ def score(
         typer.echo(f"Saved predictions to {output_file}")
 
 
+SERVE_PORT = 8090  # checked free in WSL and on Windows (10 Nov); 8000 and 8080 are taken
+RESERVED_PORTS = {8000: "another application", 8080: "another project"}  # never stop them
+NETSTAT = "/mnt/c/Windows/System32/netstat.exe"  # Windows, seen from WSL
+
+
+def _listening(netstat_output: str) -> set[int]:
+    """The TCP ports in `netstat -ano` output that something listens on. A listening socket has
+    no remote end (`0.0.0.0:0`, `[::]:0`); the state word is not used, as Windows translates it
+    (German: ABHÖREN)."""
+    ports = set()
+    for line in netstat_output.splitlines():
+        parts = line.split()
+        if len(parts) >= 3 and parts[0] == "TCP" and parts[2] in ("0.0.0.0:0", "[::]:0"):
+            ports.add(int(parts[1].rsplit(":", 1)[1]))
+    return ports
+
+
+def port_problem(host: str, port: int) -> str | None:
+    """Why `port` cannot be used, or None when it is free: not reserved, nothing listening on it
+    here (WSL) and, when Windows is reachable from here, nothing listening on it there."""
+    import socket
+    import subprocess
+    from pathlib import Path
+
+    if port in RESERVED_PORTS:
+        return f"Port {port} is reserved: it belongs to {RESERVED_PORTS[port]} on this machine"
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # a closed socket is free
+        try:
+            s.bind((host, port))
+        except OSError:
+            return f"Port {port} is in use here (another program listens on it)"
+    if Path(NETSTAT).exists():
+        try:
+            out = subprocess.run([NETSTAT, "-ano"], capture_output=True, timeout=30).stdout
+        except OSError, subprocess.TimeoutExpired:
+            out = b""
+        if port in _listening(out.decode(errors="replace")):
+            return f"Port {port} is in use on Windows (another program listens on it)"
+    return None
+
+
 @app.command()
 def serve(
-    host: str = typer.Option("0.0.0.0", "--host", help="Host interface to bind to."),
+    host: str = typer.Option(
+        "127.0.0.1", "--host", help="Interface to bind (default: this machine only)."
+    ),
     port: int = typer.Option(
-        8080, "--port", help="Port number (default 8080, port 8000 is reserved)."
+        SERVE_PORT, "--port", help="Port (default 8090; 8000 and 8080 belong to other projects)."
     ),
     reload: bool = typer.Option(False, "--reload", help="Enable auto-reload for development."),
 ) -> None:
-    """Launch the EDGAR-SENTINEL web application and API."""
+    """Launch the EDGAR-SENTINEL web application and API, on a port checked to be free."""
     import uvicorn
 
-    if port == 8000:
-        _fail(
-            "Port 8000 is reserved for another application on this machine. "
-            "Use port 8080 or another port.",
-            USAGE,
-        )
+    problem = port_problem(host, port)
+    if problem is not None:
+        _fail(f"{problem}. Choose a free port with --port (nothing was stopped).", USAGE)
     typer.echo(f"Starting EDGAR-SENTINEL on http://localhost:{port} (binding to {host}:{port}) ...")
     uvicorn.run("sentinel.app.main:app", host=host, port=port, reload=reload)
+
+
+@app.command()
+def holdout(
+    check: bool = typer.Option(False, "--check", help="Check everything but the answers (safe)."),
+    freeze_levels: bool = typer.Option(
+        False, "--freeze-levels", help="Once, before the test: prove and freeze the simpler levels."
+    ),
+    run: bool = typer.Option(False, "--run", help="Once, on 16 November: THE holdout test."),
+) -> None:
+    """The holdout test (feature 010): the one test of the frozen models on the answers from 2023
+    on. `--check` any time; `--freeze-levels` once before the test; `--run` once. A second run is
+    refused."""
+    import os
+
+    os.environ.setdefault("MLFLOW_DISABLE_AGENT_HINT", "1")
+    from sentinel import config
+    from sentinel import holdout as h
+    from sentinel.models import report as model_report
+
+    if sum((check, freeze_levels, run)) != 1:
+        _fail("choose one of --check, --freeze-levels or --run (sentinel holdout --help)", USAGE)
+    p = config.paths()
+    try:
+        if check:
+            h.check(p, echo=typer.echo)
+        elif freeze_levels:
+            h.freeze_levels(p, echo=typer.echo)
+        else:
+            h.run(p, echo=typer.echo)
+    except (h.Refused, model_report.MissingRecords) as e:
+        _fail(f"refused: {e}", FAILED)
 
 
 @app.command()

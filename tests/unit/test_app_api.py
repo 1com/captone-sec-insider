@@ -103,3 +103,48 @@ def test_cli_serve_protects_port_8000():
     res = runner.invoke(cli_app, ["serve", "--port", "8000"])
     assert res.exit_code == 2
     assert "Port 8000 is reserved" in res.stderr
+
+
+def test_cli_serve_refuses_the_other_projects_ports(monkeypatch):
+    import uvicorn
+
+    monkeypatch.setattr(uvicorn, "run", lambda *a, **k: pytest.fail("the server was started"))
+    for port in (8000, 8080):
+        res = CliRunner().invoke(cli_app, ["serve", "--port", str(port)])
+        assert res.exit_code == 2 and f"Port {port} is reserved" in res.stderr
+
+
+def test_cli_serve_refuses_a_busy_port_and_starts_on_a_free_one(monkeypatch):
+    import socket
+
+    import uvicorn
+
+    from sentinel import cli
+
+    started = []
+    monkeypatch.setattr(uvicorn, "run", lambda *a, **k: started.append(k))
+    monkeypatch.setattr(cli, "NETSTAT", "/nonexistent/netstat.exe")  # Windows is not asked here
+    with socket.socket() as busy:
+        busy.bind(("127.0.0.1", 0))
+        busy.listen()
+        port = busy.getsockname()[1]
+        res = CliRunner().invoke(cli_app, ["serve", "--port", str(port)])
+        assert res.exit_code == 2 and "in use here" in res.stderr and not started
+    res = CliRunner().invoke(cli_app, ["serve", "--port", str(port)])  # closed: free again
+    assert res.exit_code == 0
+    assert started == [{"host": "127.0.0.1", "port": port, "reload": False}]
+
+
+def test_windows_listening_ports_are_read_whatever_the_language():
+    from sentinel.cli import _listening
+
+    text = (
+        "Aktive Verbindungen\n\n"
+        "  Proto  Lokale Adresse         Remoteadresse          Status           PID\n"
+        "  TCP    0.0.0.0:135            0.0.0.0:0              ABHÖREN         2032\n"
+        "  TCP    127.0.0.1:8080         0.0.0.0:0              ABHÖREN         4\n"
+        "  TCP    192.168.1.5:50123      140.82.112.4:443       HERGESTELLT     9\n"
+        "  TCP    [::]:8730              [::]:0                 ABHÖREN         7\n"
+        "  UDP    0.0.0.0:5353           *:*                                    11\n"
+    )
+    assert _listening(text) == {135, 8080, 8730}

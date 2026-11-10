@@ -16,7 +16,7 @@ Feature 011 establishes:
 1. The **front-end stack & visual terminal architecture** (Dark slate high-density professional research UI).
 2. The **page map & wireframes** (Universal search, Stock page, Insider feed, Dilution check, Cross-stock screeners, Model card & validation).
 3. The **app-serving contract**: exact schema and queries the FastAPI service reads from `data/serving.duckdb`.
-4. The **FastAPI read-only web server** (`src/sentinel/app/`) running on **port 8080** (strictly preserving port 8000).
+4. The **FastAPI read-only web server** (`src/sentinel/app/`) running on **port 8090** (ports 8000 and 8080 belong to other projects; a busy port is refused).
 
 ---
 
