@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-10
 
-**Status**: First version; the models tested decided 10 Nov (V2-59)
+**Status**: First version; the models tested decided 10 Nov (V2-59), every level compared (V2-60)
 
 **Input**: User description: "Feature 010 · Risk holdout test (roadmap 010, issue #69): the one test
 of the three approved models on the answers from 2023 on, sealed until now: a guarded command the
@@ -140,10 +140,11 @@ later end date agree on every row whose window ended by 2022.
   eligibility and an answer, joined as the training files are; volatility answers of 0 and
   dilution's split-like answers dropped by the development rules; the rows left out counted.
 - **FR-006**: Each frozen model MUST be scored through its own `predict` function, unchanged.
-- **FR-007**: Beside each model the command MUST score [NEEDS CLARIFICATION: which simpler levels:
-  the pre-registered naive baseline only (with the base rates as the floor), or also the rule
-  level?], each made for the holdout exactly as for a test year (learning only from answers known
-  before 2023).
+- **FR-007**: Beside each model the command MUST score **every simpler level** (V2-60, 10 Nov):
+  dilution's base rate, offering rule and logistic regression; the results-day move's base rates,
+  baseline, rule and ridge; volatility's baseline, rule and ridge; each made for the holdout
+  exactly as for a test year (learning only from answers known before 2023) from the same rows as
+  the frozen model (the export of 9 November), by the same code as its notebook.
 - **FR-008**: The measures MUST be those of the test years (the deciding measure first), per
   calendar year from 2023 and over all years; with the bands and what happened in them, and the
   volatility range's coverage.
