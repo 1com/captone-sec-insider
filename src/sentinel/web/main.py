@@ -43,7 +43,9 @@ def page(request: Request) -> HTMLResponse:
     except data.NoData as e:
         error = str(e)
     return templates.TemplateResponse(
-        request, "index.html", {"fresh": fresh, "error": error, "kinds": list(glossary.KINDS.items())}
+        request,
+        "index.html",
+        {"fresh": fresh, "error": error, "kinds": list(glossary.KINDS.items())},
     )
 
 
