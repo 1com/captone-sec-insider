@@ -157,6 +157,7 @@ class Secrets:
     sec_user_agent: str | None
     fred_api_key: str | None
     tiingo_api: str | None
+    web_password: str | None = None  # the stock research app's shared password (026)
 
 
 def secrets(p: Paths) -> Secrets:
@@ -166,7 +167,9 @@ def secrets(p: Paths) -> Secrets:
     def get(name: str) -> str | None:
         return (values.get(name) or "").strip() or None
 
-    return Secrets(get("SEC_USER_AGENT"), get("FRED_API_KEY"), get("TIINGO_API"))
+    return Secrets(
+        get("SEC_USER_AGENT"), get("FRED_API_KEY"), get("TIINGO_API"), get("WEB_PASSWORD")
+    )
 
 
 def in_tiingo_window(settings: dict, today: date | None = None) -> bool:

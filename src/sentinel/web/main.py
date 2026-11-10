@@ -6,10 +6,12 @@ the approved frozen model applied to it). No volatility or results-day forecast 
 
 from __future__ import annotations
 
+import base64
+import hmac
 from pathlib import Path
 
 from fastapi import FastAPI, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -23,6 +25,30 @@ app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 templates = Jinja2Templates(directory=HERE / "templates")
 PATHS = config.paths()
 FORECASTS = Forecasts(PATHS)
+# with WEB_PASSWORD in .env every request needs it (HTTP Basic, any user name): the app may then be
+# reached by a public link, since only people with the password see it (researcher, 10 Nov: A)
+PASSWORD = config.secrets(PATHS).web_password
+
+
+def _allowed(header: str) -> bool:
+    if not header.startswith("Basic "):
+        return False
+    try:
+        given = base64.b64decode(header[6:]).decode("utf-8").partition(":")[2]
+    except ValueError:
+        return False
+    return hmac.compare_digest(given.encode(), PASSWORD.encode())
+
+
+@app.middleware("http")
+async def _password(request: Request, call_next):
+    if PASSWORD is None or _allowed(request.headers.get("authorization", "")):
+        return await call_next(request)
+    return Response(
+        "Password required.",
+        status_code=401,
+        headers={"WWW-Authenticate": 'Basic realm="EDGAR-SENTINEL", charset="UTF-8"'},
+    )
 
 
 @app.exception_handler(data.NoData)
