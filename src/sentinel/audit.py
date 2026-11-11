@@ -54,8 +54,7 @@ NAMED = (
          "date '2010-01-31'"),
     Case("AMN Healthcare priced from 2010", f"{_first('1142750')} <= date '2010-01-31'"),
     Case("Standard BioTools without LaBranche's prices, with its Fluidigm years",
-         "not exists (select 1 from core.price_daily where cik = '1162194' and ticker = 'LAB' "
-         "and session < date '2022-04-01') and exists (select 1 from core.price_daily "
+         f"{_first('1162194')} >= date '2011-02-01' and exists (select 1 from core.price_daily "
          "where cik = '1162194' and year(session) = 2015)"),
     Case("Heidmar without the 2010 block", f"{_first('2029471')} >= date '2025-01-01'"),
     Case("Telephone & Data Systems priced",

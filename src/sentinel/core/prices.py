@@ -325,8 +325,30 @@ def build_choice(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
         if segments.counted(years, near):
             spac.setdefault(cik, []).append((name, v0, v1))
     decisions: list[tuple] = []
+    # where Tiingo was chosen only because Yahoo starts late, both are judged after their cuts:
+    # an earlier start may be another company's (Tiingo's LAB holds LaBranche's 2010 prices,
+    # Yahoo's starts with Fluidigm's first day)
+    alt = []
+    for s in main:
+        y = None
+        if s["reason"] == "yahoo_starts_late→tiingo":
+            y = next((c for c in by_cik.get(s["cik"], [])
+                      if c[0] == "yahoo" and c[2] == "yahoo" and c[4]), None)  # fmt: skip
+        if y:
+            alt.append(dict(s, source="yahoo", ticker=y[1], reason="yahoo_primary_late"))
+    alt_decisions: list[tuple] = []
     segments.cut(con, main, spac, decisions)
-    segments.edges(con, main)
+    segments.cut(con, alt, spac, alt_decisions)
+    segments.edges(con, main + alt)
+    picked = {}
+    for a in alt:
+        t = next(s for s in main if s["cik"] == a["cik"])
+        if a["first"] and (t["first"] is None or a["first"] <= t["first"]):
+            picked[a["cik"]] = a
+    main = [picked.get(s["cik"], s) for s in main]
+    decisions = [d for d in decisions if d[0] not in picked] + [
+        d for d in alt_decisions if d[0] in picked
+    ]
     by = {s["cik"]: [s] for s in main if s["first"] is not None}
     names = {cik: c["all_names"] for cik, c in companies.items()}
     meta = {t: (n, a, b) for t, n, a, b in con.execute(

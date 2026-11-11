@@ -3,10 +3,11 @@
 `build_choice` (prices.py) picks each company's main series as before; this module turns it into
 the company's history, for every company at once, in set-based passes:
 
-1. **Cuts** of a segment: after another company's use of the ticker that ended before the
-   company's own first use of it (a reuse, R4), unless the series' daily moves there are not that
-   company's own (the provider re-filed the history under the new holder: Gardner Denver's under
-   IR); before a hole of over a year that the company's own evidence does not cover (R6); through
+1. **Cuts** of a segment: after the last use of the ticker by a company that used it before the
+   company's own first use (an earlier holder, R4), unless the series' daily moves there are not
+   that company's own (the provider re-filed the history under the new holder: Gardner Denver's
+   under IR); before a hole of over a year that the company's own evidence does not cover (R6);
+   through
    every blank-check (SPAC) period (R7, V2-66).
 2. **Joins** (R2, R3): where a company's earliest segment starts late, its own other tickers are
    tried; a series that ends at most `SWITCH_DAYS` before the segment starts, within a factor of
@@ -35,9 +36,9 @@ LEVEL = 1.5  # ... within this factor of its as-traded price (R3)
 MAX_SEGMENTS = 5
 LATE_START_DAYS = 30  # a segment starting this long after the history start is tried for a join
 MOVES_DIFFER = 0.02  # two daily returns differ when they are more than 2 points apart
-SAME_SERIES = 0.10  # at most this share of shared days differ: the other company's prices (cut)
-OTHER_SERIES = 0.30  # at least this share differ: not the other company's prices (kept)
+SAME_SERIES = 0.05  # at most this share of shared days differ: the same prices (one company's)
 MIN_SHARED = 20  # fewer shared days: cut, as before
+OVERLAP_DAYS, MIN_OVERLAP = 90, 10  # two tickers' series that overlap near a switch (R3)
 # R7 (V2-66): a former name of a blank-check company, as whole words; it counts when it lasted at
 # most SPAC_YEARS or the price sat between $9 and $11 on at least SPAC_NEAR_10 of its days
 SPAC_NAME = (r"\b(ACQUISITIONS?|MERGER)\s+(CORP|CORPORATION|CO|COMPANY|INC|LTD|LIMITED|HOLDINGS?"
@@ -103,13 +104,30 @@ def spac_periods(con, main: list[tuple]) -> list[tuple]:
     of priced days between $9 and $11 on the company's main series; `counted` per R7."""
     con.execute("create or replace temp table _main (cik VARCHAR, source VARCHAR, ticker VARCHAR)")
     con.executemany("insert into _main values (?, ?, ?)", [m[:3] for m in main if m[1]])
+    con.execute(
+        """
+        create or replace temp table _traded as   -- as-traded closes of the companies' series
+        with own as (   -- the main series and every series of the company's own tickers
+            select cik, source, ticker from _main where cik in (select cik from _spac_name)
+            union
+            select h.cik, x.source, h.ticker from ref.ticker_history h
+            join (select distinct source, ticker from _prov) x on x.ticker = h.ticker
+            where h.cik in (select cik from _spac_name))
+        select o.cik, p.session,
+               p.close * case when p.source = 'yahoo' then coalesce(exp(sum(ln(p.split)) over (
+                   partition by o.cik, o.source, o.ticker order by p.session
+                   rows between 1 following and unbounded following)), 1.0) else 1.0 end
+                   as traded
+        from own o join _prov p on p.source = o.source and p.ticker = o.ticker
+        """
+    )
     return con.execute(
         """
         select s.cik, s.former_name, s.valid_from, s.valid_to,
                round(datediff('day', s.valid_from, s.valid_to) / 365.25, 2) as years,
-               (select avg(case when p.close between 9 and 11 then 1.0 else 0.0 end)
-                from _main m join _prov p on p.source = m.source and p.ticker = m.ticker
-                where m.cik = s.cik and p.session between s.valid_from and s.valid_to) as near_10
+               (select avg(case when p.traded between 9 and 11 then 1.0 else 0.0 end)
+                from _traded p where p.cik = s.cik
+                and p.session between s.valid_from and s.valid_to) as near_10
         from _spac_name s
         order by s.cik, s.valid_from, s.former_name
         """
@@ -135,8 +153,10 @@ def cut(con, segs: list[dict], spac: dict[str, list[tuple]], decisions: list) ->
         "insert into _todo values (?, ?, ?, ?, ?, ?)",
         [(i, s["cik"], s["source"], s["ticker"], s["lo"], s["hi"]) for i, s in enumerate(segs)],
     )
-    # reuse: other companies' closed uses of the ticker that ended before the company's own first
-    # use; overlapping uses (sister companies, typos) are kept (V2-63, widened)
+    # reuse: a company that used the ticker before this company's own first use is an earlier
+    # holder: the history starts after its last use (Old Safehold before the new one, even with a
+    # few days of overlap at the handover); one that began using it after is a sister company or a
+    # typo and cuts nothing (Digital Realty's partnership; DoorDash's "FN": V2-63, widened)
     rows = con.execute(
         f"""
         with uses as (
@@ -147,10 +167,10 @@ def cut(con, segs: list[dict], spac: dict[str, list[tuple]], decisions: list) ->
             left join _own o on o.cik = t.cik and o.ticker = t.ticker
         )
         select sid,
-               arg_max(other, valid_to) filter (where valid_to < coalesce(first_use, {FAR_SQL})),
-               max(valid_to) filter (where valid_to < coalesce(first_use, {FAR_SQL})),
-               arg_max(other, valid_to) filter (where valid_to >= coalesce(first_use, {FAR_SQL})),
-               max(valid_to) filter (where valid_to >= coalesce(first_use, {FAR_SQL}))
+               arg_max(other, valid_to) filter (where valid_from < coalesce(first_use, {FAR_SQL})),
+               max(valid_to) filter (where valid_from < coalesce(first_use, {FAR_SQL})),
+               arg_max(other, valid_to) filter (where valid_from >= coalesce(first_use, {FAR_SQL})),
+               max(valid_to) filter (where valid_from >= coalesce(first_use, {FAR_SQL}))
         from uses group by 1
         """
     ).fetchall()
@@ -159,7 +179,8 @@ def cut(con, segs: list[dict], spac: dict[str, list[tuple]], decisions: list) ->
         s = segs[sid]
         if o_other is not None:
             _decide(decisions, s["cik"], "kept_overlap", s["ticker"], s["source"], s["lo"], o_end,
-                    o_other, "another company used the ticker at the same time")  # fmt: skip
+                    o_other, "another company began using the ticker after this "
+                    "one did")  # fmt: skip
         if other is not None:
             reuse[sid] = (other, end)
     if reuse:
@@ -188,19 +209,19 @@ def compare(con, items: list[tuple]) -> dict:
         for k, n, d in con.execute(
             f"""
             with a as (
-                select c.k, x.session,
-                       x.adj_close / lag(x.adj_close) over (partition by c.k order by x.session)
-                           - 1 as r
+                select c.k, x.session, x.adj_close as pa
                 from _cmp c join _prov x on x.source = c.sa and x.ticker = c.ta
                      and x.session between c.lo and c.hi),
             b as (
-                select c.k, x.session,
-                       x.adj_close / lag(x.adj_close) over (partition by c.k order by x.session)
-                           - 1 as r
+                select c.k, x.session, x.adj_close as pb
                 from _cmp c join _prov x on x.source = c.sb and x.ticker = c.tb
-                     and x.session between c.lo and c.hi)
-            select a.k, count(*), count(*) filter (where abs(a.r - b.r) > {MOVES_DIFFER})
-            from a join b using (k, session) where a.r is not null and b.r is not null
+                     and x.session between c.lo and c.hi),
+            r as (   -- returns over the days both series have, so a skipped day misleads neither
+                select k, pa / lag(pa) over w - 1 as ra, pb / lag(pb) over w - 1 as rb
+                from a join b using (k, session)
+                window w as (partition by k order by session))
+            select k, count(*), count(*) filter (where abs(ra - rb) > {MOVES_DIFFER})
+            from r where ra is not null and rb is not null
             group by 1
             """
         ).fetchall()
@@ -223,7 +244,7 @@ def _cut_reuse(con, segs, reuse: dict, decisions: list) -> None:
     for sid, (other, end) in reuse.items():
         x = segs[sid]
         shared, diff = differ.get(sid, (0, 0))
-        if shared >= MIN_SHARED and diff / shared >= OTHER_SERIES:
+        if shared >= MIN_SHARED and diff / shared > SAME_SERIES:
             _decide(decisions, x["cik"], "kept_remapped", x["ticker"], x["source"], x["lo"], end,
                     other, f"daily moves differ from the other company's on {diff} of "
                            f"{shared} days")  # fmt: skip
@@ -359,8 +380,7 @@ def join(con, segs_by_cik: dict[str, list[dict]], names: dict, meta: dict, ident
             select o.* from own o join _want w using (wid)
             where (w.dir = 'back' and o.vf < w.day - interval {LATE_START_DAYS} day
                    and o.vt >= w.day - interval {WARMUP_DAYS} day)
-               or (w.dir = 'forward' and o.vt > w.day + interval {LATE_START_DAYS} day
-                   and o.vf <= w.day + interval {WARMUP_DAYS} day))
+               or (w.dir = 'forward' and o.vt > w.day + interval {LATE_START_DAYS} day))
         select f.wid, f.ticker, x.source, f.listed_for_it,
                case when w.dir = 'back' then max(x.session) filter (where x.session < w.day)
                     else min(x.session) filter (where x.session > w.day) end as edge,
@@ -374,14 +394,23 @@ def join(con, segs_by_cik: dict[str, list[dict]], names: dict, meta: dict, ident
     points = {(src, t, edge) for _, t, src, _, edge, _, _ in cands}
     points |= {(x["source"], x["ticker"], day) for _, _, x, day in wanted}
     prices = _as_traded(con, sorted(points, key=str))
+    # where the two series overlap and move alike on the shared days, they are the same shares,
+    # whatever the price does at the switch (Hanger's HNGR holds HGR's last NYSE weeks)
+    near = timedelta(days=OVERLAP_DAYS)
+    overlap = compare(con, [(i, wanted[w][2]["source"], wanted[w][2]["ticker"], src, t,
+                             wanted[w][3] - near, wanted[w][3] + near)
+                            for i, (w, t, src, _, _, _, _) in enumerate(cands)])  # fmt: skip
     best: dict[int, tuple] = {}
-    for wid, ticker, src, listed_for_it, edge, s0, s1 in cands:
+    for i, (wid, ticker, src, listed_for_it, edge, s0, s1) in enumerate(cands):
         cik, d, seg, day = wanted[wid]
         if (cik, ticker) in used:
             continue
         gap = (day - edge).days if d == "back" else (edge - day).days
         why = None
-        if gap > SWITCH_DAYS:
+        shared, diff = overlap.get(i, (0, 0))
+        if shared >= MIN_OVERLAP and diff / shared <= SAME_SERIES:
+            pass  # the same shares: no level check
+        elif gap > SWITCH_DAYS:
             why = f"gap: {ticker} ends {gap} days from the switch"
         else:
             theirs, mine = (
@@ -478,6 +507,8 @@ def resolve(con, segs_by_cik: dict[str, list[dict]], decisions: list) -> None:
                     same.append(pair)
             elif shared >= MIN_SHARED and diff / shared <= SAME_SERIES:
                 same.append(pair)
+            elif shared < MIN_SHARED and pair[4] != pair[5]:
+                same.append(pair)  # too few days to compare: the SEC-listed holder keeps them
         pairs = same
         if not pairs:
             return

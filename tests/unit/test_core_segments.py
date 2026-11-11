@@ -53,6 +53,7 @@ COMPANIES = {
     "32": ("Telco Systems", "us", ["TDZPRV", "TDZ", "TDZ-PU"], None, None),
     "33": ("Lodging Trust", "us", ["CLD-PA", "CLD"], None, None),
     "34": ("Foreign Holdings Plc", "foreign", ["ADRY", "ORDF"], None, None),
+    "35": ("Crashed Inc", "us", None, date(2014, 1, 6), date(2016, 10, 3)),
 }
 FORMER = {  # cik: (former name, from, to)
     "25": ("Blue Acquisition Corp", "2014-03-03", "2015-06-30"),
@@ -70,6 +71,8 @@ FORM4 = [  # cik, ticker, from, to
     ("29", "SIS", date(2015, 1, 5), date(2016, 6, 1)),  # a sister company, the same last day
     ("30", "HOLY", date(2016, 3, 1), date(2016, 10, 3)),
     ("31", "HALT", date(2014, 2, 3), date(2016, 10, 3)),
+    ("35", "CRA", date(2014, 1, 6), date(2015, 6, 29)),
+    ("35", "CRB", date(2016, 3, 1), date(2016, 10, 3)),  # its own filings under CRB come later
 ]
 
 
@@ -135,17 +138,22 @@ def build(con, tmp_data, renamed: bool = True) -> None:
         + _series("FWA", SESSIONS[0], date(2015, 6, 30), close=5.0, src="t")
         + _series("FWB", date(2015, 7, 1), END, close=5.0, src="t")
         + _series("SIS", SESSIONS[0], END, src="t")
+        + _series("CRA", SESSIONS[0], date(2015, 6, 30), close=12.0, src="t")
+        + _series("CRB", date(2015, 5, 1), date(2015, 6, 30), close=12.0, src="t")
+        + _series("CRB", date(2015, 7, 1), END, close=4.0, src="t")  # moved and crashed
     )
     _frame(con, "stg_tiingo.price", [r for r in tiingo if r["session"] in set(days)])
     _frame(con, "stg_tiingo.meta", [
         {"ticker": t, "name": n, "start_date": SESSIONS[0], "end_date": END}
         for t, n in (("OLDR", "Renamed Corp"), ("OLDG", "Gapped Corp"), ("OLDJ", "Jumpy Corp"),
                      ("OLDT", "Totally Different Inc"), ("FWA", "Forward Inc"),
-                     ("FWB", "Forward Inc"), ("SIS", "Parent Realty"))])  # fmt: skip
+                     ("FWB", "Forward Inc"), ("SIS", "Parent Realty"), ("CRA", "Crashed Inc"),
+                     ("CRB", "Crashed Inc"))])  # fmt: skip
     _frame(con, "stg_tiingo.listing", [
         {"ticker": t, "exchange": "NYSE", "asset_type": "Stock", "currency": "USD",
          "start_date": a, "end_date": b}
         for t, a, b in (("FWA", SESSIONS[0], date(2015, 6, 30)), ("FWB", date(2015, 7, 1), None),
+                        ("CRA", SESSIONS[0], date(2015, 6, 30)),
                         ("SIS", SESSIONS[0], None),
                         ("OLDR", SESSIONS[0], date(2015, 12, 31)))])  # fmt: skip
     _frame(con, "stg_tiingo.search", [{"query": "x", "hit_rank": 0, "ticker": "x",
@@ -260,3 +268,10 @@ def test_the_common_stock_is_chosen_and_adrs_are_left_alone(world):
     assert main["32"] == "TDZ"  # TDZPRV, its first SEC ticker, has no data
     assert main["33"] == "CLD"  # not its preferred CLD-PA
     assert main["34"] is None  # a foreign company's ordinary share is not its ADR
+
+
+def test_overlapping_series_that_move_alike_are_joined_even_across_a_crash(world):
+    # Hanger: HNGR repeats HGR's last NYSE weeks, then falls to a third: the same shares
+    first, last, tickers = _span(world, "35")
+    assert tickers == ["CRA", "CRB"] and first == SESSIONS[0]
+    assert "joined" in _decisions(world, "35")
