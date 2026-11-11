@@ -25,11 +25,7 @@ from sentinel.config import Paths
 IN_LIST = ("yahoo_primary", "yahoo_primary_late", "yahoo_starts_late→tiingo",
            "yahoo_missing→tiingo", "no_price")  # fmt: skip
 EXAMPLES = 5
-# research R7 (V2-66): a former name of a blank-check company, as whole words
-SPAC_NAME = (r"\b(ACQUISITIONS?|MERGER)\s+(CORP|CORPORATION|CO|COMPANY|INC|LTD|LIMITED|HOLDINGS?"
-             r"|GROUP|TRUST)\b|\bSPAC\b|\bBLANK\s+CHECK\b")  # fmt: skip
-SPAC_YEARS = 3.5  # a SPAC must merge within about two to three years, extensions included
-SPAC_NEAR_10 = 0.5  # ... or it trades on its trust value: $9-$11 on at least half of its days
+from sentinel.core.segments import SPAC_NAME, SPAC_NEAR_10, SPAC_YEARS  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -272,7 +268,17 @@ def _twice(con) -> dict:
         select count(*), count(distinct ticker) from (
             select source, ticker, session from core.price_daily group by all
             having count(distinct cik) > 1)""").fetchone()
-    return {"rows": rows, "tickers": tickers}
+    # across providers: one ticker's day at the same as-traded price for two companies
+    same_rows, same_tickers = con.execute("""
+        select count(*), count(distinct ticker) from (
+            select ticker, session from core.price_daily group by all
+            having count(distinct cik) > 1 and max(close) <= 1.01 * min(close))""").fetchone()
+    return {
+        "rows": rows,
+        "tickers": tickers,
+        "same_price_rows": same_rows,
+        "same_price_tickers": same_tickers,
+    }
 
 
 def _blank_check(con) -> dict:
@@ -373,6 +379,10 @@ def run(con: duckdb.DuckDBPyConnection, today: date) -> dict:
 def problems(result: dict) -> list[str]:
     """What makes the audit fail: a ticker-day given twice, a named case failing."""
     out = []
+    twice = result["families"]["ticker_days_claimed_twice"]
+    if twice["same_price_rows"] > twice["rows"]:
+        out.append(f"{twice['same_price_rows']:,} ticker-days at one price for two or more "
+                   "companies (two providers)")  # fmt: skip
     if result["families"]["ticker_days_claimed_twice"]["rows"]:
         out.append(f"{result['families']['ticker_days_claimed_twice']['rows']:,} ticker-days "
                    "given to two or more companies")  # fmt: skip
@@ -412,7 +422,9 @@ def lines(result: dict) -> list[str]:
         f"{f['disappeared_us_with_form4_without_prices']['companies']:,}",
         f"ticker-days given to two or more companies: "
         f"{f['ticker_days_claimed_twice']['rows']:,} on "
-        f"{f['ticker_days_claimed_twice']['tickers']:,} tickers",
+        f"{f['ticker_days_claimed_twice']['tickers']:,} tickers; at one price from either "
+        f"provider: {f['ticker_days_claimed_twice']['same_price_rows']:,} on "
+        f"{f['ticker_days_claimed_twice']['same_price_tickers']:,} tickers",
         f"blank-check (SPAC) names: {spac['names']:,} ({spac['companies']:,} companies), "
         f"counted {spac['counted']:,}, left out {spac['left_out']:,}; priced days inside "
         f"counted periods: {spac['rows_in_counted_periods']:,}",

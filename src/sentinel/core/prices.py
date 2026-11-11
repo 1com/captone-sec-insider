@@ -49,6 +49,7 @@ import duckdb
 
 from sentinel import db
 from sentinel.config import Paths, risk_params, sources
+from sentinel.core import segments
 from sentinel.reference.build import normalise
 from sentinel.staging.sec_form4_daily import union_sql
 
@@ -219,12 +220,17 @@ def build_candidates(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> di
             rows.append((cik, source, ticker, role, ev_from, ev_to, *stats, ident, overlap, start))
 
         if own:
-            for rank, t in enumerate(own):
-                t = normalise(t)
-                if t and t in ystats:
-                    add("yahoo", t, "yahoo" if rank == 0 else "yahoo_other", first, None)
-                if t and t in tstats:  # V2-31: another rank is a warrant, preferred, note...
-                    add("tiingo", t, "tiingo_listed" if rank == 0 else "tiingo_other", first, None)
+            ordered = [t for t in (normalise(x) for x in own) if t]
+            main = ordered[0] if ordered else None
+            if c["filer_type"] == "us":  # 027 R8: the first ticker with data, plain ones first
+                plain = [t for t in ordered if "-" not in t]
+                ordered = plain + [t for t in ordered if t not in plain]
+                main = next((t for t in ordered if t in ystats or t in tstats), main)
+            for t in ordered:
+                if t in ystats:
+                    add("yahoo", t, "yahoo" if t == main else "yahoo_other", first, None)
+                if t in tstats:  # V2-31: another ticker is a warrant, preferred, note...
+                    add("tiingo", t, "tiingo_listed" if t == main else "tiingo_other", first, None)
             continue
         best = None  # disappeared: Form 4 tickers first, else the name search
         for t, vf, vt in form4.get(cik, []):
@@ -282,71 +288,96 @@ def choose(candidates: list[tuple], first_seen: date | None, listed: bool, start
     return (None, None, f"rejected_{rejected[5]}" if rejected else "no_ticker_found")
 
 
-def _other_use_ends(con) -> dict[tuple[str, str], date]:
-    """(cik, ticker) → the last day another company used the ticker before (closed spans of
-    `ref.ticker_history`, from Form 4 symbols and the SEC's lists). A use that lies inside the
-    company's own Form 4 span under the ticker is left out: a ticker cannot belong to two
-    companies at once, so it is a typing slip in the other company's filing (V2-63)."""
-    rows = con.execute(
-        """
-        with own as (
-            select cik, ticker, min(valid_from) as f, max(valid_to) as t
-            from ref.ticker_history where evidence = 'form4' group by 1, 2
-        )
-        select a.cik, a.ticker, max(b.valid_to)
-        from (select distinct cik, ticker from ref.ticker_history) a
-        join ref.ticker_history b on b.ticker = a.ticker and b.cik <> a.cik
-             and b.valid_to is not null
-        left join own on own.cik = a.cik and own.ticker = a.ticker
-        where not coalesce(b.valid_from > own.f and b.valid_to < own.t, false)
-        group by 1, 2
-        """
-    ).fetchall()
-    return {(cik, ticker): end for cik, ticker, end in rows}
-
-
 def build_choice(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
-    db.require(con, ["core.price_candidate", "ref.ticker_history", "stg_sec_tickers.snapshot"],
+    db.require(con, ["core.price_candidate", "ref.ticker_history", "stg_sec_tickers.snapshot",
+                     "stg_yahoo.price", "stg_tiingo.price", "stg_tiingo.meta"],
                "core.price_choice")  # fmt: skip
     start = sources(p)["prices"]["history_start"]
     companies = _companies(con)
     by_cik: dict[str, list[tuple]] = {}
-    listing: dict[tuple[str, str, str], date | None] = {}
-    for cik, source, ticker, role, first, n, ident, list_start in con.execute(
-        "select cik, source, ticker, role, first_session, n_sessions, identity, listing_start "
+    for cik, source, ticker, role, first, n, ident in con.execute(
+        "select cik, source, ticker, role, first_session, n_sessions, identity "
         "from core.price_candidate order by cik, source desc, role"
     ).fetchall():
         by_cik.setdefault(cik, []).append((source, ticker, role, first, n, ident))
-        listing[(cik, source, ticker)] = list_start or first
-    others = _other_use_ends(con)
-    rows = []
-    for cik, c in companies.items():
+    list_day = (
+        con.execute("select max(snapshot_date) from stg_sec_tickers.snapshot").fetchone()[0]
+        or FAR_PAST
+    )
+    main, unpriced = [], []
+    for cik, c in sorted(companies.items()):
         in_list = bool(c["tickers"] or c["past_tickers"])
         source, ticker, reason = choose(by_cik.get(cik, []), c["first"], in_list, start)
-        if in_list:  # in an SEC list: back to the ticker's current listing (research R12)
-            bounds = [start, listing.get((cik, source, ticker)) or start]
-            if (cik, ticker) in others:
-                bounds.append(others[(cik, ticker)] + timedelta(days=1))
-            # a company that left the list: up to its last list's day, after which the
-            # ticker may belong to another company (V2-45)
-            trim_from, trim_to = max(bounds), None if c["tickers"] else c["past_day"]
+        if in_list:  # a company that left the list: up to its last list's day (V2-45)
+            lo, hi = start, None if c["tickers"] else c["past_day"]
         else:
             first = c["first"] or start
-            trim_from = max(start, first - timedelta(days=WARMUP_DAYS))
-            trim_to = c["last"] + timedelta(days=TAIL_DAYS) if c["last"] else None
-        rows.append((cik, 1, source, ticker, reason, trim_from, trim_to, bool(c["tickers"]),
-                     True, 1.0))  # fmt: skip
+            lo = max(start, first - timedelta(days=WARMUP_DAYS))
+            hi = c["last"] + timedelta(days=TAIL_DAYS) if c["last"] else None
+        seg = {"cik": cik, "source": source, "ticker": ticker, "reason": reason, "lo": lo,
+               "hi": hi, "listed": bool(c["tickers"]), "in_list": in_list}  # fmt: skip
+        (main if source else unpriced).append(seg)
+    # 027: cuts, joins, one ticker-day one company, adjustment factors (core/segments.py)
+    segments.setup(con, list_day)
+    periods = segments.spac_periods(con, [(s["cik"], s["source"], s["ticker"]) for s in main])
+    spac: dict[str, list[tuple]] = {}
+    for cik, name, v0, v1, years, near in periods:
+        if segments.counted(years, near):
+            spac.setdefault(cik, []).append((name, v0, v1))
+    decisions: list[tuple] = []
+    segments.cut(con, main, spac, decisions)
+    segments.edges(con, main)
+    by = {s["cik"]: [s] for s in main if s["first"] is not None}
+    names = {cik: c["all_names"] for cik, c in companies.items()}
+    meta = {t: (n, a, b) for t, n, a, b in con.execute(
+        "select ticker, name, start_date, end_date from stg_tiingo.meta").fetchall()}  # fmt: skip
+    for _ in range(segments.MAX_SEGMENTS):
+        if not segments.join(con, by, names, meta, identity, spac, start, decisions):
+            break
+    segments.resolve(con, by, decisions)
+    segments.edges(con, [s for segs in by.values() for s in segs])
+    by = {cik: kept for cik, segs in by.items() if (kept := [s for s in segs if s["first"]])}
+    segments.factors(con, by)
+    rows = []
+    for cik, segs in sorted(by.items()):
+        for seq, s in enumerate(segs, 1):
+            rows.append((cik, seq, s["source"], s["ticker"], s["reason"], s["lo"], s["hi"],
+                         s["listed"], seq == len(segs), s["adj_factor"]))  # fmt: skip
+    for s in main + unpriced:  # no segment: one row without a source
+        if s["cik"] not in by:
+            rows.append((s["cik"], 1, None, None, s["reason"], s["lo"], s["hi"], s["listed"],
+                         True, 1.0))  # fmt: skip
     with db.transaction(con):
         con.execute(CHOICE_TABLE)
-        con.executemany("insert into core.price_choice values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", rows)
+        con.executemany(
+            "insert into core.price_choice values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", sorted(rows)
+        )
         con.execute(DECISION_TABLE)
+        if decisions:
+            con.executemany(
+                "insert into core.price_decision values (?, ?, ?, ?, ?, ?, ?, ?)",
+                sorted(decisions, key=lambda d: tuple(str(x) for x in d)),
+            )
+        con.execute(
+            "create or replace table core.blank_check_period (cik VARCHAR, former_name VARCHAR, "
+            "valid_from DATE, valid_to DATE, years DOUBLE, near_10 DOUBLE, counted BOOLEAN)"
+        )
+        if periods:
+            con.executemany(
+                "insert into core.blank_check_period values (?, ?, ?, ?, ?, ?, ?)",
+                [(*r, segments.counted(r[4], r[5])) for r in periods],
+            )
     counts = dict(
         con.execute(
             "select reason, count(*) from core.price_choice where main group by 1"
         ).fetchall()
     )
-    echo(f"  price choice: {counts}")
-    return {"companies": len(rows), "priced": sum(1 for r in rows if r[1])}
+    kinds = dict(
+        con.execute("select kind, count(*) from core.price_decision group by 1").fetchall()
+    )
+    echo(f"  price choice: {counts}; decisions: {kinds}")
+    return {"companies": len(companies), "priced": len(by),
+            "segments": sum(len(v) for v in by.values()), **kinds}  # fmt: skip
 
 
 def _significant(expr: str, digits: int = 10) -> str:
@@ -420,22 +451,31 @@ def build_daily(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
                                case when split_ratio > 0 then split_ratio else 1.0 end
                            ) as DECIMAL(38, 18))) over (partition by cik order by session
                                rows between 1 following and unbounded following) as DOUBLE)),
-                           1.0) as cum
+                           1.0) as cum,
+                       coalesce(exp(cast(sum(cast(ln(
+                               case when split_ratio > 0 then split_ratio else 1.0 end
+                           ) as DECIMAL(38, 18))) over (partition by cik, source, ticker
+                               order by session rows between 1 following and unbounded following)
+                               as DOUBLE)), 1.0) as cum_series
                 from _rows
                 where close > 0 and not coalesce(high < low, false)
                   and session in (select session from ref.calendar)
             ),
             traded as (
                 select cik, session, source, ticker,
-                       case when split_adjusted then {_significant("open * cum")} else open end
+                       case when split_adjusted
+                            then {_significant("open * cum_series")} else open end
                            as open,
-                       case when split_adjusted then {_significant("high * cum")} else high end
+                       case when split_adjusted
+                            then {_significant("high * cum_series")} else high end
                            as high,
-                       case when split_adjusted then {_significant("low * cum")} else low end
+                       case when split_adjusted
+                            then {_significant("low * cum_series")} else low end
                            as low,
-                       case when split_adjusted then {_significant("close * cum")} else close end
+                       case when split_adjusted
+                            then {_significant("close * cum_series")} else close end
                            as close,
-                       case when split_adjusted then round(volume / cum, 2) else volume end
+                       case when split_adjusted then round(volume / cum_series, 2) else volume end
                            as volume,
                        adj_close, {_significant("cum")} as cum_split_after, split_ratio, dividend
                 from valid

@@ -180,7 +180,7 @@ def test_identity_needs_a_shared_word_or_the_same_squeezed_name():
     assert prices.identity(None, ["Acme Corp"], span) == "no_data"
 
 
-def test_listed_tickers_are_trusted_on_dates_and_reach_back_to_their_listing(con, tmp_data):
+def test_listed_tickers_are_trusted_on_dates_and_keep_their_whole_series(con, tmp_data):
     for step in (prices.build_candidates, prices.build_choice, prices.build_daily,
                  prices.build_check, prices.build_security, prices.build_coverage):  # fmt: skip
         step(con, tmp_data, **QUIET)
@@ -190,7 +190,9 @@ def test_listed_tickers_are_trusted_on_dates_and_reach_back_to_their_listing(con
     starts = dict(
         con.execute("select cik, min(session) from core.price_daily group by 1").fetchall()
     )
-    assert starts["7"] == date(2014, 6, 2)  # its listing's start, not 400 days before the SEC list
+    # 027 R4: Tiingo's listing dates (here 2 Jun 2014) no longer cut: they mark coverage starts and
+    # exchange moves as often as new companies; a real reuse leaves its own evidence
+    assert starts["7"] == SESSIONS[0]
     assert starts["8"] == date(2014, 9, 3)  # the day after REU's earlier owner last used it
     coverage = {c: (s, r, t) for c, s, r, t in con.execute(
         "select cik, source, reason, tiingo_only from core.price_coverage").fetchall()}  # fmt: skip

@@ -1,4 +1,4 @@
-# Contract: `sentinel audit` and `sentinel fetch tiingo --former`
+# Contract: `sentinel audit` and `sentinel fetch tiingo-former`
 
 ## `sentinel audit`
 
