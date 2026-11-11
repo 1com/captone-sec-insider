@@ -34,7 +34,7 @@ across all segments (R5); `main` is unique per company.
 | other_cik | VARCHAR | the other company (reuse, lost claim), if any |
 | detail | VARCHAR | the reason in words (dates of the switch, the level ratio, the former name) |
 
-## `ref.blank_check_period` (new)
+## `core.blank_check_period` (new; built in the price step from the staged prices of the company's tickers)
 
 | Column | Type | Meaning |
 |---|---|---|
