@@ -251,3 +251,13 @@ on a synthetic case (`tests/unit/test_core_segments.py`) and on the real data:
 - **Not caught by the name rule:** SPACs whose names carry neither "Acquisition" nor "Merger" (dMY
   Technology Group IV, now Planet Labs; Vickers Vantage Corp. I, now Scilex): their months stay.
   Listed as a known limitation.
+- **Found by the EDA re-run (11 Nov), not caused by the repair.** (a) Restored 2010 histories bring
+  in Form 4s of 2009 that put a total in the price field (hundreds of thousands of dollars a share):
+  filed before the company's prices start and with no share count yet, they escape the typo rule
+  (V2-24, V2-32's $1 million ceiling); 4 results-day rows of 2010 (Hypercom, Energy Focus) carry
+  insider totals above $10 billion. (b) Stale quotes after a delisting: 361 vanished companies'
+  histories end with 20 or more zero-volume days at the last close (Tiingo repeats it until its end
+  date; Hypercom, bought on 4 Aug 2011, is quoted to 7 Nov 2011), 46 of them from the old-ticker
+  download; 124 volatility answers (0.02%) reach 30 days or more into such a tail and come out far
+  too low (median 0.04 against 0.28). The pipeline's cleaning is frozen (V2-33); both are reported
+  in the EDA Findings for the researcher.

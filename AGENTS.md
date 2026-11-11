@@ -242,10 +242,15 @@ holds and what does not:
   rebuild of 11 Nov: 18 of 18 named cases pass, no ticker-day twice in one series, histories of
   BNY Mellon, Cencora, Gen Digital, Truist, MGP, Viavi, Palatin, Digital Realty restored (research
   R15). The holdout check refused on 11 Nov because the dilution notebook was re-run on 10 Nov
-  11:50 (a second "approved" record on that day's data); superseded by the retraining. **Next:**
-  `sentinel verify`, EDA re-run, the three model notebooks on the repaired export, the
-  researcher's approval, new kept rows and levels, then the holdout test (by Tue 17 Nov if all is
-  ready, never on a partial repair). Merge #102 before 027's pull request.
+  11:50 (a second "approved" record on that day's data); superseded by the retraining. On 11 Nov
+  evening: `sentinel verify` identical (after a tie fix found by verify); the export of 11 Nov kept
+  in `data/frozen/2026-11-11/` (with `split_like.parquet`, 57 answers); the three model notebooks
+  (commit d135609) and the EDA re-run on it: the same levels chosen, mean scores 0.2257, 0.4038,
+  0.2749 against 0.2260, 0.4038, 0.2791 on 9 Nov, about 3% more rows; `sentinel report`
+  regenerated; EDA Findings updated (two small known problems, research R15). **Next:** the
+  researcher's approval of the three re-run models (T035), then `sentinel holdout --freeze-levels`
+  and `--check` (T036), then the holdout test (by Tue 17 Nov if all is ready, never on a partial
+  repair). Merge #102 before 027's pull request.
 - **Options (023):** the spot price comes from a table that does not exist (falls back to the
   median strike or 100); the tables now live in schema `live` (a rebuild cannot reproduce them).
 - **Process:** no pull requests since #90; three of the last five CI runs on `main` failed.
@@ -368,9 +373,12 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
 ### Step 7b · 027 Price history repair, then retrain and test (V2-65, V2-66)
 - [X] Spec, plan, tasks; the audit and its baseline; the repair with tests; the old tickers'
   download; the rebuild (11 Nov); 18 of 18 named cases.
-- [ ] `sentinel verify`; the EDA notebooks re-run; the hand check recorded; docs and decision.
-- [ ] The three model notebooks on the repaired export; the researcher's approval; `KEPT` from
-  the approved records; `sentinel holdout --freeze-levels`, `--check`; the researcher's `--run`.
+- [X] `sentinel verify` identical (11 Nov); the EDA notebooks re-run, Findings updated; the hand
+  check recorded (2 of 30 wrong, the pattern fixed); decision V2-67.
+- [X] The three model notebooks re-run on the repaired export (11 Nov; kept in
+  `data/frozen/2026-11-11/`); `KEPT` read from the approved records (T033).
+- [ ] The researcher's approval (T035); `sentinel holdout --freeze-levels`, `--check` (T036); the
+  researcher's `--run` (T037).
 
 ### Step 8 · 010 Holdout test (16 November)
 **Status (11 Nov): built, levels frozen, merged by #100 (10 Nov); re-run `--check` after the V2-63

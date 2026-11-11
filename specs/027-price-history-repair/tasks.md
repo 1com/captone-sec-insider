@@ -127,7 +127,7 @@ counts and every named case passing.
 - [X] T029 [US5] Named cases and coverage by year and status (listed, disappeared; priced, not) added to `src/sentinel/audit.py`; `docs/report/data_audit.md` written with counts and pass/fail only (no price, date or company derived from Tiingo values), before and after side by side
 - [X] T030 [US5] Run `uv run sentinel audit` on the rebuilt data; compare with the baseline; no ticker-day twice (SC-007); every remaining hole over a year has a recorded reason (SC-003)
 - [X] T031 [US5] Draw 30 remaining cuts at random (fixed seed) from `core.price_decision` and check each by hand against the SEC filings and the providers; record the share found wrong in `docs/decisions.md` (SC-006: at most 3)
-- [ ] T032 [US5] Re-run the three EDA notebooks (`notebooks/004-eda-*.ipynb`, under the cap) and update their Findings where numbers move
+- [X] T032 [US5] Re-run the three EDA notebooks (`notebooks/004-eda-*.ipynb`, under the cap) and update their Findings where numbers move (11 Nov, on the export of 11 Nov; two small known problems added: research R15)
 
 ---
 
@@ -139,9 +139,9 @@ counts and every named case passing.
 data fingerprints equal the kept files'.
 
 - [X] T033 [US6] `KEPT` in `src/sentinel/holdout.py` read from the approved frozen models' `export_date` tag instead of the fixed "2026-11-09", with the kept files' hashes required equal to their `data_hash`; tests in `tests/unit/test_holdout.py`
-- [ ] T034 [US6] Re-run `notebooks/007-dilution-model.ipynb`, `006-results-move-model.ipynb`, `005-volatility-model.ipynb` start to finish on the new export (unchanged; under the cap, one at a time), then `uv run sentinel report`
+- [X] T034 [US6] Re-run `notebooks/007-dilution-model.ipynb`, `006-results-move-model.ipynb`, `005-volatility-model.ipynb` start to finish on the new export (unchanged; under the cap, one at a time), then `uv run sentinel report` (11 Nov, commit d135609, export of 11 Nov: the same levels chosen)
 - [ ] T035 [US6] The researcher reads the three executed notebooks and approves each (or not); approvals logged in `docs/decisions.md`; only approved models count as frozen
-- [ ] T036 [US6] Keep the export the approved models ran on in `data/frozen/<export date>/ml/` (`cp -p`), check its hashes against the frozen runs' `data_hash`; `uv run sentinel holdout --freeze-levels` (must reproduce the notebooks' records to 1e-9); `uv run sentinel holdout --check`
+- [ ] T036 [US6] Keep the export the approved models ran on in `data/frozen/<export date>/ml/` (`cp -p`), check its hashes against the frozen runs' `data_hash`; `uv run sentinel holdout --freeze-levels` (must reproduce the notebooks' records to 1e-9); `uv run sentinel holdout --check` (kept on 11 Nov: `data/frozen/2026-11-11/ml/`, hashes equal to the records' `data_hash`, with `split_like.parquet` saved from the same database state as the notebook, 57 answers; the freeze and the check wait for T035)
 - [ ] T037 [US6] The researcher runs `sentinel holdout --run` once, by Tue 17 Nov if T026–T036 are done, otherwise after the hand-in (never on a partial repair); then `uv run sentinel report`
 
 ---
