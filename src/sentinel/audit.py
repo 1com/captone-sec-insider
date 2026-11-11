@@ -378,10 +378,6 @@ def run(con: duckdb.DuckDBPyConnection, today: date) -> dict:
 def problems(result: dict) -> list[str]:
     """What makes the audit fail: a ticker-day given twice, a named case failing."""
     out = []
-    twice = result["families"]["ticker_days_claimed_twice"]
-    if twice["same_price_rows"] > twice["rows"]:
-        out.append(f"{twice['same_price_rows']:,} ticker-days at one price for two or more "
-                   "companies (two providers)")  # fmt: skip
     if result["families"]["ticker_days_claimed_twice"]["rows"]:
         out.append(f"{result['families']['ticker_days_claimed_twice']['rows']:,} ticker-days "
                    "given to two or more companies")  # fmt: skip
