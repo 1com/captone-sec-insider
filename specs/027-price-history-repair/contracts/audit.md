@@ -40,13 +40,20 @@ same build (ordered by CIK).
 
 ### The 11 November baseline
 
-Run on the build of 11 November before any change, the counts equal the audit of that day:
-1,162 companies with stored prices cut (943 by the listing start, 219 by another company's use; 256
-with clear evidence), 370 ticker changes not joined, 39 listed and 28 disappeared companies with a
-hole of over a year, 152 disappeared companies whose prices end over a year before their last
-report, 83,024 ticker-days claimed twice on 120 tickers.
+`sentinel audit` on the build of 11 November (before any change; `data/audit/prices-2026-11-11.json`):
+1,162 listed companies cut although stored prices reach further back (944 at Tiingo's listing
+start, 218 after another company's use; 269 with clear evidence the cut is wrong; 51,441
+company-months of 2012–2022); 370 ticker changes not joined (old prices stored for 33); holes of
+over a year in 39 listed and 28 disappeared companies (31–365 days: 72 listed); 313 listed
+companies without a price (49 US, 5 foreign, 259 price-only; another ticker has data for 85); 152
+disappeared companies whose prices end over a year before their last report; 3,084 disappeared US
+companies with Form 4s and no prices; 83,024 ticker-days on 120 tickers given to two or more
+companies; 686 SPAC-like former names (658 companies), 637 counted, 49 left out, 83,391 priced
+days inside counted periods; 6 of 18 named cases pass. (The hand-run audit of the morning found
+the same totals; it split the cuts 943/219 and counted 256 clear cases and 85 mid-length holes,
+with slightly different definitions.)
 
-## `sentinel fetch tiingo --former`
+## `sentinel fetch tiingo-former`
 
 Asks Tiingo, once, for each ticker named by a company's own evidence (Form 4 symbols, SEC lists)
 with no stored series whose dates in Tiingo's list overlap the company's use; stores prices from

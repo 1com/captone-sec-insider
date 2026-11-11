@@ -41,7 +41,8 @@ def _day(value: str | None) -> date | None:
 @app.command()
 def fetch(
     source: str = typer.Argument(..., help="sec-tickers, sec-daily, sec-bulk, form4, yahoo, "
-                                 "tiingo, fred, cboe, finra, or all (every daily source)."),
+                                 "tiingo, tiingo-former (old tickers' histories, once), fred, "
+                                 "cboe, finra, or all (every daily source)."),
     from_day: str = typer.Option(None, "--from", help="First filing or trading day, YYYY-MM-DD."),
     to_day: str = typer.Option(None, "--to", help="Last filing or trading day, YYYY-MM-DD."),
     full_missing: bool = typer.Option(False, "--full-missing",
@@ -183,6 +184,24 @@ def schedule(
         typer.echo("schedule: not installed")
     for name, value in (info or {}).items():
         typer.echo(f"  {name}: {value}")
+
+
+@app.command()
+def audit() -> None:
+    """How prices are matched to companies (feature 027): each problem family's count, the named
+    cases and coverage by year; reads the build database only; writes data/audit/prices-<date>.json.
+    Fails when a ticker-day belongs to two companies or a named case fails."""
+    from sentinel import audit as auditing
+    from sentinel import config
+
+    try:
+        result, _ = auditing.audit(config.paths(), date.today(), typer.echo)
+    except duckdb.IOException as e:
+        _fail(f"audit: the build database is in use by another process ({e})", FAILED)
+    issues = auditing.problems(result)
+    for issue in issues:
+        typer.echo(f"  {issue}")
+    raise typer.Exit(FAILED if issues else OK)
 
 
 @app.command()

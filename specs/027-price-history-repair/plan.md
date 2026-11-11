@@ -65,7 +65,7 @@ src/sentinel/core/prices.py       segments, joins, cuts, one ticker-day one comp
 src/sentinel/raw/tiingo.py        `fetch_former`: old tickers' prices and descriptions, once
 src/sentinel/staging/prices.py    the `former_meta` folder among Tiingo's descriptions
 src/sentinel/audit.py             the audit: families, named cases, coverage, JSON and summary
-src/sentinel/cli.py               `sentinel audit`; `sentinel fetch tiingo --former`
+src/sentinel/cli.py               `sentinel audit`; `sentinel fetch tiingo-former`
 src/sentinel/holdout.py           the kept export found from the approved records (no fixed date)
 src/sentinel/serving/publish.py  `app.stock`: the SPAC merger line (former name, merger day) for the stock page
 src/sentinel/web/ (template)      the line "listed through a merger with … on …"

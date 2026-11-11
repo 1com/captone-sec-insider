@@ -225,8 +225,8 @@ def test_placeholder_prices_and_unexplained_jumps_are_glitches(tmp_data):
         row | {"ticker": "BBB", "session": d, "close": c, "adj_close": c, "split_ratio": 0.0}
         for d, c in zip(days, closes_b, strict=True)])  # fmt: skip
     _frame(con, "core.price_choice", [
-        {"cik": cik, "source": src, "ticker": t, "reason": "x", "trim_from": days[0],
-         "trim_to": days[-1], "listed": True}
+        {"cik": cik, "seq": 1, "source": src, "ticker": t, "reason": "x", "trim_from": days[0],
+         "trim_to": days[-1], "listed": True, "main": True, "adj_factor": 1.0}
         for cik, src, t in (("A", "tiingo", "AAA"), ("B", "yahoo", "BBB"))])  # fmt: skip
     prices.build_daily(con, tmp_data, **QUIET)
     flagged = con.execute("select cik, session from core.price_daily where glitch "

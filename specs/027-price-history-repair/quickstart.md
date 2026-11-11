@@ -14,7 +14,7 @@ The JSON of that day is the "before" of the report.
 ## 2. Old tickers' prices (once, before 26 November)
 
 ```bash
-uv run sentinel fetch tiingo --former   # about 1,400 requests, 12 minutes; a second run asks nothing
+uv run sentinel fetch tiingo-former   # about 1,400 requests, 12 minutes; a second run asks nothing
 ```
 
 ## 3. Rebuild and check

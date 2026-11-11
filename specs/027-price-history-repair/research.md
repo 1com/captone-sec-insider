@@ -139,7 +139,7 @@ stored one: 7,351, of which 7,038 priced) unless stated.
 
 ## R9 · Old tickers' prices: downloaded once from Tiingo
 
-- **Decision**: a new fetch, `sentinel fetch tiingo --former`, asks Tiingo once for each ticker a
+- **Decision**: a new fetch, `sentinel fetch tiingo-former`, asks Tiingo once for each ticker a
   company's own evidence names, with no stored series, that Tiingo's list carries with dates
   overlapping the company's use: 692 tickers for 681 companies on 11 Nov, about 1,400 requests
   (prices from 1 Jan 2010 and the description) at 2 a second, some 12 minutes. Files go to

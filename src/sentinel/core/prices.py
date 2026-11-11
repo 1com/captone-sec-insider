@@ -334,15 +334,16 @@ def build_choice(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
             first = c["first"] or start
             trim_from = max(start, first - timedelta(days=WARMUP_DAYS))
             trim_to = c["last"] + timedelta(days=TAIL_DAYS) if c["last"] else None
-        rows.append((cik, source, ticker, reason, trim_from, trim_to, bool(c["tickers"])))
+        rows.append((cik, 1, source, ticker, reason, trim_from, trim_to, bool(c["tickers"]),
+                     True, 1.0))  # fmt: skip
     with db.transaction(con):
-        con.execute(
-            "create or replace table core.price_choice (cik VARCHAR, source VARCHAR, "
-            "ticker VARCHAR, reason VARCHAR, trim_from DATE, trim_to DATE, listed BOOLEAN)"
-        )
-        con.executemany("insert into core.price_choice values (?, ?, ?, ?, ?, ?, ?)", rows)
+        con.execute(CHOICE_TABLE)
+        con.executemany("insert into core.price_choice values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", rows)
+        con.execute(DECISION_TABLE)
     counts = dict(
-        con.execute("select reason, count(*) from core.price_choice group by 1").fetchall()
+        con.execute(
+            "select reason, count(*) from core.price_choice where main group by 1"
+        ).fetchall()
     )
     echo(f"  price choice: {counts}")
     return {"companies": len(rows), "priced": sum(1 for r in rows if r[1])}
@@ -352,6 +353,22 @@ def _significant(expr: str, digits: int = 10) -> str:
     """Round to `digits` significant digits, so a rerun gives identical values (v1)."""
     return (f"case when ({expr}) is null or ({expr}) = 0 then ({expr}) else round(({expr}), "
             f"{digits} - 1 - cast(floor(log10(abs({expr}))) as INTEGER)) end")  # fmt: skip
+
+
+# One row per segment: a stretch of days taken from one provider's series of one ticker
+# (027 research R1). A company's segments do not overlap; `main` (the latest) names its security;
+# `adj_factor` scales the segment's adjusted prices so returns stay continuous at a switch (R10).
+CHOICE_TABLE = (
+    "create or replace table core.price_choice (cik VARCHAR, seq INTEGER, source VARCHAR, "
+    "ticker VARCHAR, reason VARCHAR, trim_from DATE, trim_to DATE, listed BOOLEAN, main BOOLEAN, "
+    "adj_factor DOUBLE)"
+)
+# Every decision about a history (joined, join_failed, cut_reuse, cut_hole, cut_blank_check,
+# lost_to, kept_overlap), for the audit and the stock page's diagnostics.
+DECISION_TABLE = (
+    "create or replace table core.price_decision (cik VARCHAR, kind VARCHAR, ticker VARCHAR, "
+    "source VARCHAR, day_from DATE, day_to DATE, other_cik VARCHAR, detail VARCHAR)"
+)
 
 
 PLACEHOLDER = 0.0001  # a close this low is a placeholder, not a price (V2-28)
@@ -379,7 +396,7 @@ def build_daily(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict:
             qualify row_number() over (partition by ticker, session order by raw_file desc,
                                        close) = 1
         )
-        select c.cik, r.* from provider r
+        select c.cik, r.* replace (r.adj_close * c.adj_factor as adj_close) from provider r
         join core.price_choice c on c.source = r.source and c.ticker = r.ticker
         where r.session >= c.trim_from and (c.trim_to is null or r.session <= c.trim_to)
         """
@@ -521,7 +538,8 @@ def build_security(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict
                         else 'price_only' end as coverage,
                    c.filer_type = 'us' as market_value_known
             from core.price_daily d
-            join core.price_choice ch using (cik) join ref.company c using (cik)
+            join core.price_choice ch on ch.cik = d.cik and ch.main
+            join ref.company c on c.cik = d.cik
             group by d.cik, ch.ticker, ch.source, ch.listed, c.filer_type
             """
         )
@@ -564,7 +582,7 @@ def build_coverage(con: duckdb.DuckDBPyConnection, p: Paths, echo=print) -> dict
             from listed l
             left join ref.security s on s.security_id = l.cik
             left join cand c on c.cik = l.cik
-            left join core.price_choice ch on ch.cik = l.cik
+            left join core.price_choice ch on ch.cik = l.cik and ch.main
             order by l.cik
             """
         )
