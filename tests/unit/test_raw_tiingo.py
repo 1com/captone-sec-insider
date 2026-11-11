@@ -65,3 +65,58 @@ def test_a_dividend_in_the_new_days_brings_the_full_series_again(priced):
     assert route.call_count == 2 and report.files_stored == 2
     assert route.calls[1].request.url.params["startDate"] == "2010-01-01"
     assert Manifest(p.manifest).find_original("tiingo", "history/GWI/2026-10-30") is not None
+
+
+@pytest.fixture
+def former(tmp_data, fake_env):
+    """MGP-like: OLD in the company's own Form 4s, not stored, in Tiingo's list; NEWT stored;
+    PRE's only Tiingo line ended before 2010; FAR's line does not overlap the company's use."""
+    con = db.connect(tmp_data)
+    con.execute("create table ref.ticker_history (cik VARCHAR, ticker VARCHAR, exchange VARCHAR, "
+                "valid_from DATE, valid_to DATE, evidence VARCHAR)")  # fmt: skip
+    con.execute("insert into ref.ticker_history values "
+                "('1', 'OLD', null, '2010-02-01', '2026-10-23', 'form4'), "
+                "('1', 'NEWT', null, '2026-11-05', null, 'sec_list'), "
+                "('2', 'PRE', null, '2008-01-02', '2009-06-01', 'form4'), "
+                "('3', 'FAR', null, '2011-01-03', '2012-01-03', 'form4')")  # fmt: skip
+    con.execute("create table stg_tiingo.listing (ticker VARCHAR, exchange VARCHAR, "
+                "asset_type VARCHAR, currency VARCHAR, start_date DATE, "
+                "end_date DATE)")  # fmt: skip
+    con.execute("insert into stg_tiingo.listing values "
+                "('OLD', 'NASDAQ', 'Stock', 'USD', '1990-03-26', '2026-10-23'), "
+                "('PRE', 'NYSE', 'Stock', 'USD', '2001-01-02', '2009-06-30'), "
+                "('FAR', 'NYSE', 'Stock', 'USD', '2019-01-02', null)")  # fmt: skip
+    con.execute("create table stg_tiingo.price (ticker VARCHAR, session DATE)")
+    con.execute("create table stg_yahoo.price (ticker VARCHAR, session DATE)")
+    con.execute("insert into stg_yahoo.price values ('NEWT', '2026-11-05')")
+    yield tmp_data, con
+    con.close()
+
+
+@respx.mock
+def test_old_tickers_are_asked_once_with_their_description(former):
+    p, con = former
+    meta = respx.get("https://api.tiingo.com/tiingo/daily/OLD").mock(
+        return_value=httpx.Response(200, json={"ticker": "OLD", "name": "Old Name Inc"})
+    )
+    series = respx.get("https://api.tiingo.com/tiingo/daily/OLD/prices").mock(
+        return_value=httpx.Response(200, text=CSV)
+    )
+    assert tiingo.former_targets(con) == ["OLD"]  # not NEWT (stored), PRE (before 2010), FAR
+    report = tiingo.fetch_former(p, date(2026, 11, 12), con=con, **QUIET)
+    assert (meta.call_count, series.call_count, report.files_stored) == (1, 1, 2)
+    assert series.calls[0].request.url.params["startDate"] == "2010-01-01"
+    assert series.calls[0].request.headers["Authorization"] == "Token tiingo-secret-123"
+    book = Manifest(p.manifest)
+    assert book.find_original("tiingo", "former/OLD").path == "tiingo/former/OLD.csv.gz"
+    assert book.find_original("tiingo", "former_meta/OLD").path == "tiingo/former_meta/OLD.json.gz"
+    assert "tiingo-secret-123" not in book.find_original("tiingo", "former/OLD").url
+    assert tiingo.fetch_former(p, date(2026, 11, 12), con=con, **QUIET).requests == 0
+
+
+@respx.mock(assert_all_called=False)
+def test_old_tickers_are_not_asked_after_the_paid_plan(former):
+    p, con = former
+    route = respx.get("https://api.tiingo.com/tiingo/daily/OLD/prices")
+    report = tiingo.fetch_former(p, date(2026, 11, 26), con=con, **QUIET)
+    assert (report.status, report.requests, route.call_count) == ("skipped: plan ended", 0, 0)

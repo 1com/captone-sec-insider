@@ -36,7 +36,7 @@ from sentinel import db
 from sentinel.config import Paths
 from sentinel.raw import manifest
 
-TIINGO_META_DIRS = ("meta", "panel_meta", "listed_meta")
+TIINGO_META_DIRS = ("meta", "panel_meta", "listed_meta", "former_meta")  # former: 027 (R9)
 YAHOO_WINDOWS, TIINGO_WINDOWS = "yahoo/daily/", "tiingo/daily/"
 YAHOO_FIELDS = ('"Open" as open, "High" as high, "Low" as low, "Close" as close, '
                 '"Adj Close" as adj_close, "Volume"::DOUBLE as volume, "Dividends" as dividend, '

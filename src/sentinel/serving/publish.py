@@ -3,7 +3,8 @@
 sees a half-written file; the app and anyone exploring open it read-only.
 
 - `app.stock`: every company with a page: a price series, periodic reports (US or foreign filer)
-  or Form 4 activity; name, ticker, exchange, sector, coverage level, price span.
+  or Form 4 activity; name, ticker, exchange, sector, coverage level, price span; the blank-check
+  company it listed through, if any (`listed_via`, `listed_via_date`; 027, V2-66).
 - `app.price_daily`: the chart: as-traded and adjusted prices, volume and dollar volume per day,
   with the source (Tiingo-derived rows are for private use only, constitution).
 - `app.company_card`: the latest feature snapshot per priced company (price, size, volatility,
@@ -51,10 +52,14 @@ TABLES = {
                coalesce(s.listed, c.tickers is not null) as listed, s.source as price_source,
                s.first_session, s.last_session, c.is_fund, c.is_blank_check, c.first_periodic,
                c.last_periodic, c.last_filing, c.is_form4_issuer, c.first_form4, c.last_form4,
-               c.former_names
+               c.former_names, v.listed_via, v.listed_via_date
         from b.ref.company c
         left join b.ref.security s on s.security_id = c.cik
         left join b.ref.sector g on g.cik = c.cik
+        left join (   -- listed through a merger with a blank-check company (V2-66)
+            select cik, arg_max(former_name, valid_to) as listed_via,
+                   max(valid_to) as listed_via_date
+            from _blank_check where counted group by 1) v on v.cik = c.cik
         where s.security_id is not null or c.filer_type <> 'non_reporting' or c.is_form4_issuer
         order by c.cik
     """,
@@ -149,6 +154,13 @@ def publish(p: Paths, echo=print) -> dict:
                 "select schema_name, table_name from duckdb_tables() where database_name = 'b'"
             ).fetchall()
         }
+        if "core.blank_check_period" in existing_b:  # 027; absent from builds before it
+            con.execute("create temp view _blank_check as select cik, former_name, valid_to, "
+                        "counted from b.core.blank_check_period")  # fmt: skip
+        else:
+            con.execute("create temp view _blank_check as select null::VARCHAR as cik, "
+                        "null::VARCHAR as former_name, null::DATE as valid_to, "
+                        "null::BOOLEAN as counted where false")  # fmt: skip
         if "score.daily" in existing_b:  # the log keeps every day; the app shows today's
             all_tables["daily_score"] = (
                 "select * from b.score.daily where as_of >= "

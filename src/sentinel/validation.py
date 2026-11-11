@@ -34,7 +34,7 @@ def price_mismatch_causes(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
                median(j.ratio) as close_ratio,
                avg(case when abs(j.ratio - 1) < 0.02 then 1.0 else 0.0 end) as same_close,
                c.source as chosen
-        from p left join j using (cik) left join core.price_choice c using (cik)
+        from p left join j using (cik) left join core.price_choice c on c.cik = p.cik and c.main
         group by all order by p.cik
         """
     ).df()

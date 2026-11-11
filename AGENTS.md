@@ -230,7 +230,32 @@ holds and what does not:
   last), the old app removed (T021).
 - **V2-63 (10 Nov):** a stray Form 4 of another company naming a ticker (DoorDash giving FN) no
   longer cuts a company's price history; rebuilt on 10 Nov with the researcher's agreement (121
-  listed companies' histories restored). Re-run `sentinel holdout --check` before 16 Nov.
+  listed companies' histories restored).
+- **027 price history repair (11 Nov; V2-65 option C, V2-66 SPAC months):** a read-only audit found
+  the rules matching prices to companies cut or mixed many histories (ticker changes dropped
+  everything before them; Tiingo's listing dates cut at exchange moves and coverage starts; sister
+  companies and typos cut; series of two companies glued; 83,024 ticker-days given to two
+  companies; the dilution file lacked 3-9% of company-months). Repaired on branch
+  `027-price-history-repair` (`src/sentinel/core/segments.py`: a history is a chain of segments,
+  joined across tickers, cut only for earlier holders, holes and SPAC days; one ticker-day one
+  company; `sentinel audit`; `sentinel fetch tiingo-former` run once: 812 old tickers). After the
+  rebuild of 11 Nov: 18 of 18 named cases pass, no ticker-day twice in one series, histories of
+  BNY Mellon, Cencora, Gen Digital, Truist, MGP, Viavi, Palatin, Digital Realty restored (research
+  R15). The holdout check refused on 11 Nov because the dilution notebook was re-run on 10 Nov
+  11:50 (a second "approved" record on that day's data); superseded by the retraining. On 11 Nov
+  evening: `sentinel verify` identical (after a tie fix found by verify); the export of 11 Nov kept
+  in `data/frozen/2026-11-11/` (with `split_like.parquet`, 57 answers); the three model notebooks
+  (commit d135609) and the EDA re-run on it: the same levels chosen, mean scores 0.2257, 0.4038,
+  0.2749 against 0.2260, 0.4038, 0.2791 on 9 Nov, about 3% more rows; `sentinel report`
+  regenerated; EDA Findings updated (two small known problems, research R15). The researcher
+  approved the three re-run models (V2-68, 11 Nov); `--freeze-levels` reproduced every notebook
+  number (largest difference 1.8e-13) and froze the levels; `--check` passes (frozen models from
+  commit d135609, export of 11 Nov). #102 merged (11 Nov); 027's pull request opened the same
+  evening, merged once the researcher agrees: the holdout run needs 027's code in `main` (`main`
+  before it still has the fixed kept date of 9 Nov and refuses). **Next:** the researcher runs
+  `sentinel holdout --run` once (16 or 17 Nov), then `sentinel report`. Until then nobody
+  re-executes the model notebooks: each execution writes new records, and the holdout takes the
+  newest.
 - **Options (023):** the spot price comes from a table that does not exist (falls back to the
   median strike or 100); the tables now live in schema `live` (a rebuild cannot reproduce them).
 - **Process:** no pull requests since #90; three of the last five CI runs on `main` failed.
@@ -350,9 +375,22 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
   `tests/unit/test_app_api.py`. CLI entrypoint: `sentinel serve` (port 8090, this machine only by default).
 - [ ] 018 (026 is shared behind one password, V2-64; Gemini's Docker files are the old app's): Hosting / production deployment configuration with no Tiingo-derived value on a public page. Dockerfile and docker-compose.yml serving read-only over port 8090, audited by test_public_data.py.
 
+### Step 7b · 027 Price history repair, then retrain and test (V2-65, V2-66)
+- [X] Spec, plan, tasks; the audit and its baseline; the repair with tests; the old tickers'
+  download; the rebuild (11 Nov); 18 of 18 named cases.
+- [X] `sentinel verify` identical (11 Nov); the EDA notebooks re-run, Findings updated; the hand
+  check recorded (2 of 30 wrong, the pattern fixed); decision V2-67.
+- [X] The three model notebooks re-run on the repaired export (11 Nov; kept in
+  `data/frozen/2026-11-11/`); `KEPT` read from the approved records (T033).
+- [X] The researcher's approval (T035, V2-68); `sentinel holdout --freeze-levels` and `--check`
+  (T036, 11 Nov).
+- [ ] The researcher's `--run` (T037), once, on 16 or 17 Nov; then `sentinel report`.
+
 ### Step 8 · 010 Holdout test (16 November)
-**Status (11 Nov): built, levels frozen, merged by #100 (10 Nov); re-run `--check` after the V2-63
-rebuild; the researcher runs `sentinel holdout --run` once on 16 Nov, then `sentinel report`.**
+**Status (11 Nov evening): built and merged by #100 (10 Nov); after the price repair (027) the models
+were approved again (V2-68), the export of 11 Nov kept in `data/frozen/2026-11-11/`, the levels
+frozen again and `--check` passes; the researcher runs `sentinel holdout --run` once on 16 or 17 Nov,
+then `sentinel report`.**
 **Already true (checked 30 Oct):** the holdout rows (`feature_snapshot` from 2023 on, built from
 `feature.snapshot` like the training files) have the training files' feature columns in the same
 order and types; the holdout answers come from the same label code (`labels/risk.py`) with

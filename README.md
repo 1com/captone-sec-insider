@@ -157,6 +157,12 @@ uv run sentinel schedule install  # run the update on weekdays at 10:00 (Windows
 Other commands: `sentinel fetch <source>`, `sentinel build <layer>`, `sentinel publish`,
 `sentinel export` (see `docs/architecture.md`).
 
+```bash
+uv run sentinel audit             # price coverage: problem families, named cases, coverage by year
+uv run sentinel audit --before data/audit/prices-2026-11-11-before.json   # + docs/report/data_audit.md
+uv run sentinel fetch tiingo-former   # once (done 11 Nov): old tickers' histories, Tiingo only until 26 Nov
+```
+
 ## Stock research app (026)
 
 One page per stock: search by ticker or name, the company's facts, the dilution forecast with its
@@ -217,6 +223,11 @@ systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 uv run sentinel ho
 uv run sentinel report            # adds the results to the model report, unedited
 ```
 
-`sentinel holdout --freeze-levels` was run once before (10 November): it proved the packaged
-simpler levels give the notebooks' recorded numbers on the export of 9 November, which the frozen
-models were built on (kept in `data/frozen/2026-11-09/`), and froze them for 2023.
+`sentinel holdout --freeze-levels` proves the packaged simpler levels give the notebooks' recorded
+numbers on the export the frozen models were built on, kept in `data/frozen/<export date>/` (the
+date is read from the approved models' records; `--check` refuses if the kept rows are missing or
+changed), and freezes them for 2023. It was first run on 10 November on the export of 9 November; after
+the price repair (027, V2-65) the models were retrained on the export of 11 November, approved
+again (V2-68), that export kept in `data/frozen/2026-11-11/` and the levels frozen again
+(11 November). Until the holdout run, do not re-execute the model notebooks: each execution writes
+new records, and the holdout takes the newest ones (reading them is fine).

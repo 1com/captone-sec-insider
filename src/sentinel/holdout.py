@@ -32,7 +32,6 @@ from sentinel.labels import lock
 from sentinel.labels import risk as labels
 from sentinel.models import dilution, levels, report, results_move, volatility
 
-KEPT = "2026-11-09"  # the export the frozen models were built on (V2-59, research R1)
 TARGET = eda.DEV_END.year + 1  # 2023: the holdout's first year
 START = pd.Timestamp(TARGET, 1, 1)
 EXPERIMENT = report.HOLDOUT_EXPERIMENT
@@ -44,9 +43,13 @@ class Refused(RuntimeError):
     """The guard refused: the reason says what is missing or what already happened."""
 
 
-def kept(p: Paths) -> Path:
-    """The kept export (research R1)."""
-    return p.exports.parent / "frozen" / KEPT / "ml"
+def kept(p: Paths, models: dict) -> Path:
+    """The kept export (research R1): `data/frozen/<export date>/ml/`, the date read from the
+    approved frozen models' records (027 research R13), which must agree."""
+    dates = {m["export_date"] for m in models.values()}
+    if len(dates) != 1 or not next(iter(dates)):
+        raise Refused(f"the frozen models were not built on one export: {sorted(dates)}")
+    return p.exports.parent / "frozen" / dates.pop() / "ml"
 
 
 def log_path(p: Paths) -> Path:
@@ -151,9 +154,9 @@ def guard(p: Paths) -> None:
 # --- freezing the simpler levels (once, before the test) ---------------------------------------
 
 
-def _split_like(p: Paths) -> pd.DataFrame:
+def _split_like(p: Paths, folder: Path) -> pd.DataFrame:
     """Dilution's split-like answers of the development rows (V2-39/40), kept beside the export."""
-    path = kept(p).parent / "split_like.parquet"
+    path = folder.parent / "split_like.parquet"
     if path.exists():
         return pd.read_parquet(path)
     with duckdb.connect(
@@ -193,7 +196,7 @@ def freeze_levels(p: Paths, echo=print) -> dict:
     guard(p)
     models = frozen_models(p)
     records, _ = report.load_records(_uri(p))
-    folder, out = kept(p), {}
+    folder, out = kept(p, models), {}
     for q in ("dilution", "results_move", "volatility"):
         path = folder / f"{q}.parquet"
         if not path.exists() or _hash(path) != models[q]["data_hash"]:
@@ -203,7 +206,7 @@ def freeze_levels(p: Paths, echo=print) -> dict:
             )
         raw = eda.load(q, folder=folder)
         if q == "dilution":
-            rows = dilution.learnable(raw, _split_like(p))
+            rows = dilution.learnable(raw, _split_like(p, folder))
             expected = records[q]["tables"]["data"]["rows"]
             if len(rows) != expected:
                 raise Refused(
@@ -268,6 +271,12 @@ def check(p: Paths, echo=print) -> dict:
     """Everything but the answers: the guard, the frozen models and levels, the 2023+ rows."""
     guard(p)
     models = frozen_models(p)
+    folder = kept(p, models)
+    for q, m in models.items():  # the rows of record are there, unchanged (V2-59)
+        path = folder / f"{q}.parquet"
+        if not path.exists() or _hash(path) != m["data_hash"]:
+            raise Refused(f"{path} is missing or is not the export the frozen {q} model was "
+                          f"built on (data hash {m['data_hash']})")  # fmt: skip
     lv = frozen_levels(p, models)
     try:
         with duckdb.connect(

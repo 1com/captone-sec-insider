@@ -82,6 +82,7 @@ def fetchers() -> dict[str, Fetcher]:
         "sec-bulk": sec.fetch_bulk,
         "yahoo": yahoo.fetch_window,
         "tiingo": tiingo.fetch_new_days,
+        "tiingo-former": tiingo.fetch_former,
         "fred": market.fetch_fred,
         "cboe": market.fetch_cboe,
         "finra": market.fetch_finra,

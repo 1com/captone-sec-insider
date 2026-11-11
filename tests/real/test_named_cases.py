@@ -6,6 +6,7 @@ from datetime import date
 import duckdb
 import pytest
 
+from sentinel import audit
 from sentinel.config import paths
 from sentinel.raw import yahoo
 from sentinel.raw.manifest import Manifest
@@ -162,3 +163,21 @@ def test_a_form4_filed_on_28_october_is_in_the_tracker(con):
                "0001437749-26-033807")  # fmt: skip
     assert row == ("buy", ["WILLIAMS DEREK G"], "officer", 100.0, pytest.approx(3171.0),
                    date(2026, 10, 29))  # fmt: skip
+
+
+@pytest.mark.parametrize("case", audit.NAMED, ids=lambda c: c.case)
+def test_price_histories_of_the_named_companies(con, case):
+    """027: each company's history across its tickers, cut only where another company held the
+    ticker, without its blank-check (SPAC) months (`sentinel audit` runs the same checks)."""
+    assert con.execute(f"select coalesce(({case.sql}), false)").fetchone()[0], case.case
+
+
+def test_no_ticker_day_is_given_to_two_companies(con):
+    """027 R5: one ticker's price on one day belongs to one company; across two providers a few
+    penny stocks remain (their providers round differently: 1,500 days on 6 tickers, 11 Nov)."""
+    same_series, same_price = con.execute("""
+        select (select count(*) from (select source, ticker, session from core.price_daily
+                group by all having count(distinct cik) > 1)),
+               (select count(*) from (select ticker, session from core.price_daily group by all
+                having count(distinct cik) > 1 and max(close) <= 1.01 * min(close)))""").fetchone()
+    assert same_series == 0 and same_price < 2_000
