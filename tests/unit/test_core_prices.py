@@ -240,3 +240,21 @@ def test_tiingo_is_matched_only_under_the_main_ticker():
     assert prices.choose([warrant], None, True, date(2012, 1, 1))[2] == "no_price"
     main = ("tiingo", "ABC", "tiingo_listed", date(2015, 1, 2), 500, "ok")
     assert prices.choose([warrant, main], None, True, date(2012, 1, 1))[1] == "ABC"
+
+
+def test_a_stray_filing_of_another_company_does_not_cut_a_history(con, tmp_data):
+    # V2-63: a ticker cannot belong to two companies at once, so another company's use that lies
+    # inside the company's own Form 4 span under the ticker is a typing slip (DoorDash's "FN" on
+    # one Form 4 cut Fabrinet's history to Oct 2025); a genuine earlier owner still cuts (REU)
+    con.execute(
+        "insert into ref.ticker_history values "
+        "('1', 'LST', null, DATE '2014-01-06', DATE '2016-11-01', 'form4'), "
+        "('2', 'LST', null, DATE '2015-06-01', DATE '2015-06-01', 'form4')"
+    )
+    for step in (prices.build_candidates, prices.build_choice, prices.build_daily):
+        step(con, tmp_data, **QUIET)
+    starts = dict(
+        con.execute("select cik, min(session) from core.price_daily group by 1").fetchall()
+    )
+    assert starts["1"] < date(2015, 6, 2)
+    assert starts["8"] == date(2014, 9, 3)  # REU's earlier owner, before REU's own span

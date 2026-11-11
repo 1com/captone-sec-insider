@@ -110,6 +110,7 @@ def client(tmp_path, monkeypatch):
     _serving(path)
     monkeypatch.setattr(main, "PATHS", dataclasses.replace(config.paths(), serving_db=path))
     monkeypatch.setattr(main, "FORECASTS", _NoForecasts())
+    monkeypatch.setattr(main, "PASSWORD", None)  # the real .env may set one
     return TestClient(main.app)
 
 
@@ -165,6 +166,7 @@ def test_a_missing_serving_copy_gives_an_error_never_data(tmp_path, monkeypatch)
     monkeypatch.setattr(
         main, "PATHS", dataclasses.replace(config.paths(), serving_db=tmp_path / "missing.duckdb")
     )
+    monkeypatch.setattr(main, "PASSWORD", None)
     c = TestClient(main.app)
     r = c.get("/api/search?q=dis")
     assert r.status_code == 503 and "does not exist" in r.json()["error"]
@@ -174,3 +176,17 @@ def test_a_missing_serving_copy_gives_an_error_never_data(tmp_path, monkeypatch)
         and "does not exist" in page.text
         and "Data current to" not in page.text
     )
+
+
+def test_with_a_password_every_request_needs_it(client, monkeypatch):
+    import base64
+
+    monkeypatch.setattr(main, "PASSWORD", "s3cret")
+    assert client.get("/").status_code == 401
+    assert client.get("/api/search?q=dis").status_code == 401
+    assert client.get("/static/app.js").status_code == 401
+    good = "Basic " + base64.b64encode(b"anyone:s3cret").decode()
+    bad = "Basic " + base64.b64encode(b"anyone:wrong").decode()
+    assert client.get("/api/search?q=dis", headers={"Authorization": bad}).status_code == 401
+    assert client.get("/api/search?q=dis", headers={"Authorization": good}).status_code == 200
+    assert client.get("/", headers={"Authorization": good}).status_code == 200

@@ -284,12 +284,21 @@ def choose(candidates: list[tuple], first_seen: date | None, listed: bool, start
 
 def _other_use_ends(con) -> dict[tuple[str, str], date]:
     """(cik, ticker) → the last day another company used the ticker before (closed spans of
-    `ref.ticker_history`, from Form 4 symbols and the SEC's lists)."""
+    `ref.ticker_history`, from Form 4 symbols and the SEC's lists). A use that lies inside the
+    company's own Form 4 span under the ticker is left out: a ticker cannot belong to two
+    companies at once, so it is a typing slip in the other company's filing (V2-63)."""
     rows = con.execute(
         """
-        select a.cik, a.ticker, max(b.valid_to) from ref.ticker_history a
+        with own as (
+            select cik, ticker, min(valid_from) as f, max(valid_to) as t
+            from ref.ticker_history where evidence = 'form4' group by 1, 2
+        )
+        select a.cik, a.ticker, max(b.valid_to)
+        from (select distinct cik, ticker from ref.ticker_history) a
         join ref.ticker_history b on b.ticker = a.ticker and b.cik <> a.cik
              and b.valid_to is not null
+        left join own on own.cik = a.cik and own.ticker = a.ticker
+        where not coalesce(b.valid_from > own.f and b.valid_to < own.t, false)
         group by 1, 2
         """
     ).fetchall()

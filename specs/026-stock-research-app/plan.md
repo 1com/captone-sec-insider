@@ -26,8 +26,10 @@ Charts 4.2.0, one vendored file in `src/sentinel/web/static/` (V2-62).
 frozen model in MLflow (`data/mlflow.db`) and `docs/report/model_card.json` (bands, test years).
 **Testing**: pytest on a small test copy of the serving tables; the glossary's coverage of every
 form type with at least 100 filings and every 8-K item.
-**Constraints**: no invented or typed-in value; no volatility or results-day forecast; this machine
-only (Tiingo-derived prices are shown; FR-020: no public page); the port checked free.
+**Constraints**: no invented or typed-in value; no volatility or results-day forecast; the app binds
+this machine only and is shared by `scripts/start_web.sh` (Tailscale): a link with one shared
+password, or the tailnet only without a password (Tiingo-derived prices are shown; FR-020, V2-64:
+no public page); the port checked free.
 
 ## Constitution Check
 
@@ -36,7 +38,7 @@ only (Tiingo-derived prices are shown; FR-020: no public page); the port checked
 | I Point-in-time | the forecast uses each company's latest feature row, built from facts known by that day | ✅ |
 | IV Honest evaluation | the frozen approved model, unchanged; no 2023+ answer is computed or shown | ✅ |
 | V Reproducibility | every number read from the serving copy or the model report's records | ✅ |
-| VI Lawful data use | this machine only; Tiingo-derived prices never on a public page | ✅ |
+| VI Lawful data use | shared only behind one password or within the tailnet (V2-64); Tiingo-derived prices never on a public page | ✅ |
 | VII Simplicity | FastAPI with a server-rendered page; one vendored chart library, logged as V2-62 | ✅ |
 
 ## Project Structure
