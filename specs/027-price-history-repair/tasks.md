@@ -112,8 +112,8 @@ pairs unchanged.
 ## Phase 7: Rebuild and named cases (blocks US5's "after" and US6)
 
 - [X] T026 Full checks before the rebuild: `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run pytest -q` (the truncation test included)
-- [ ] T027 Rebuild under the memory cap (quickstart step 3): reference, core, features, labels, publish, export; then `uv run sentinel verify` (a full rebuild equals the update)
-- [ ] T028 [P] Named real cases in `tests/real/test_named_cases.py` (FR-012): MGP Ingredients and Viavi from 2010 under their old tickers; Ingersoll Rand from 12 May 2017; Digital Realty from 2010 and its operating partnership without DLR prices; Palatin and AMN Healthcare from 2010; Standard BioTools without LaBranche's prices; Heidmar without its 2010 block; Telephone & Data Systems priced; Chatham Lodging from CLDT; Xcerra and Hanger across their tickers; DocGo and Redwire from their mergers; Fabrinet from 2010; run with `uv run pytest -q tests/real`
+- [X] T027 Rebuild under the memory cap (quickstart step 3): reference, core, features, labels, publish, export; then `uv run sentinel verify` (a full rebuild equals the update)
+- [X] T028 [P] Named real cases in `tests/real/test_named_cases.py` (FR-012): MGP Ingredients and Viavi from 2010 under their old tickers; Ingersoll Rand from 12 May 2017; Digital Realty from 2010 and its operating partnership without DLR prices; Palatin and AMN Healthcare from 2010; Standard BioTools without LaBranche's prices; Heidmar without its 2010 block; Telephone & Data Systems priced; Chatham Lodging from CLDT; Xcerra and Hanger across their tickers; DocGo and Redwire from their mergers; Fabrinet from 2010; run with `uv run pytest -q tests/real`
 
 ---
 
@@ -124,9 +124,9 @@ pairs unchanged.
 **Independent Test**: the "before" JSON (T007) equals the 11 Nov counts; the "after" shows the new
 counts and every named case passing.
 
-- [ ] T029 [US5] Named cases and coverage by year and status (listed, disappeared; priced, not) added to `src/sentinel/audit.py`; `docs/report/data_audit.md` written with counts and pass/fail only (no price, date or company derived from Tiingo values), before and after side by side
-- [ ] T030 [US5] Run `uv run sentinel audit` on the rebuilt data; compare with the baseline; no ticker-day twice (SC-007); every remaining hole over a year has a recorded reason (SC-003)
-- [ ] T031 [US5] Draw 30 remaining cuts at random (fixed seed) from `core.price_decision` and check each by hand against the SEC filings and the providers; record the share found wrong in `docs/decisions.md` (SC-006: at most 3)
+- [X] T029 [US5] Named cases and coverage by year and status (listed, disappeared; priced, not) added to `src/sentinel/audit.py`; `docs/report/data_audit.md` written with counts and pass/fail only (no price, date or company derived from Tiingo values), before and after side by side
+- [X] T030 [US5] Run `uv run sentinel audit` on the rebuilt data; compare with the baseline; no ticker-day twice (SC-007); every remaining hole over a year has a recorded reason (SC-003)
+- [X] T031 [US5] Draw 30 remaining cuts at random (fixed seed) from `core.price_decision` and check each by hand against the SEC filings and the providers; record the share found wrong in `docs/decisions.md` (SC-006: at most 3)
 - [ ] T032 [US5] Re-run the three EDA notebooks (`notebooks/004-eda-*.ipynb`, under the cap) and update their Findings where numbers move
 
 ---
@@ -138,7 +138,7 @@ counts and every named case passing.
 **Independent Test**: `sentinel holdout --check` passes on the new kept rows; the frozen objects'
 data fingerprints equal the kept files'.
 
-- [ ] T033 [US6] `KEPT` in `src/sentinel/holdout.py` read from the approved frozen models' `export_date` tag instead of the fixed "2026-11-09", with the kept files' hashes required equal to their `data_hash`; tests in `tests/unit/test_holdout.py`
+- [X] T033 [US6] `KEPT` in `src/sentinel/holdout.py` read from the approved frozen models' `export_date` tag instead of the fixed "2026-11-09", with the kept files' hashes required equal to their `data_hash`; tests in `tests/unit/test_holdout.py`
 - [ ] T034 [US6] Re-run `notebooks/007-dilution-model.ipynb`, `006-results-move-model.ipynb`, `005-volatility-model.ipynb` start to finish on the new export (unchanged; under the cap, one at a time), then `uv run sentinel report`
 - [ ] T035 [US6] The researcher reads the three executed notebooks and approves each (or not); approvals logged in `docs/decisions.md`; only approved models count as frozen
 - [ ] T036 [US6] Keep the export the approved models ran on in `data/frozen/<export date>/ml/` (`cp -p`), check its hashes against the frozen runs' `data_hash`; `uv run sentinel holdout --freeze-levels` (must reproduce the notebooks' records to 1e-9); `uv run sentinel holdout --check`
@@ -148,7 +148,7 @@ data fingerprints equal the kept files'.
 
 ## Phase 10: Polish and hand-over
 
-- [ ] T038 [P] `docs/decisions.md`: the price-matching rules of 027 as one decision (segments, joins, cuts, one ticker-day, common stock first), with the before and after counts; `docs/architecture.md` layer 3b updated (segments, `core.price_decision`, `core.blank_check_period`)
+- [X] T038 [P] `docs/decisions.md`: the price-matching rules of 027 as one decision (segments, joins, cuts, one ticker-day, common stock first), with the before and after counts; `docs/architecture.md` layer 3b updated (segments, `core.price_decision`, `core.blank_check_period`)
 - [ ] T039 [P] `docs/plan.md` (027 status), `README.md` (`sentinel audit`, `sentinel fetch tiingo-former`), `AGENTS.md` (where things stand; step for 027); this file's boxes ticked
 - [ ] T040 Pull request into `main` after #102 is merged and the researcher agrees (CI green); then delete the branch
 

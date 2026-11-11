@@ -223,6 +223,9 @@ systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 uv run sentinel ho
 uv run sentinel report            # adds the results to the model report, unedited
 ```
 
-`sentinel holdout --freeze-levels` was run once before (10 November): it proved the packaged
-simpler levels give the notebooks' recorded numbers on the export of 9 November, which the frozen
-models were built on (kept in `data/frozen/2026-11-09/`), and froze them for 2023.
+`sentinel holdout --freeze-levels` proves the packaged simpler levels give the notebooks' recorded
+numbers on the export the frozen models were built on, kept in `data/frozen/<export date>/` (the
+date is read from the approved models' records; `--check` refuses if the kept rows are missing or
+changed), and freezes them for 2023. It was first run on 10 November on the export of 9 November;
+after the price repair (027, V2-65) the models are retrained, approved again, their export kept and
+the levels frozen again.

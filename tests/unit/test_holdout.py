@@ -152,6 +152,11 @@ def _fake_frozen(monkeypatch):
 
 def test_the_check_computes_no_answer(paths, monkeypatch):
     _fake_frozen(monkeypatch)
+    folder = holdout.kept(paths, {"q": {"export_date": "2026-11-09"}})
+    folder.mkdir(parents=True)
+    for q in ("dilution", "results_move", "volatility"):  # the rows of record, kept
+        (folder / f"{q}.parquet").write_bytes(b"rows")
+    monkeypatch.setattr(holdout, "_hash", lambda path: "hash")
 
     def no_answers(*args, **kwargs):
         raise AssertionError("an answer was computed")
@@ -302,3 +307,17 @@ def test_the_rows_left_out_are_counted():
         "no move (window open or closes missing)": 1,
         "scored": 1,
     }
+
+
+def test_the_kept_export_is_the_one_the_frozen_models_name(paths):
+    models = {q: {"export_date": "2026-11-13"} for q in ("dilution", "results_move", "volatility")}
+    assert holdout.kept(paths, models).parts[-3:] == ("frozen", "2026-11-13", "ml")
+    models["dilution"] = {"export_date": "2026-11-10"}  # one notebook re-run on another day
+    with pytest.raises(holdout.Refused, match="not built on one export"):
+        holdout.kept(paths, models)
+
+
+def test_the_check_refuses_without_the_kept_rows(paths, monkeypatch):
+    _fake_frozen(monkeypatch)
+    with pytest.raises(holdout.Refused, match="is missing or is not the export"):
+        holdout.check(paths, echo=lambda _: None)
