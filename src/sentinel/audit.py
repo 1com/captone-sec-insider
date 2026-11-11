@@ -152,7 +152,7 @@ def _cuts(con, layout: dict) -> dict:
         where not coalesce(b.valid_from > o.f and b.valid_to < o.t, false)
         group by 1, 2""")
     if layout["decisions"]:
-        cause = """coalesce((select arg_max(d.kind, d.day_to) from core.price_decision d
+        cause = """coalesce((select arg_max(d.kind, (d.day_to, d.kind)) from core.price_decision d
                      where d.cik = f.cik and d.kind in ('cut_reuse', 'cut_hole',
                      'cut_blank_check')), 'other')"""
     else:

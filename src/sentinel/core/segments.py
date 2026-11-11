@@ -166,9 +166,11 @@ def cut(con, segs: list[dict], spac: dict[str, list[tuple]], decisions: list) ->
             left join _own o on o.cik = t.cik and o.ticker = t.ticker
         )
         select sid,
-               arg_max(other, valid_to) filter (where valid_from < coalesce(first_use, {FAR_SQL})),
+               arg_max(other, (valid_to, other))   -- ties: the larger CIK, the same every run
+                   filter (where valid_from < coalesce(first_use, {FAR_SQL})),
                max(valid_to) filter (where valid_from < coalesce(first_use, {FAR_SQL})),
-               arg_max(other, valid_to) filter (where valid_from >= coalesce(first_use, {FAR_SQL})),
+               arg_max(other, (valid_to, other))
+                   filter (where valid_from >= coalesce(first_use, {FAR_SQL})),
                max(valid_to) filter (where valid_from >= coalesce(first_use, {FAR_SQL}))
         from uses group by 1
         """
