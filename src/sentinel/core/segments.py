@@ -7,8 +7,7 @@ the company's history, for every company at once, in set-based passes:
    company's own first use (an earlier holder, R4), unless the series' daily moves there are not
    that company's own (the provider re-filed the history under the new holder: Gardner Denver's
    under IR); before a hole of over a year that the company's own evidence does not cover (R6);
-   through
-   every blank-check (SPAC) period (R7, V2-66).
+   through every blank-check (SPAC) period (R7, V2-66).
 2. **Joins** (R2, R3): where a company's earliest segment starts late, its own other tickers are
    tried; a series that ends at most `SWITCH_DAYS` before the segment starts, within a factor of
    `LEVEL` of its first as-traded price (a split recorded at the switch allowed for), whose
@@ -241,6 +240,7 @@ def _cut_reuse(con, segs, reuse: dict, decisions: list) -> None:
             x = segs[sid]
             items.append((sid, x["source"], x["ticker"], osource, oticker, x["lo"], end))
     differ = compare(con, items)
+    steady = _continuous(con, segs, reuse, differ)
     for sid, (other, end) in reuse.items():
         x = segs[sid]
         shared, diff = differ.get(sid, (0, 0))
@@ -249,9 +249,52 @@ def _cut_reuse(con, segs, reuse: dict, decisions: list) -> None:
                     other, f"daily moves differ from the other company's on {diff} of "
                            f"{shared} days")  # fmt: skip
             continue
+        if sid in steady:
+            _decide(decisions, x["cik"], "kept_continuous", x["ticker"], x["source"], x["lo"],
+                    end, other, "the series trades on across the other company's last use while "
+                    "this company's own filings under another ticker show it then")  # fmt: skip
+            continue
         _decide(decisions, x["cik"], "cut_reuse", x["ticker"], x["source"], x["lo"], end, other,
                 f"another company used the ticker until {end}")  # fmt: skip
         x["lo"] = max(x["lo"], end + timedelta(days=1))
+
+
+def _continuous(con, segs, reuse: dict, differ: dict) -> set[int]:
+    """Segments whose earlier holder could not be compared (no prices of its own) but whose
+    series trades on across that holder's last use (no gap over `SWITCH_DAYS`, no jump over
+    `LEVEL`) while the company's own filings under another ticker cover that day: the provider
+    filed the company's own history under its new ticker (Gen Digital's GEN holds NortonLifeLock's
+    prices; Genesis Healthcare, GEN's earlier holder, has none)."""
+    todo = [(sid, segs[sid]["cik"], segs[sid]["source"], segs[sid]["ticker"], end)
+            for sid, (_, end) in reuse.items()
+            if differ.get(sid, (0, 0))[0] < MIN_SHARED]  # fmt: skip
+    if not todo:
+        return set()
+    con.execute(
+        "create or replace temp table _cont (sid INTEGER, cik VARCHAR, source VARCHAR, "
+        "ticker VARCHAR, day DATE)"
+    )
+    con.executemany("insert into _cont values (?, ?, ?, ?, ?)", todo)
+    rows = con.execute(
+        f"""
+        with around as (
+            select t.sid, arg_max(x.close, x.session) filter (where x.session <= t.day) as c0,
+                   max(x.session) filter (where x.session <= t.day) as d0,
+                   arg_min(x.close, x.session) filter (where x.session > t.day) as c1,
+                   min(x.session) filter (where x.session > t.day) as d1
+            from _cont t join _prov x on x.source = t.source and x.ticker = t.ticker
+                 and x.session between t.day - interval {SWITCH_DAYS} day
+                 and t.day + interval {SWITCH_DAYS} day
+            group by 1)
+        select a.sid from around a join _cont t using (sid)
+        where a.d0 is not null and a.d1 is not null
+          and datediff('day', a.d0, a.d1) <= {SWITCH_DAYS}
+          and a.c0 > 0 and a.c1 > 0 and abs(ln(a.c1 / a.c0)) <= ln({LEVEL})
+          and exists (select 1 from _cover c where c.cik = t.cik and c.ticker <> t.ticker
+                      and c.c0 <= t.day and c.c1 >= t.day)
+        """
+    ).fetchall()
+    return {sid for (sid,) in rows}
 
 
 def _cut_holes(con, segs, decisions: list) -> None:

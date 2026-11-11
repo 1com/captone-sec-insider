@@ -54,6 +54,10 @@ COMPANIES = {
     "33": ("Lodging Trust", "us", ["CLD-PA", "CLD"], None, None),
     "34": ("Foreign Holdings Plc", "foreign", ["ADRY", "ORDF"], None, None),
     "35": ("Crashed Inc", "us", None, date(2014, 1, 6), date(2016, 10, 3)),
+    "36": ("Gen Like Corp", "us", ["GENL"], date(2014, 1, 6), date(2016, 10, 3)),
+    "37": ("Old Holder Inc", "us", None, date(2014, 1, 6), date(2015, 3, 2)),  # no prices
+    "38": ("Brand New Inc", "us", ["NEWB"], date(2016, 6, 1), date(2016, 10, 3)),
+    "39": ("Previous Owner Inc", "us", None, date(2014, 1, 6), date(2015, 3, 2)),  # no prices
 }
 FORMER = {  # cik: (former name, from, to)
     "25": ("Blue Acquisition Corp", "2014-03-03", "2015-06-30"),
@@ -73,6 +77,10 @@ FORM4 = [  # cik, ticker, from, to
     ("31", "HALT", date(2014, 2, 3), date(2016, 10, 3)),
     ("35", "CRA", date(2014, 1, 6), date(2015, 6, 29)),
     ("35", "CRB", date(2016, 3, 1), date(2016, 10, 3)),  # its own filings under CRB come later
+    ("36", "NLKX", date(2014, 1, 6), date(2016, 6, 1)),  # trading under another ticker then
+    ("36", "GENL", date(2016, 6, 2), date(2016, 10, 3)),
+    ("37", "GENL", date(2014, 1, 6), date(2015, 3, 2)),  # the earlier holder of GENL
+    ("39", "NEWB", date(2014, 1, 6), date(2015, 3, 2)),  # the earlier holder of NEWB
 ]
 
 
@@ -126,6 +134,8 @@ def build(con, tmp_data, renamed: bool = True) -> None:
         + _series("CLD-PA", SESSIONS[0], END, close=25.0)
         + _series("CLD", SESSIONS[0], END)
         + _series("ORDF", SESSIONS[0], END)
+        + _series("GENL", SESSIONS[0], END)  # the provider filed the old history under GENL
+        + _series("NEWB", SESSIONS[0], END)
     )
     if not renamed:
         yahoo = [r for r in yahoo if r["session"] < SWITCH]
@@ -275,3 +285,13 @@ def test_overlapping_series_that_move_alike_are_joined_even_across_a_crash(world
     first, last, tickers = _span(world, "35")
     assert tickers == ["CRA", "CRB"] and first == SESSIONS[0]
     assert "joined" in _decisions(world, "35")
+
+
+def test_a_series_trading_on_across_an_unpriced_earlier_holder_is_kept_for_a_company_there(world):
+    # Gen Digital: Genesis Healthcare used GEN until 2021 and has no prices to compare with; GEN
+    # trades on across that day while Gen Digital filed under NLOK: its own history, kept
+    assert _span(world, "36")[0] == SESSIONS[0]
+    assert "kept_continuous" in _decisions(world, "36")
+    # a company with no filings of its own then is still cut after the earlier holder
+    assert _span(world, "38")[0] == date(2015, 3, 3)
+    assert "cut_reuse" in _decisions(world, "38")
