@@ -25,7 +25,7 @@ systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 bash -c \
    uv run sentinel build core && uv run sentinel build features && uv run sentinel build labels && \
    uv run sentinel publish && uv run sentinel export'
 uv run sentinel verify           # a full rebuild equals the update
-uv run sentinel audit            # the "after": every named case passes, no ticker-day twice
+uv run sentinel audit --before data/audit/prices-2026-11-11-before.json   # the "after", and docs/report/data_audit.md
 uv run pytest -q                 # unit tests, the truncation test
 uv run pytest -q tests/real      # named real cases
 ```

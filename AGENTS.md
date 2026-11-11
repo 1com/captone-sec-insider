@@ -230,7 +230,22 @@ holds and what does not:
   last), the old app removed (T021).
 - **V2-63 (10 Nov):** a stray Form 4 of another company naming a ticker (DoorDash giving FN) no
   longer cuts a company's price history; rebuilt on 10 Nov with the researcher's agreement (121
-  listed companies' histories restored). Re-run `sentinel holdout --check` before 16 Nov.
+  listed companies' histories restored).
+- **027 price history repair (11 Nov; V2-65 option C, V2-66 SPAC months):** a read-only audit found
+  the rules matching prices to companies cut or mixed many histories (ticker changes dropped
+  everything before them; Tiingo's listing dates cut at exchange moves and coverage starts; sister
+  companies and typos cut; series of two companies glued; 83,024 ticker-days given to two
+  companies; the dilution file lacked 3-9% of company-months). Repaired on branch
+  `027-price-history-repair` (`src/sentinel/core/segments.py`: a history is a chain of segments,
+  joined across tickers, cut only for earlier holders, holes and SPAC days; one ticker-day one
+  company; `sentinel audit`; `sentinel fetch tiingo-former` run once: 812 old tickers). After the
+  rebuild of 11 Nov: 18 of 18 named cases pass, no ticker-day twice in one series, histories of
+  BNY Mellon, Cencora, Gen Digital, Truist, MGP, Viavi, Palatin, Digital Realty restored (research
+  R15). The holdout check refused on 11 Nov because the dilution notebook was re-run on 10 Nov
+  11:50 (a second "approved" record on that day's data); superseded by the retraining. **Next:**
+  `sentinel verify`, EDA re-run, the three model notebooks on the repaired export, the
+  researcher's approval, new kept rows and levels, then the holdout test (by Tue 17 Nov if all is
+  ready, never on a partial repair). Merge #102 before 027's pull request.
 - **Options (023):** the spot price comes from a table that does not exist (falls back to the
   median strike or 100); the tables now live in schema `live` (a rebuild cannot reproduce them).
 - **Process:** no pull requests since #90; three of the last five CI runs on `main` failed.
@@ -349,6 +364,13 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
   and SEC filings. Multi-factor screener, market insider feed, and model card view. Tested with 8 unit tests in
   `tests/unit/test_app_api.py`. CLI entrypoint: `sentinel serve` (port 8090, this machine only by default).
 - [ ] 018 (026 is shared behind one password, V2-64; Gemini's Docker files are the old app's): Hosting / production deployment configuration with no Tiingo-derived value on a public page. Dockerfile and docker-compose.yml serving read-only over port 8090, audited by test_public_data.py.
+
+### Step 7b · 027 Price history repair, then retrain and test (V2-65, V2-66)
+- [X] Spec, plan, tasks; the audit and its baseline; the repair with tests; the old tickers'
+  download; the rebuild (11 Nov); 18 of 18 named cases.
+- [ ] `sentinel verify`; the EDA notebooks re-run; the hand check recorded; docs and decision.
+- [ ] The three model notebooks on the repaired export; the researcher's approval; `KEPT` from
+  the approved records; `sentinel holdout --freeze-levels`, `--check`; the researcher's `--run`.
 
 ### Step 8 · 010 Holdout test (16 November)
 **Status (11 Nov): built, levels frozen, merged by #100 (10 Nov); re-run `--check` after the V2-63

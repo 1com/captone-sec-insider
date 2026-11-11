@@ -26,7 +26,7 @@ across all segments (R5); `main` is unique per company.
 | Column | Type | Meaning |
 |---|---|---|
 | cik | VARCHAR | the company |
-| kind | VARCHAR | `joined`, `join_failed`, `cut_reuse`, `cut_hole`, `cut_blank_check`, `lost_to`, `kept_overlap` (a concurrent use ignored) |
+| kind | VARCHAR | `joined`, `join_failed` (`gap`, `level`, `identity`), `cut_reuse`, `cut_hole`, `cut_blank_check`, `lost_to`, `kept_overlap` (a later user of the ticker: a sister company or a typo), `kept_remapped` (the series is not the earlier holder's prices), `kept_continuous` (an earlier holder without prices; the series trades on while the company filed under another ticker) |
 | ticker | VARCHAR | the ticker concerned |
 | source | VARCHAR | the provider of the series concerned |
 | day_from | DATE | start of the stretch concerned |

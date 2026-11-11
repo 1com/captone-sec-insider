@@ -206,3 +206,48 @@ stored one: 7,351, of which 7,038 priced) unless stated.
   check; Tue 17: the holdout run if ready, the report; the product (the app on the repaired data)
   on 17 Nov. The daily update runs the checked-out branch at 10:00: the branch is kept working at
   that hour (tests green before 10:00, or the previous branch checked out).
+
+## R15 · What the real data changed (11 Nov, after the first rebuild)
+
+The first rebuild with R1–R14 passed 15 of the 18 named cases; `sentinel audit`, the named cases
+and the hand check of 30 cuts showed where the rules were too blunt. Each change below was tested
+on a synthetic case (`tests/unit/test_core_segments.py`) and on the real data:
+
+- **Re-filed history, one threshold (R4).** Two series are the same prices when their daily moves
+  (on the days both have, so a skipped day misleads neither) differ by more than 2 points on at
+  most 5% of shared days; otherwise they are two companies' prices. The first rule cut in a middle
+  zone (5–30%), which cut Gardner Denver's history under IR: two industrial stocks move together
+  often, yet differ on far more than 5% of days. Ingersoll Rand now starts on 12 May 2017.
+- **Provider chosen after the cuts.** Where Tiingo was chosen only because Yahoo "starts late",
+  both are judged after their cuts: Tiingo's LAB began with LaBranche's 2010 prices, Yahoo's with
+  Fluidigm's first day (February 2011). Standard BioTools now holds Fluidigm's years and none of
+  LaBranche's prices.
+- **Earlier holders cut, later users never (R4, replaces "overlapping uses never cut").** A company
+  that used the ticker before this company's own first use is an earlier holder: the history starts
+  after its last use, even when its last filings trail a few days past a handover (old Safehold,
+  2023). A company that began using it later is a sister company or a typo and cuts nothing
+  (Digital Realty's partnership, DoorDash's "FN").
+- **An earlier holder without prices (new).** When the earlier holder cannot be compared (it has no
+  prices), the series is kept if it trades on across that holder's last use (no gap over 15 days,
+  no jump over 1.5 times) while the company's own filings under another ticker show it was there
+  (Gen Digital under NLOK, Cencora under ABC, BNY Mellon under BK, Truist under BB&T's ticker). The
+  hand check found the two wrong cuts of the first rebuild in this pattern (Gen Digital, Resources
+  Connection); 46 listed companies fitted it. A new company (Moderna, ZipRecruiter) has no such
+  filings and is still cut.
+- **Overlapping series join (R3).** Where two tickers' series overlap near a switch and move alike
+  on the shared days, they are the same shares and are joined whatever the price does after:
+  Hanger's HNGR repeats HGR's last NYSE weeks, then falls to a third when the stock moved over the
+  counter. Without the overlap, a jump still refuses the join (cancelled shares after a bankruptcy
+  are not the new shares).
+- **Forward joins (R3).** The newer ticker's own filings may come years after the switch (Hanger's
+  first under HNGR is from 2018); the series' continuity and the provider's name are the evidence.
+- **One ticker-day across providers (R5).** Two companies' claims on one ticker conflict when they
+  come from one provider, or from two whose moves agree; very short overlaps (under 20 shared days)
+  go to the company the SEC's list names. Provider-mixed duplicates fell from 155,438 to 1,500
+  ticker-days (6 tickers, mostly penny stocks whose two providers round differently).
+- **SPAC test on as-traded prices of every own ticker (R7).** The share of days between $9 and $11
+  is measured on as-traded prices (Yahoo's are adjusted for later reverse splits: NRX's SPAC showed
+  $100) and on every series of the company's own tickers (the SPAC's own ticker, not only today's).
+- **Not caught by the name rule:** SPACs whose names carry neither "Acquisition" nor "Merger" (dMY
+  Technology Group IV, now Planet Labs; Vickers Vantage Corp. I, now Scilex): their months stay.
+  Listed as a known limitation.

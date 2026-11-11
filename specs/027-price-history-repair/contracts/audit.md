@@ -3,8 +3,9 @@
 ## `sentinel audit`
 
 Reads `data/sentinel.duckdb` read-only (refuses while another process writes it). Prints, then
-writes `data/audit/prices-<date>.json` (private) and `docs/report/data_audit.md` (counts and
-pass/fail only; no price, date or company derived from Tiingo values). Exit code 0, or 1 when a
+writes `data/audit/prices-<date>.json` (private); with `--before <earlier JSON>` also
+`docs/report/data_audit.md`, before and after side by side (counts and pass/fail only; no price,
+date or company derived from Tiingo values). Exit code 0, or 1 when a
 named case fails or a ticker-day is claimed twice.
 
 ### JSON layout

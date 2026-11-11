@@ -83,11 +83,17 @@ files, so a rebuild from the files gives the same tables as the daily update.
 | `ref.ticker_history` | company, ticker and period | `cik`, `ticker`, `exchange`, `valid_from`, `valid_to`, `evidence` (Form 4 symbol, SEC list) |
 | `ref.calendar` | trading day | `session_no` (SPY's sessions since 2010) |
 | `ref.sector` | company | Fama–French 12 sector from the SIC code |
-| `ref.security` | priced company | `security_id` (= `cik`: one priced series per company), ticker, source, listed today, first and last price day, `coverage` (full / foreign / price_only) |
+| `ref.security` | priced company | `security_id` (= `cik`), its latest ticker and source (the `main` segment), listed today, first and last price day, `coverage` (full / foreign / price_only) |
 
 Companies come from SEC filings (every company-like filer and every Form 4 issuer); a company is
-priced when a ticker and a price series pass the identity checks (`core.price_choice`). Share
-classes and ADR ratios are not modelled yet, so a foreign filer's market value is left missing.
+priced when a ticker and a price series pass the identity checks (`core.price_choice`). Since
+feature 027 (V2-65, V2-66) a company's history is a chain of segments, one per ticker it used:
+joined across a ticker change where its own evidence and the price level at the switch agree; cut
+only after another company's earlier use of the ticker (unless the provider re-filed the history
+under the new holder), before a hole of over a year its own evidence does not cover, and on its
+blank-check (SPAC) days; one ticker-day belongs to one company; a US company is priced from its
+common stock (`core/segments.py`, `specs/027-price-history-repair/research.md`). Share classes and
+ADR ratios are not modelled yet, so a foreign filer's market value is left missing.
 
 ### Core (one clean, source-independent version of each fact, with `known_at`)
 
@@ -97,7 +103,9 @@ filing date, or the filing date itself when its header shows acceptance before t
 | Table | One row per | Notes |
 |---|---|---|
 | `core.price_candidate` | company and candidate series | every Yahoo or Tiingo series a company could be priced from, with the identity check |
-| `core.price_choice` | company | the chosen source and ticker and why: Yahoo first; Tiingo where Yahoo is missing or starts late, and for disappeared companies; trim dates |
+| `core.price_choice` | segment | `seq`, source and ticker, why (`yahoo_primary`, `tiingo_resolved`, …, `joined`), first and last day used, `main` (the latest), `adj_factor` (scales a segment's adjusted prices so returns stay continuous at a switch) |
+| `core.price_decision` | decision | every join, failed join (`gap`, `level`, `identity`), cut (`cut_reuse`, `cut_hole`, `cut_blank_check`), kept overlap or re-filed history, and ticker-day lost to another company, with its reason |
+| `core.blank_check_period` | SPAC-like former name | its dates, length, share of days priced between $9 and $11, and whether it counts as blank-check days (V2-66) |
 | `core.price_daily` | company and session | as-traded open, high, low, close, volume; adjusted close; `cum_split_after`; dividend; dollar volume; `source`; `glitch` |
 | `core.price_issue` | rejected price row | close at or below zero, high below low, a day that is not a session |
 | `core.price_check` | company | Yahoo against Tiingo where both exist (agree / partly / mismatch) |

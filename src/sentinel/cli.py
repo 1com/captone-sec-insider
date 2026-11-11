@@ -187,17 +187,30 @@ def schedule(
 
 
 @app.command()
-def audit() -> None:
+def audit(
+    before: str = typer.Option(None, "--before", help="An earlier audit's JSON: also write "
+                               "docs/report/data_audit.md with both, counts only."),
+) -> None:  # fmt: skip
     """How prices are matched to companies (feature 027): each problem family's count, the named
     cases and coverage by year; reads the build database only; writes data/audit/prices-<date>.json.
     Fails when a ticker-day belongs to two companies or a named case fails."""
+    import json
+    from pathlib import Path
+
     from sentinel import audit as auditing
     from sentinel import config
 
+    p = config.paths()
     try:
-        result, _ = auditing.audit(config.paths(), date.today(), typer.echo)
+        result, _ = auditing.audit(p, date.today(), typer.echo)
     except duckdb.IOException as e:
         _fail(f"audit: the build database is in use by another process ({e})", FAILED)
+    if before:
+        earlier = json.loads(Path(before).read_text())
+        out = p.root / "docs" / "report" / "data_audit.md"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(auditing.summary_markdown(result, earlier))
+        typer.echo(f"written: {out}")
     issues = auditing.problems(result)
     for issue in issues:
         typer.echo(f"  {issue}")

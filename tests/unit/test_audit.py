@@ -153,3 +153,11 @@ def test_a_spac_name_counts_only_as_whole_words_and_when_short_or_near_10(world)
     assert spac["names"] == 2  # Shell Acquisition Corp (H) and Parkway; not "GEOSPACE"
     assert (spac["counted"], spac["left_out"]) == (1, 1)  # Parkway: 7.5 years, $20, not a SPAC
     assert spac["examples"][0]["detail"].startswith("7.5 years, 0% near $10")
+
+
+def test_the_report_summary_shows_counts_before_and_after_and_no_examples(world):
+    after = audit.run(world, date(2026, 11, 11))
+    text = audit.summary_markdown(after, after)
+    assert "| Measure | Before | After |" in text
+    assert "Ticker changes not joined (companies) | 1 | 1 |" in text
+    assert "Renamed Corp" not in text and "OLDB" not in text  # counts only, no examples

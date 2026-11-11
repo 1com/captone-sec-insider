@@ -157,6 +157,12 @@ uv run sentinel schedule install  # run the update on weekdays at 10:00 (Windows
 Other commands: `sentinel fetch <source>`, `sentinel build <layer>`, `sentinel publish`,
 `sentinel export` (see `docs/architecture.md`).
 
+```bash
+uv run sentinel audit             # price coverage: problem families, named cases, coverage by year
+uv run sentinel audit --before data/audit/prices-2026-11-11-before.json   # + docs/report/data_audit.md
+uv run sentinel fetch tiingo-former   # once (done 11 Nov): old tickers' histories, Tiingo only until 26 Nov
+```
+
 ## Stock research app (026)
 
 One page per stock: search by ticker or name, the company's facts, the dilution forecast with its
