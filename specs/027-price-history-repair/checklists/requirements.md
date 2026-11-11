@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -31,9 +31,9 @@
 
 ## Notes
 
-- Two open questions for the researcher, asked one at a time (AGENTS.md section 3): the holdout
-  test's timing against the hand-in (User Story 6), and whether a former blank-check company's
-  history includes its SPAC's pre-merger prices (Edge Cases).
+- Both open questions answered by the researcher on 11 Nov, one at a time (AGENTS.md section 3):
+  the holdout test's timing (by 17 Nov if all is ready, never on a partial repair) and SPAC months
+  (left out by date, V2-66). All items pass.
 - The spec names the project's own commands (`sentinel verify`, `sentinel holdout --check`) and
   `config/risk_params.yaml` as checkpoints of the method fixed by the constitution, not as design
   choices; no language, library or table is chosen here.

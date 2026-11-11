@@ -34,6 +34,12 @@ lost between 9 and 10 November).
   Tuesday 17 November if the repair, the rebuild, the retrained models and their approval are all
   done, so the report includes it; never on a partly repaired pipeline or unapproved models: if not
   ready by Monday evening, after the hand-in (before 26 November), the report saying it is to come.
+- Q: Does a company's history include its time as a SPAC before the merger? → A: No (V2-66): a
+  company counts as a blank-check company on the days its SEC name marked it as one, and those days
+  are left out everywhere (the pre-registered exclusion of blank-check companies, applied by date
+  instead of by today's industry code); its SPAC ticker is not joined; the app's history starts at
+  the merger. On 11 Nov, 310 listed companies had gone public through a SPAC, 163 already priced in
+  their SPAC months, and the dilution training file held 3,159 rows (2,220 eligible) from SPAC months.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -183,8 +189,9 @@ data fingerprints equal the kept copy's.
 - A ticker change on the same day as a reverse split: the continuity check allows for the split.
 - A company that traded over the counter before listing on an exchange under another ticker: the
   OTC history is joined when a provider has it.
-- A company that was a blank-check company (SPAC) before its merger, under the SPAC's ticker:
-  [NEEDS CLARIFICATION: does its history include the SPAC's pre-merger prices?].
+- A company that was a blank-check company (SPAC) before its merger, under the SPAC's ticker: its
+  SPAC months are not its history (FR-017): DocGo starts at its merger with Motion Acquisition Corp.
+  (5 Nov 2021), not with the SPAC's units (MOTNU).
 - A typo in one insider filing naming another company's ticker for a day: it neither cuts nor
   joins anything (V2-63, extended).
 - An old ticker whose prices no provider has: the gap stays and the audit records it.
@@ -232,7 +239,8 @@ data fingerprints equal the kept copy's.
   its operating partnership without DLR prices; Palatin and AMN Healthcare from 2010; Standard
   BioTools without LaBranche's prices and with its Fluidigm years; Heidmar without the 2010 block;
   Telephone & Data Systems priced; Chatham Lodging priced from its common stock; Xcerra and Hanger
-  across their tickers; Fabrinet still from 2010.
+  across their tickers; Fabrinet still from 2010; DocGo and Redwire from their mergers (5 November
+  2021, September 2021), without their SPAC months.
 - **FR-013**: After the repair the layers MUST be rebuilt and `sentinel verify` MUST find a full
   rebuild identical to the daily update; the EDA notebooks MUST be re-run and their findings
   updated where numbers move.
@@ -246,6 +254,12 @@ data fingerprints equal the kept copy's.
 - **FR-016**: The decision (V2-65), each new rule, and the audit's counts before and after MUST be
   recorded in `docs/decisions.md`; the model report MUST state the data the models were trained on
   and the coverage the audit measured.
+- **FR-017**: A company MUST count as a blank-check company on the days its SEC name marked it as one
+  (its former names with their dates, such as "Motion Acquisition Corp." until 5 November 2021), as
+  well as when its current industry code is 6770; those days MUST be left out of every question's
+  rows and of the app's price history, and a SPAC's ticker MUST NOT be joined to the company it
+  merged with (V2-66). The audit MUST list every company the rule touches, so a real company with
+  such a name can be found and corrected.
 
 ### Key Entities
 
