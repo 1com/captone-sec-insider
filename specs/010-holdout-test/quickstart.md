@@ -6,8 +6,11 @@ the answers from 2023 on, which no code has computed until then. A second run is
 
 ## Before the test (done once, by the agent, before the merge)
 
-1. Keep the export the frozen models were built on (research R1): `data/frozen/2026-11-09/ml/`
-   (each file's hash equals its frozen model's data hash).
+1. Keep the export the frozen models were built on (research R1): `data/frozen/<export date>/ml/`
+   (each file's hash equals its frozen model's data hash). Since the price repair (027, V2-68) this is
+   `data/frozen/2026-11-11/ml/`, with `split_like.parquet` beside it; the first one,
+   `data/frozen/2026-11-09/`, is no longer used. Until the test, do not re-execute the model
+   notebooks: each execution writes new records, and the test takes the newest ones.
 2. Freeze the simpler levels (V2-60), under the memory cap, not while the daily update runs:
 
    ```bash

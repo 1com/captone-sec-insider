@@ -247,10 +247,13 @@ holds and what does not:
   in `data/frozen/2026-11-11/` (with `split_like.parquet`, 57 answers); the three model notebooks
   (commit d135609) and the EDA re-run on it: the same levels chosen, mean scores 0.2257, 0.4038,
   0.2749 against 0.2260, 0.4038, 0.2791 on 9 Nov, about 3% more rows; `sentinel report`
-  regenerated; EDA Findings updated (two small known problems, research R15). **Next:** the
-  researcher's approval of the three re-run models (T035), then `sentinel holdout --freeze-levels`
-  and `--check` (T036), then the holdout test (by Tue 17 Nov if all is ready, never on a partial
-  repair). Merge #102 before 027's pull request.
+  regenerated; EDA Findings updated (two small known problems, research R15). The researcher
+  approved the three re-run models (V2-68, 11 Nov); `--freeze-levels` reproduced every notebook
+  number (largest difference 1.8e-13) and froze the levels; `--check` passes (frozen models from
+  commit d135609, export of 11 Nov). **Next:** the researcher runs `sentinel holdout --run` once
+  (16 or 17 Nov), then `sentinel report`. Until then nobody re-executes the model notebooks: each
+  execution writes new records, and the holdout takes the newest. Merge #102 before 027's pull
+  request.
 - **Options (023):** the spot price comes from a table that does not exist (falls back to the
   median strike or 100); the tables now live in schema `live` (a rebuild cannot reproduce them).
 - **Process:** no pull requests since #90; three of the last five CI runs on `main` failed.
@@ -377,12 +380,15 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
   check recorded (2 of 30 wrong, the pattern fixed); decision V2-67.
 - [X] The three model notebooks re-run on the repaired export (11 Nov; kept in
   `data/frozen/2026-11-11/`); `KEPT` read from the approved records (T033).
-- [ ] The researcher's approval (T035); `sentinel holdout --freeze-levels`, `--check` (T036); the
-  researcher's `--run` (T037).
+- [X] The researcher's approval (T035, V2-68); `sentinel holdout --freeze-levels` and `--check`
+  (T036, 11 Nov).
+- [ ] The researcher's `--run` (T037), once, on 16 or 17 Nov; then `sentinel report`.
 
 ### Step 8 · 010 Holdout test (16 November)
-**Status (11 Nov): built, levels frozen, merged by #100 (10 Nov); re-run `--check` after the V2-63
-rebuild; the researcher runs `sentinel holdout --run` once on 16 Nov, then `sentinel report`.**
+**Status (11 Nov evening): built and merged by #100 (10 Nov); after the price repair (027) the models
+were approved again (V2-68), the export of 11 Nov kept in `data/frozen/2026-11-11/`, the levels
+frozen again and `--check` passes; the researcher runs `sentinel holdout --run` once on 16 or 17 Nov,
+then `sentinel report`.**
 **Already true (checked 30 Oct):** the holdout rows (`feature_snapshot` from 2023 on, built from
 `feature.snapshot` like the training files) have the training files' feature columns in the same
 order and types; the holdout answers come from the same label code (`labels/risk.py`) with

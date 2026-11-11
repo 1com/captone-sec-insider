@@ -226,6 +226,8 @@ uv run sentinel report            # adds the results to the model report, unedit
 `sentinel holdout --freeze-levels` proves the packaged simpler levels give the notebooks' recorded
 numbers on the export the frozen models were built on, kept in `data/frozen/<export date>/` (the
 date is read from the approved models' records; `--check` refuses if the kept rows are missing or
-changed), and freezes them for 2023. It was first run on 10 November on the export of 9 November;
-after the price repair (027, V2-65) the models are retrained, approved again, their export kept and
-the levels frozen again.
+changed), and freezes them for 2023. It was first run on 10 November on the export of 9 November; after
+the price repair (027, V2-65) the models were retrained on the export of 11 November, approved
+again (V2-68), that export kept in `data/frozen/2026-11-11/` and the levels frozen again
+(11 November). Until the holdout run, do not re-execute the model notebooks: each execution writes
+new records, and the holdout takes the newest ones (reading them is fine).
