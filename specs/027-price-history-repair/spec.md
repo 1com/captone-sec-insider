@@ -26,6 +26,15 @@ Effect: the dilution training file holds rows only where prices exist, so it lac
 that changed ticker or exchange; and its 2012–2022 rows drift as companies change tickers (96 rows
 lost between 9 and 10 November).
 
+## Clarifications
+
+### Session 2026-11-11
+
+- Q: When does the holdout test run, given the hand-in (product 17 Nov, report 18 Nov)? → A: By
+  Tuesday 17 November if the repair, the rebuild, the retrained models and their approval are all
+  done, so the report includes it; never on a partly repaired pipeline or unapproved models: if not
+  ready by Monday evening, after the hand-in (before 26 November), the report saying it is to come.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A company that changed its ticker keeps its whole history (Priority: P1)
@@ -157,9 +166,11 @@ data fingerprints equal the kept copy's.
 2. **Given** the researcher's approval of the three models, **When** the holdout is prepared,
    **Then** a copy of the export they were built on is kept, the simpler levels are frozen from it
    and shown to reproduce the notebooks' records, and the check passes.
-3. **Given** all of the above, **When** the researcher runs the holdout, **Then** it runs once
-   [NEEDS CLARIFICATION: when, relative to the hand-in (product 17 Nov, report 18 Nov)? The repair,
-   the rebuild, three notebook runs and your approval must all come first].
+3. **Given** all of the above, **When** the researcher runs the holdout, **Then** it runs once,
+   by Tuesday 17 November if everything before it is done, so the report of 18 November includes
+   it; never on a partly repaired pipeline or on models not approved again: if they are not ready
+   by Monday 16 November in the evening, it runs after the hand-in (before 26 November) and the
+   report of 18 November says the test is still to come (researcher, 11 Nov).
 
 ---
 
