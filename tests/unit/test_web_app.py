@@ -25,14 +25,14 @@ def _serving(path):
         """create table app.stock as select * from (values
         ('1744489', 'DIS', 'Walt Disney Co', 'NYSE', 'Media', '4841', 'Services', 'operating',
          'full', false, false, null, true, true, 'yahoo', DATE '2019-03-11', DATE '2026-11-09',
-         null, null, null, true, null, null),
+         null, null, null, true, null, null, 'Walt Acquisition Corp', DATE '2019-03-08'),
         ('1001039', 'DIS', 'TWDC Enterprises 18 Corp.', null, 'Media', '4841', 'Services',
          'operating', 'full', false, false, null, true, false, 'tiingo', DATE '2010-01-04',
-         DATE '2019-06-19', null, null, null, true, null, null))
+         DATE '2019-06-19', null, null, null, true, null, null, null, null))
         t(cik, ticker, name, exchange, sector, sic, sic_description, filer_type, coverage,
           is_fund, is_blank_check, former_names, has_prices, listed, price_source, first_session,
           last_session, first_periodic, last_periodic, last_filing, is_form4_issuer, first_form4,
-          last_form4)"""
+          last_form4, listed_via, listed_via_date)"""
     )
     con.execute(
         "alter table app.stock alter former_names type "
@@ -125,6 +125,7 @@ def test_the_company_page_has_facts_and_the_dilution_forecast_only(client):
     assert r.status_code == 200
     c = r.json()
     assert c["facts"]["name"] == "Walt Disney Co" and c["dilution"]["band"] == 2
+    assert c["facts"]["listed_via"] == "Walt Acquisition Corp"  # the SPAC line (027, V2-66)
     assert c["quote"]["close"] == 102.0 and c["quote"]["previous"] == 101.0
     assert c["freshness"]["insider_filings"] == "2026-11-06"
     for word in ("vol_forecast", "vol_low_80", "p_move", "move_band", "results_move"):

@@ -147,6 +147,8 @@ function renderCompany(c) {
     f.sic_description && `<span title="SIC code ${esc(f.sic)}">${esc(f.sic_description)}</span>`,
     f.sector && `<span class="muted">${esc(SECTOR[f.sector] || f.sector)}</span>`,
     f.former_names && `<span class="muted small">formerly ${esc(f.former_names)}</span>`,
+    f.listed_via && `<span class="muted small"><span class="tip" data-tip="A blank-check company (SPAC) is a shell that lists with cash and later merges with a private company, which becomes public through it. The shell's months before the merger are not this company's history.">?</span>
+      listed through a merger with ${esc(f.listed_via)} on ${fmt.date(f.listed_via_date)}</span>`,
     `<span><span class="tip" data-tip="CIK: the SEC's permanent ID for the company; it never changes, even when the name or ticker does.">?</span>
       CIK <a href="https://www.sec.gov/edgar/browse/?CIK=${esc(c.cik)}" target="_blank" rel="noopener">${esc(c.cik)} ↗</a></span>`,
   ].filter(Boolean).join("");

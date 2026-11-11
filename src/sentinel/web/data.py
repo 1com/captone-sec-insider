@@ -124,7 +124,8 @@ def company(con, cik: str) -> dict | None:
         "is_blank_check, array_to_string(list_transform(former_names, x -> x.name), '; ') "
         "as former_names, has_prices, listed, "
         "price_source, first_session, last_session, first_periodic, last_periodic, last_filing, "
-        "is_form4_issuer, first_form4, last_form4 from app.stock where cik = ? "
+        "is_form4_issuer, first_form4, last_form4, listed_via, listed_via_date "
+        "from app.stock where cik = ? "
         "order by listed desc, last_session desc nulls last limit 1",
         [cik],
     )
