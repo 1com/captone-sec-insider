@@ -250,10 +250,12 @@ holds and what does not:
   regenerated; EDA Findings updated (two small known problems, research R15). The researcher
   approved the three re-run models (V2-68, 11 Nov); `--freeze-levels` reproduced every notebook
   number (largest difference 1.8e-13) and froze the levels; `--check` passes (frozen models from
-  commit d135609, export of 11 Nov). **Next:** the researcher runs `sentinel holdout --run` once
-  (16 or 17 Nov), then `sentinel report`. Until then nobody re-executes the model notebooks: each
-  execution writes new records, and the holdout takes the newest. Merge #102 before 027's pull
-  request.
+  commit d135609, export of 11 Nov). #102 merged (11 Nov); 027's pull request opened the same
+  evening, merged once the researcher agrees: the holdout run needs 027's code in `main` (`main`
+  before it still has the fixed kept date of 9 Nov and refuses). **Next:** the researcher runs
+  `sentinel holdout --run` once (16 or 17 Nov), then `sentinel report`. Until then nobody
+  re-executes the model notebooks: each execution writes new records, and the holdout takes the
+  newest.
 - **Options (023):** the spot price comes from a table that does not exist (falls back to the
   median strike or 100); the tables now live in schema `live` (a rebuild cannot reproduce them).
 - **Process:** no pull requests since #90; three of the last five CI runs on `main` failed.

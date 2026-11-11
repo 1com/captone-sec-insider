@@ -149,8 +149,8 @@ data fingerprints equal the kept files'.
 ## Phase 10: Polish and hand-over
 
 - [X] T038 [P] `docs/decisions.md`: the price-matching rules of 027 as one decision (segments, joins, cuts, one ticker-day, common stock first), with the before and after counts; `docs/architecture.md` layer 3b updated (segments, `core.price_decision`, `core.blank_check_period`)
-- [ ] T039 [P] `docs/plan.md` (027 status), `README.md` (`sentinel audit`, `sentinel fetch tiingo-former`), `AGENTS.md` (where things stand; step for 027); this file's boxes ticked
-- [ ] T040 Pull request into `main` after #102 is merged and the researcher agrees (CI green); then delete the branch
+- [X] T039 [P] `docs/plan.md` (027 status), `README.md` (`sentinel audit`, `sentinel fetch tiingo-former`), `AGENTS.md` (where things stand; step for 027); this file's boxes ticked
+- [ ] T040 Pull request into `main` after #102 is merged and the researcher agrees (CI green); then delete the branch (#102 merged 11 Nov; the pull request opened 11 Nov)
 
 ---
 
