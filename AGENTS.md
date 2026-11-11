@@ -89,8 +89,8 @@ every weekday; the three forecasting models and the app are next. Hand-in: produ
   holds it (often the daily update or a notebook); do not kill processes you did not start.
 - **Ports 8000 and 8080 belong to other projects; never stop them.** Before giving any project a
   port, check it is free in WSL (`ss -ltn`) and on Windows (`/mnt/c/Windows/System32/netstat.exe
-  -ano`, German output) (the researcher, 10 Nov). The app serves on 8090; `sentinel serve` refuses
-  a busy or reserved port.
+  -ano`, German output) (the researcher, 10 Nov). The stock research app (026, `sentinel web`)
+  serves on 8100, Gemini's old app (`sentinel serve`) on 8090; both refuse a busy or reserved port.
 - The daily update runs by itself on weekdays at 10:00 (Windows Task Scheduler, `sentinel
   schedule show`); its log is `data/logs/update-<date>.log`. It runs the code of whatever branch
   is checked out, so do not leave a broken branch checked out at 10:00.
@@ -116,7 +116,7 @@ done, merge it into `main` (pull request, after the researcher agrees), delete t
 close its GitHub issue (#67–#87, one per feature). Keep `docs/plan.md`, `README.md` and this
 file in step.
 
-## 7. Where things stand (10 November 2026; the audit of the work of 30 Oct – 3 Nov was on 4 Nov)
+## 7. Where things stand (11 November 2026; the audit of the work of 30 Oct – 3 Nov was on 4 Nov)
 
 Between 30 October and 3 November another agent (Gemini) added models, daily scores, a report,
 the app, Docker and option chains, pushing straight to `main` without pull requests. On
@@ -196,13 +196,13 @@ holds and what does not:
   `data/holdout/log.jsonl`, written only after all three are scored; a second run is refused),
   then `sentinel report` adds the results unedited (`specs/010-holdout-test/quickstart.md`). The
   app now serves on port 8090 (8000 and 8080 belong to other projects; `sentinel serve` refuses a
-  busy port, the researcher, 10 Nov). Next: merge 010, then the app (011–018) with the
-  researcher. Before the daily scores resume (009): train the approved
+  busy port, the researcher, 10 Nov). 010 merged by #100 (10 Nov); #69 stays open until the run on
+  16 Nov. Before the daily scores resume (009): train the approved
   models into `data/models/` (`sentinel train results_move`, `sentinel train dilution`; the folder
   still holds Gemini's unapproved files of 2 Nov) and give `prev4_mean` the moves after 2022, which
   the holdout test computes.
-- **Report (008):** `src/sentinel/models/report.py` writes typed-in numbers and curves, several
-  contradicting MLflow (volatility Ridge 0.3204 typed, 0.3696 logged). Not done.
+- **Report (008):** Gemini's typed-in report (numbers contradicting MLflow) was replaced by the
+  generated one (#98, 10 Nov; see above).
 - **Daily scores (009):** paused until the researcher approves the models (V2-42,
   `update.score: false`); when on, only companies still trading are scored. Live outcomes wait for
   the holdout test (010): a forecast made now has its window after 2022. `score.daily` holds one
@@ -212,7 +212,25 @@ holds and what does not:
   Enterprises, 2019); the price chart is broken (JSON escaped inside `<script>`); the insider
   feed reads columns that do not exist; the sector filter never matches (Fama-French codes);
   the model card is typed in; a missing `serving.duckdb` silently serves invented data (with an
-  insider trade credited to a real person). Spec-kit documents exist only for 011. Not done.
+  insider trade credited to a real person). Spec-kit documents exist only for 011. **Replaced by
+  026** (V2-61, below); removed once the researcher approves 026 (FR-024, T021).
+- **Stock research app (026, V2-61), 10–11 Nov:** a new, separate app (`src/sentinel/web/`,
+  `sentinel web`, port 8100), one page per stock with dilution risk as its main feature and no
+  volatility or results-day forecast: search (tickers, names, former names; a reused ticker lists
+  each company), facts, the dilution panel (the frozen approved model's chance, band, the band's
+  record per test year, reasons from the trees' contributions), a split-adjusted price and volume
+  chart (TradingView Lightweight Charts 4.2.0, vendored, V2-62) with insider and offering markers,
+  monthly insider buys and sells with the trade table, filings in plain English
+  (`web/glossary.py`), FINRA's short-sale share, diagnostics. A missing serving copy shows an error
+  and no data. MVP merged by #101 (10 Nov). It shows Tiingo-derived prices, so it is shared only
+  behind one password (`WEB_PASSWORD` in `.env`; `scripts/start_web.sh` opens a Tailscale Funnel
+  link only when it is set, otherwise the tailnet only; V2-64): never open the link without it.
+  Left (`specs/026-stock-research-app/tasks.md`): key financials (T015), ten named cases (T019),
+  daily dilution forecasts in the update (T018), insider clusters (T011), short interest (T014,
+  last), the old app removed (T021).
+- **V2-63 (10 Nov):** a stray Form 4 of another company naming a ticker (DoorDash giving FN) no
+  longer cuts a company's price history; rebuilt on 10 Nov with the researcher's agreement (121
+  listed companies' histories restored). Re-run `sentinel holdout --check` before 16 Nov.
 - **Options (023):** the spot price comes from a table that does not exist (falls back to the
   median strike or 100); the tables now live in schema `live` (a rebuild cannot reproduce them).
 - **Process:** no pull requests since #90; three of the last five CI runs on `main` failed.
@@ -317,17 +335,24 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
   (V2-42) until the approved models are trained into `data/models/`; `score.outcome` waits for
   the holdout test.
 
-### Step 7 · The app (011–018), with the researcher
-- [ ] 011–017 (built by Gemini, not done: see section 7 for the faults to fix): on branch `011-app-design`. Design and forecast contract (`specs/011-app-design/contracts/`),
+### Step 7 · The app: 026 stock research app (V2-61), with the researcher
+- [X] 026 MVP (10 Nov, #101): search, facts, dilution panel, price and volume chart, insiders,
+  filings in plain English, short-sale share, diagnostics; shared behind one password (V2-64).
+- [ ] 026 later tasks, in this order: key financials as first filed (T015); ten named cases
+  checked against the data (T019, SC-002); the daily dilution forecasts in the update (T018,
+  with 009); insider clusters (T011) and short interest (T014) if time allows; the old app
+  removed once the researcher approves 026 (T021).
+- Gemini's old app, kept until T021 (V2-61 replaces it; its faults are in section 7):
+- [ ] 011–017 (built by Gemini, replaced by 026): on branch `011-app-design`. Design and forecast contract (`specs/011-app-design/contracts/`),
   FastAPI read-only API over `data/serving.duckdb` (`src/sentinel/app/`, on port 8090, refusing a busy port), stock research terminal
   with the four Sentinel intelligence panels, live interactive price chart, reported financials, Form 4 insider activity,
   and SEC filings. Multi-factor screener, market insider feed, and model card view. Tested with 8 unit tests in
   `tests/unit/test_app_api.py`. CLI entrypoint: `sentinel serve` (port 8090, this machine only by default).
-- [ ] 018 (not done: Tiingo-derived prices are served): Hosting / production deployment configuration with no Tiingo-derived value on a public page. Dockerfile and docker-compose.yml serving read-only over port 8090, audited by test_public_data.py.
+- [ ] 018 (026 is shared behind one password, V2-64; Gemini's Docker files are the old app's): Hosting / production deployment configuration with no Tiingo-derived value on a public page. Dockerfile and docker-compose.yml serving read-only over port 8090, audited by test_public_data.py.
 
 ### Step 8 · 010 Holdout test (16 November)
-**Status (10 Nov): built, levels frozen, `--check` passes; merge after the researcher agrees;
-the researcher runs `sentinel holdout --run` once on 16 Nov, then `sentinel report`.**
+**Status (11 Nov): built, levels frozen, merged by #100 (10 Nov); re-run `--check` after the V2-63
+rebuild; the researcher runs `sentinel holdout --run` once on 16 Nov, then `sentinel report`.**
 **Already true (checked 30 Oct):** the holdout rows (`feature_snapshot` from 2023 on, built from
 `feature.snapshot` like the training files) have the training files' feature columns in the same
 order and types; the holdout answers come from the same label code (`labels/risk.py`) with

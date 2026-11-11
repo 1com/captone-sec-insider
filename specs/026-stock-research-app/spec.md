@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-10
 
-**Status**: Draft
+**Status**: MVP built and merged (#101, 10 Nov); the later tasks are in `tasks.md`
 
 **Input**: User description: "Create a completely new and separate app. It will not show the expected
 volatility or the expected earnings move; it is all about displaying the information we gather every
@@ -16,6 +16,21 @@ a chart showing buys and sells so people can see patterns easily." (the research
 decision V2-61). Faults of the old app it must not repeat: SEC filing descriptions missing, a
 typed-in data date ("Oct 30, 2026"), no price and volume history, no short selling data, no
 diagnostics, form types (8-K, 10-K, 10-Q, Form 4) without explanations.
+
+## Clarifications
+
+### Session 2026-11-10
+
+- Q: Is FINRA's daily short-sale volume enough for the short selling section, or should short
+  interest be added as a new data source? → A: Both: FINRA's daily short-sale share of volume
+  now; short interest (shares sold short and not yet bought back, published twice a month) as a
+  new source, built last (T014).
+- Q: Will the app be used only on this machine for v1, or published online? → A: Shared with the
+  team and tutors by one link that asks for one shared password (`WEB_PASSWORD` in `.env`); the
+  page is then not public and may show Tiingo-derived prices; without a password it is shared
+  with the researcher's private network (tailnet) only (V2-64).
+- Q: What should the diagnostics section show? → A: Both parts: the data behind the page and the
+  dilution model's workings (User Story 7).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -154,10 +169,10 @@ to fall.
 **Acceptance Scenarios**:
 
 1. **Given** a company with short selling data, **When** its page opens, **Then** the section shows
-   [NEEDS CLARIFICATION: is FINRA's daily short-sale volume (collected now: the share of each
-   day's reported volume that was sold short) enough, or should short interest (the shares sold
-   short and not yet bought back, published twice a month) be added as a new data source?], with
-   its explanation and its date.
+   the share of each day's reported volume that was sold short (FINRA's daily short-sale volume)
+   and, once added as a new source (built last; researcher, 10 Nov), short interest (the shares
+   sold short and not yet bought back, published twice a month), each with its explanation and
+   its date.
 
 ---
 
@@ -265,8 +280,9 @@ promise.
 - **FR-011**: Every form type with at least 100 filings in the data and every 8-K item number MUST
   have a plain-English name and explanation; any other form type MUST show its kind's general
   description.
-- **FR-012**: The short selling section MUST show [NEEDS CLARIFICATION: see User Story 5] over
-  time, with a plain explanation of what it measures and its date.
+- **FR-012**: The short selling section MUST show the daily short-sale share of volume (FINRA) and,
+  once added, short interest over time, each with a plain explanation of what it measures and its
+  date.
 - **FR-013**: The financials section MUST show revenue, net income, operating cash flow, cash, total
   debt and shares outstanding for the last eight quarters and four fiscal years, as first filed,
   with their filing dates; unreported values shown as missing.
@@ -286,11 +302,13 @@ promise.
 - **FR-019**: When the serving copy is missing or unreadable, the app MUST show an error saying so
   and no data; it MUST never show invented, sample or typed-in values (tests use their own test
   data).
-- **FR-020**: Values derived from Tiingo MUST NOT appear on any public page (constitution VI):
-  [NEEDS CLARIFICATION: will the app be used only on this machine for v1, or published online?
-  Online, the prices of the companies priced from Tiingo (562 listed, 4,274 delisted) and every
-  value computed from them must be hidden, and Yahoo's terms do not allow redistributing its
-  prices].
+- **FR-020**: Values derived from Tiingo MUST NOT appear on any public page (constitution VI). For
+  v1 the app MUST be reached from outside this machine only through a link that asks every
+  visitor for one shared password (`WEB_PASSWORD` in `.env`), or, without a password set, from the
+  researcher's private network only (V2-64). A fully public page would need the researcher's
+  decision first, and the prices of the companies priced from Tiingo (562 listed, 4,274 delisted)
+  and every value computed from them hidden; Yahoo's terms do not allow redistributing its prices
+  either.
 - **FR-021**: The app MUST run on a port checked to be free in WSL and on Windows, and refuse a busy
   or reserved port (8000, 8080, 8090 belong to other programs); by default it is reachable from
   this machine only.

@@ -16,7 +16,8 @@ The researcher asked for a presentable MVP first (10 Nov); tasks after the MVP a
 ## Phase 2: Foundational
 
 - [X] T003 `src/sentinel/web/data.py`: read-only queries, one connection per request, `NoData`
-- [ ] T004 `src/sentinel/web/glossary.py`: every form type with 100+ filings and every 8-K item
+- [X] T004 `src/sentinel/web/glossary.py`: every form type with 100+ filings and every 8-K item
+  (`tests/unit/test_web_glossary.py`)
 - [X] T005 `src/sentinel/web/forecast.py`: the frozen model's chance, band and reasons per company
 - [X] T006 `sentinel web` in `src/sentinel/cli.py` on port 8100, checked free
 
@@ -51,5 +52,7 @@ The researcher asked for a presentable MVP first (10 Nov); tasks after the MVP a
   filings, no volatility or results-day forecast, missing serving copy)
 - [ ] T018 Daily forecasts in the daily update (009, dilution only) instead of the app (later)
 - [ ] T019 Ten named cases checked against the data (SC-002, SC-005) (later)
-- [ ] T020 Docs (README, `docs/plan.md`, AGENTS.md); pull request after the researcher agrees
+- [X] T020 Docs (README, `docs/plan.md`, AGENTS.md); pull request after the researcher agrees (the
+  MVP merged by #101, 10 Nov; the shared password, V2-63 and the docs by a second pull request,
+  11 Nov)
 - [ ] T021 Remove the old app (011-017) once the researcher approves the new one (FR-024)

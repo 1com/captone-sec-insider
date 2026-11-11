@@ -34,26 +34,24 @@ branch `NNN-name`), so two people specifying at once never collide.
 1. **001 done (5 Nov, #91):** the first scheduled run with the fixes `complete` in 47 minutes,
    `sentinel verify` identical, a rerun `nothing_new`; the schedule stays at weekdays 10:00; the
    EDA notebooks re-run on the new data.
-2. **007, then 006, then 005 if time allows (V2-48)**, each redone in its notebook and approved by
-   the researcher: spec-kit first; splits by `eda.folds` and `eda.check_folds`; every model,
-   calibration, band edge and range a `sentinel.models.dated.Dated` (V2-49: it learns only from
-   answers known before its cutoff and forecasts only rows dated after it); four levels (naive,
-   rule, classic, LightGBM) on 2019–2022; the simplest within one standard error of the best;
-   bands with their test-year hit rates (D47); a verdict per hypothesis (V2-46); MLflow runs with
-   the commit and the export date. 007 is Jassin's notebook (V2-40); 006 has no `cum_split_after`
-   and is chosen by the chances' log loss (V2-41).
-3. **The approved models into `src/sentinel/models/`** with tests and a command; the notebooks
-   import them and give the same numbers; a dry run on the 2023+ feature rows (no answers); the
-   daily scores back on (`update.score`, V2-42).
-4. **008 report** from the MLflow runs of the approved models (#79).
-5. **010 holdout test (16 Nov)**: built 10 Nov (branch `010-holdout-test`): `sentinel holdout
-   --check | --freeze-levels | --run`; the frozen models of V2-59 and every simpler level beside
-   them (V2-60), frozen from the export of 9 November and proven equal to the notebooks' records.
-   After the merge the researcher runs `sentinel holdout --run` once on 16 Nov, then
-   `sentinel report` (`specs/010-holdout-test/quickstart.md`).
-6. **011–018 app** with the researcher: the faults found on 4 Nov (AGENTS.md section 7); no
-   Tiingo-derived value on a public page.
-   With it, **025**: the unusual-volume tracker (V2-51).
+2. **Done (9 Nov): the three models**, each redone in its notebook (V2-48, V2-49, V2-50) and
+   approved by the researcher: 007 dilution (V2-52, #92), 006 results-day move (V2-55, #94), 005
+   volatility (V2-58, #96); packaged in `src/sentinel/models/`, the notebooks import them and give
+   the same numbers. The daily scores (009) stay paused until the approved models are trained into
+   `data/models/` (V2-42).
+3. **Done (10 Nov): 008 report** generated from the notebooks' MLflow records (#98).
+4. **Done (10 Nov): V2-63** (a stray filing of another company no longer cuts a price history),
+   rebuilt with the researcher's agreement before the holdout test.
+5. **010 holdout test (16 Nov)**: built and merged (#100, 10 Nov): `sentinel holdout --check |
+   --freeze-levels | --run`; the frozen models of V2-59 and every simpler level beside them
+   (V2-60), frozen from the export of 9 November and proven equal to the notebooks' records.
+   `--check` again after the V2-63 rebuild; the researcher runs `sentinel holdout --run` once on
+   16 Nov, then `sentinel report` (`specs/010-holdout-test/quickstart.md`).
+6. **026 stock research app** (V2-61; replaces 011–017): MVP merged (#101, 10 Nov), shared by a
+   password link (V2-64). Next: key financials, ten named cases checked against the data, the
+   daily dilution forecasts in the update (009, dilution only), then insider clusters and short
+   interest if time allows; the old app removed once the researcher approves the new one.
+   **025** (the unusual-volume tracker, V2-51) only if time allows.
 7. **019 hand-in** (17–18 Nov); **020** before the Tiingo plan ends (25 Nov).
 
 ## Notebooks and code
@@ -139,20 +137,21 @@ the results move, `eligible_dilution`: V2-26, V2-27) and the answer is present. 
 
 | # | Feature | Owner | Dates | Depends on | Done when | Status | Issue |
 |---|---|---|---|---|---|---|---|
-| 011 | **App design and forecast contract**: The front-end stack; the page map and wireframes (search, stock page, dilution check, insider tracker, screeners, model card, "data as of"); the **forecast contract** with the data-science track: the table and columns the app reads for each forecast (value, band, chance, hit rate, model version, as of), so pages can be built before the models exist. The app reads only `serving.duckdb`. | researcher (1com), with coding agent | Fri 30 Oct – Mon 2 Nov | — | the contract is written under `specs/011-app-design/contracts/` and agreed by both tracks; wireframes approved | not started | #80 |
-| 012 | **API over serving.duckdb**: Read-only endpoints (FastAPI): search, stock, prices, financials, filings, insider activity and feed, screener, freshness, model card. Port 8000 on the development machine belongs to another application. | researcher (1com), with coding agent | Tue 3 – Wed 4 Nov | 011 | endpoint tests pass on a synthetic serving copy | not started | #81 |
-| 013 | **Stock page**: Search and the stock page: header, price chart, financials as first filed, the filings timeline in plain English, insider activity, "data as of"; forecast panels as placeholders per the contract (filled in 017). | researcher (1com), with coding agent | Thu 5 – Fri 6 Nov | 012 | page tests; the numbers match `serving.duckdb` for named companies (Apple, Meta, Hitachi) | not started | #70 |
-| 014 | **Insider tracker pages**: The market-wide feed of insider events (several buyers, a CEO or CFO, an officer or director), buys and sells per company with role, value, plan and offering flags, holdings before and after, links to EDGAR. | researcher (1com), with coding agent | Mon 9 – Tue 10 Nov | 012 | page tests; Jamie Dimon's 2016 purchase shows correctly | not started | #82 |
-| 015 | **Dilution check**: A standalone page for any ticker: share-count history, recent offerings, cash runway, and the dilution chance once 009 publishes it. | researcher (1com), with coding agent | Wed 11 Nov | 012 | page tests; a known diluting company shows its offerings | not started | #83 |
-| 016 | **Screeners**: Filter stocks by risk band, sector, size and insider activity (extras are cut first if time runs short). | researcher (1com), with coding agent | Thu 12 Nov | 012 | page tests; filters match SQL on `app.screener` | not started | #84 |
-| 017 | **Forecasts and model card in the app**: Volatility and the results-day move lead the stock page; dilution on its check; each forecast as a band or chance with its past hit rates (D62), never a bare number; the model card page. | researcher (1com), with teammate | Fri 13 – Mon 16 Nov | 009, 013 | pages show the live scores; the model card matches the report | not started | #85 |
-| 018 | **Hosting and public-data rule**: Where the app runs and how it is deployed (by command); public pages never show Tiingo-derived values; a smoke test after each deploy. | researcher (1com), with coding agent | Fri 13 – Mon 16 Nov | 012 | the app is reachable at its address; the smoke test passes; no Tiingo-derived value is served publicly | not done: Docker files exist, but Tiingo-derived prices are served and nothing is deployed (audit, 4 Nov) | #86 |
+| 011 | **App design and forecast contract**: The front-end stack; the page map and wireframes (search, stock page, dilution check, insider tracker, screeners, model card, "data as of"); the **forecast contract** with the data-science track: the table and columns the app reads for each forecast (value, band, chance, hit rate, model version, as of), so pages can be built before the models exist. The app reads only `serving.duckdb`. | researcher (1com), with coding agent | Fri 30 Oct – Mon 2 Nov | — | the contract is written under `specs/011-app-design/contracts/` and agreed by both tracks; wireframes approved | replaced by 026 (V2-61) | #80 |
+| 012 | **API over serving.duckdb**: Read-only endpoints (FastAPI): search, stock, prices, financials, filings, insider activity and feed, screener, freshness, model card. Port 8000 on the development machine belongs to another application. | researcher (1com), with coding agent | Tue 3 – Wed 4 Nov | 011 | endpoint tests pass on a synthetic serving copy | replaced by 026 (V2-61) | #81 |
+| 013 | **Stock page**: Search and the stock page: header, price chart, financials as first filed, the filings timeline in plain English, insider activity, "data as of"; forecast panels as placeholders per the contract (filled in 017). | researcher (1com), with coding agent | Thu 5 – Fri 6 Nov | 012 | page tests; the numbers match `serving.duckdb` for named companies (Apple, Meta, Hitachi) | replaced by 026 (V2-61) | #70 |
+| 014 | **Insider tracker pages**: The market-wide feed of insider events (several buyers, a CEO or CFO, an officer or director), buys and sells per company with role, value, plan and offering flags, holdings before and after, links to EDGAR. | researcher (1com), with coding agent | Mon 9 – Tue 10 Nov | 012 | page tests; Jamie Dimon's 2016 purchase shows correctly | per company in 026; the market-wide feed left out of v1 (V2-61) | #82 |
+| 015 | **Dilution check**: A standalone page for any ticker: share-count history, recent offerings, cash runway, and the dilution chance once 009 publishes it. | researcher (1com), with coding agent | Wed 11 Nov | 012 | page tests; a known diluting company shows its offerings | replaced by 026's dilution panel (V2-61) | #83 |
+| 016 | **Screeners**: Filter stocks by risk band, sector, size and insider activity (extras are cut first if time runs short). | researcher (1com), with coding agent | Thu 12 Nov | 012 | page tests; filters match SQL on `app.screener` | left out of v1 (V2-61) | #84 |
+| 017 | **Forecasts and model card in the app**: Volatility and the results-day move lead the stock page; dilution on its check; each forecast as a band or chance with its past hit rates (D62), never a bare number; the model card page. | researcher (1com), with teammate | Fri 13 – Mon 16 Nov | 009, 013 | pages show the live scores; the model card matches the report | dilution only, in 026 (V2-61); the other two forecasts stay in the model report | #85 |
+| 018 | **Hosting and public-data rule**: Where the app runs and how it is deployed (by command); public pages never show Tiingo-derived values; a smoke test after each deploy. | researcher (1com), with coding agent | Fri 13 – Mon 16 Nov | 012 | the app is reachable at its address; the smoke test passes; no Tiingo-derived value is served publicly | 026 runs on this machine and is shared by one link with one shared password (V2-64), so no page is public; Gemini's Docker files belong to the old app | #86 |
+| 026 | **Stock research app, dilution first** (V2-61; replaces 011–017): one page per stock: search by ticker, name or former name; the company's facts; the dilution forecast with its band, the band's record per test year and its reasons; a split-adjusted price and volume chart with insider and offering markers; monthly insider buys and sells with the trade table; the SEC filings in plain English (a glossary of forms and 8-K items); the short-sale share of volume (FINRA); diagnostics (the data behind the page and the dilution model's workings). No volatility or results-day forecast. `sentinel web` on port 8100; `scripts/start_web.sh` shares it (V2-64) | researcher (1com), with coding agent | Tue 10 – Mon 16 Nov | 007, 008 | tests pass; ten named cases show values equal to the data (SC-002); the researcher approves it; the old app removed (FR-024) | MVP merged by #101 (10 Nov); the shared password and V2-63 by a second pull request (11 Nov); left: key financials (T015), the named cases (T019), the daily dilution forecasts in the update (T018), insider clusters (T011), short interest (T014, last), the old app removed (T021) | — |
 
 ### v2 · 4 Holdout and hand-in (due 2026-11-18)
 
 | # | Feature | Owner | Dates | Depends on | Done when | Status | Issue |
 |---|---|---|---|---|---|---|---|
-| 010 | **Risk holdout test**: The one test of the chosen models on windows starting in 2023 or later: a guarded, logged run (constitution IV); the results go into the report as they came out. | researcher (1com) triggers; teammate and coding agent build | Mon 16 Nov | 008 | the guard log shows a single run; the report shows the results | built 10 Nov (branch `010-holdout-test`): `sentinel holdout --check / --freeze-levels / --run`, the frozen models (V2-59) with every simpler level (V2-60); run once by the researcher on 16 Nov | #69 |
+| 010 | **Risk holdout test**: The one test of the chosen models on windows starting in 2023 or later: a guarded, logged run (constitution IV); the results go into the report as they came out. | researcher (1com) triggers; teammate and coding agent build | Mon 16 Nov | 008 | the guard log shows a single run; the report shows the results | built 10 Nov, merged by #100: `sentinel holdout --check / --freeze-levels / --run`, the frozen models (V2-59) with every simpler level (V2-60); run once by the researcher on 16 Nov | #69 |
 | 019 | **Report and hand-in**: Product v1 on 17 November; the report on 18 November; both generated by commands from a clone plus the data. | researcher (1com), teammate, coding agent | Tue 17 – Wed 18 Nov | 008, 010, 017 | both handed in | not started | #71 |
 
 ### v2 · 5 Before Tiingo ends (due 2026-11-25)
