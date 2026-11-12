@@ -224,8 +224,10 @@ function renderDilution(c) {
       <tr><td class="muted">Companies</td>${yrs.map((r) => `<td class="muted">${fmt.count(r.rows)}</td>`).join("")}<td class="muted">${pb ? fmt.count(pb.rows) : ""}</td></tr></table>
     <h3>Main reasons</h3>
     <ul class="reasons">${up.map(reason).join("")}${down.map(reason).join("")}</ul>
-    <p class="note">▲ raises the chance, ▼ lowers it. Forecast for ${fmt.date(d.as_of)} by the approved model (decision V2-52),
-      the same frozen model the one-time test on 2023+ data checks. Details under Diagnostics.</p>`;
+    <p class="note">▲ raises the chance, ▼ lowers it. Forecast for ${fmt.date(d.as_of)}, made by the daily update with the approved
+      model (decision V2-52), the same frozen model the one-time test on 2023+ data checked. Details under Diagnostics.</p>
+    ${d.stale ? `<p class="note"><span class="chip warn">Not from the latest update</span> This forecast uses the data of
+      ${fmt.date(d.as_of)}: the latest update made no new one, so the newest data is not in it.</p>` : ""}`;
 }
 
 /* ---------- charts ---------- */

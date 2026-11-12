@@ -1,11 +1,12 @@
 """The dilution forecast shown by the app (026, V2-61).
 
-The approved model (V2-52) is the frozen object the holdout test scores (V2-59), loaded once from
-MLflow. It scores every eligible company still trading from the serving copy's latest feature rows
-(`app.company_card`), again whenever a new copy is published. For the MVP the scoring happens here;
-it moves into the daily update (009) afterwards. The reasons are the trees' per-feature
-contributions (LightGBM `pred_contrib`): how much each input moved this company's chance up or
-down from the average, in the trees' log-odds."""
+The daily update makes the forecasts (FR-005, T018, V2-72: `sentinel.scoring.daily`) with the
+approved model (V2-52), the frozen object the holdout test scored (V2-59), and the serving copy
+holds each company's newest one (`app.daily_score`). The app reads them again whenever a new copy
+is published, and shows only those of the approved model: it loads that model's identity once from
+MLflow, never computes a forecast itself. The reasons are the trees' per-feature contributions
+(LightGBM `pred_contrib`): how much each input moved this company's chance up or down from the
+average, in the trees' log-odds."""
 
 from __future__ import annotations
 
@@ -13,12 +14,8 @@ import json
 import os
 import threading
 
-import numpy as np
-import pandas as pd
-
 from sentinel import config
-from sentinel.models import dilution
-from sentinel.scoring.daily import CURRENT_DAYS
+from sentinel.scoring.daily import CURRENT_DAYS, QUESTION
 
 # plain-English names of the model's inputs and how to show their values
 FEATURES = {
@@ -91,30 +88,28 @@ FEATURES = {
 }
 
 
-def _value(v):
-    return None if v is None or (isinstance(v, float) and not np.isfinite(v)) else float(v)
-
-
 class Forecasts:
-    """The approved model's chance for every eligible company still trading, with its reasons."""
+    """The approved model's newest forecast for every eligible company still trading, with its
+    reasons, as the daily update stored them."""
 
     def __init__(self, p: config.Paths | None = None):
         self.p = p or config.paths()
         self._lock = threading.Lock()
-        self._model = None
+        self.version: str | None = None  # the approved model's; only its forecasts are shown
         self.info: dict = {}
         self.card: dict = {}
         self.by_cik: dict[str, dict] = {}
         self.as_of: str | None = None
+        self.current: set[str] = set()
         self._version = None
 
     def _load(self) -> None:
-        from sentinel import holdout  # MLflow is imported only when the app starts scoring
+        from sentinel.scoring import daily  # MLflow is imported only when the app first needs it
 
-        frozen = holdout.frozen_models(self.p, ("dilution",))["dilution"]
+        frozen = daily.approved(self.p)
         m = frozen["model"]
         tags = frozen["run"].data.tags
-        self._model = m
+        self.version = daily.version(frozen)
         self.info = {
             "model": "LightGBM (gradient-boosted trees), Platt-calibrated, five bands",
             "approved": "V2-52 (5 Nov 2026)",
@@ -131,59 +126,61 @@ class Forecasts:
         self.card = json.loads(path.read_text(encoding="utf-8"))["dilution"]
 
     def refresh(self, con) -> None:
-        """Score again when a new serving copy has been published."""
+        """Read the forecasts again when a new serving copy has been published."""
         version = os.stat(self.p.serving_db).st_mtime_ns
         if version == self._version:
             return
         with self._lock:
             if version == self._version:
                 return
-            if self._model is None:
+            if self.version is None:
                 self._load()
-            rows = con.execute("select * from app.company_card").df()
-            rows["as_of"] = pd.to_datetime(rows["as_of"])
-            newest = rows["as_of"].max()
-            current = rows[rows["as_of"] >= newest - pd.Timedelta(days=CURRENT_DAYS)]
-            pred = dilution.predict(self._model, current)
-            ok = pred["eligible"].to_numpy()
-            sub = current[ok].astype({c: float for c in self._model.features})
-            boost = self._model.trees.estimator
-            contrib = boost.model_.booster_.predict(
-                sub[self._model.trees.features], pred_contrib=True, num_iteration=boost.trees_
-            )
-            names = self._model.trees.features
-            by_cik = {}
-            for i, (_, row) in enumerate(sub.iterrows()):
-                p = pred.loc[row.name]
-                factors = [
-                    {
-                        "feature": f,
-                        "label": FEATURES.get(f, (f, "num"))[0],
-                        "kind": FEATURES.get(f, (f, "num"))[1],
-                        "value": _value(row[f]),
-                        "effect": float(contrib[i, j]),
-                    }
-                    for j, f in enumerate(names)
-                ]
-                factors.sort(key=lambda x: -abs(x["effect"]))
-                by_cik[str(row["cik"])] = {
-                    "chance": float(p["dilution_prob"]),
-                    "band": int(p["dilution_band"]),
-                    "band_name": str(p["dilution_band_name"]),
-                    "as_of": row["as_of"].date().isoformat(),
-                    "factors": factors,
+            current = con.execute(
+                "select cik from app.company_card where as_of >= "
+                "(select max(as_of) from app.company_card) - ?::integer",
+                [CURRENT_DAYS],
+            ).fetchall()
+            rows = con.execute(
+                "select cik, as_of, forecast_val, band, extra_json from app.daily_score "
+                "where question = ? and model_version = ?",
+                [QUESTION, self.version],
+            ).fetchall()
+            # one dict swapped in whole, so a page read during a refresh sees one day's forecasts
+            self.by_cik = {
+                str(cik): {
+                    "chance": float(chance),
+                    "band": int(band),
+                    "band_name": json.loads(extra)["band_name"],
+                    "as_of": as_of.isoformat(),
+                    "extra": extra,  # the reasons, read when the company's page is asked for
                 }
-            self.by_cik = by_cik
-            self.as_of = newest.date().isoformat()
-            self.current = set(current["cik"].astype(str))
+                for cik, as_of, chance, band, extra in rows
+            }
+            self.as_of = max((f["as_of"] for f in self.by_cik.values()), default=None)
+            self.current = {str(r[0]) for r in current}
             self._version = version
+
+    @staticmethod
+    def factors(extra: str) -> list[dict]:
+        """Every input of a forecast (its `extra_json`) in plain words, the largest contribution
+        first."""
+        out = []
+        for f, value, effect in json.loads(extra)["factors"]:
+            label, kind = FEATURES.get(f, (f, "num"))
+            out.append({"feature": f, "label": label, "kind": kind, "value": value,
+                        "effect": effect})  # fmt: skip
+        return out
 
     def for_company(self, cik: str, card: dict, listed: bool, facts: dict | None = None) -> dict:
         """The forecast, or why there is none (FR-004; the reasons checked by the named cases,
         T019): `facts` as `data.company` gives them (filer type, blank-check, prices, fund)."""
         f = self.by_cik.get(cik)
         if f is not None:
-            return {"available": True, **f}
+            out = {"available": True, **{k: v for k, v in f.items() if k != "extra"},
+                   "factors": self.factors(f["extra"])}  # fmt: skip
+            if card.get("as_of") and f["as_of"] < str(card["as_of"])[:10]:
+                out["stale"] = True  # the latest update made no forecast: shown with its date
+            return out
         facts = facts or {}
         if card.get("foreign_filer") or facts.get("filer_type") == "foreign":
             reason = (
@@ -203,10 +200,15 @@ class Forecasts:
                 "No forecast: our data has no share prices for this company, and the model "
                 "needs them."
             )
-        elif cik not in getattr(self, "current", set()):
+        elif cik not in self.current:
             reason = "No forecast: the company's shares have no recent price in our data."
         elif card.get("excluded") or facts.get("is_fund"):
             reason = "No forecast: funds, trusts and similar vehicles are outside this question."
+        elif card.get("eligible_dilution"):
+            reason = (
+                "No forecast yet: the daily update has not made one for this company (the "
+                "forecasts are made every weekday)."
+            )
         else:
             reason = (
                 "No forecast: the data needed (recent share counts and financial reports) is not "

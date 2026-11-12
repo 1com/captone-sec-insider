@@ -62,14 +62,14 @@ update:
   # weekday start time (local: at 10:00 Berlin the previous US day is complete, its prices and the
   # SEC index published around 04:00), its Windows Task Scheduler name, the WSL distribution it
   # starts, and the memory cap a scheduled run puts itself under. `score`: whether the update
-  # writes the day's forecasts (score.daily, 009); off until the researcher approves the models
-  # (V2-42, 4 Nov): the forecast log holds approved models only.
+  # writes the day's dilution forecasts (score.daily; 009, 026 FR-005) with the approved frozen
+  # model (V2-59); off until the models were approved (V2-42, 4 Nov), on since 12 Nov (V2-72).
   min_free_gb: 20
   schedule_time: "10:00"
   task_name: 'EDGAR-SENTINEL\daily update'
   distro: Ubuntu
   memory_max: 5G
-  score: false
+  score: true
 
 french:
   # Only the SIC-code ranges of the 12 and 49 industries (sectors). v1's factor and industry
