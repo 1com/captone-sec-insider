@@ -148,7 +148,7 @@ function renderFinancials(f, which = "quarters") {
   }
   const usual = which === "years" ? 12 : 3;
   const cell = (it, v) => {
-    if (!v) return `<td class="muted" title="Not reported">–</td>`;
+    if (!v) return `<td class="muted" title="Not in our data: not reported, or under a label (XBRL tag) we do not read">–</td>`;
     const txt = it.kind === "shares" ? fmt.count(v.value) : fmt.money(v.value);
     const len = it.kind === "flow" && v.months && v.months !== usual ? ` <span class="muted small">(${v.months} mo)</span>` : "";
     return `<td class="nowrap" title="Filed ${fmt.date(v.filed)}">${txt}${len}</td>`;
