@@ -18,6 +18,10 @@ dist/
 *.duckdb
 *.duckdb.wal
 *.part
+# The holdout test's three records (010, run once on 12 Nov 2026): MLflow stored their files here,
+# outside data/, and data/mlflow.db points to them. Never delete; a copy is in
+# data/backup/after-holdout/ (decision V2-69).
+/mlruns/
 
 # Editors and operating systems
 .DS_Store
