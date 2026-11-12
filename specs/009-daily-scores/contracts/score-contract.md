@@ -59,3 +59,15 @@ The web API and UI consume:
 - `app.daily_score`: View or copy of latest active forecasts from `score.daily`.
 - `app.live_outcomes`: Out-of-sample evaluated track record from `score.outcome`.
 
+## 3. Since 12 Nov 2026 (V2-72)
+
+- `score.daily` holds the dilution forecasts of the approved frozen model (V2-59) with
+  `model_version` = `lightgbm-<frozen MLflow run id>`, `forecast_val` the calibrated chance of a
+  10%+ rise in shares outstanding within six months, `band` 1-5, and `extra_json` =
+  `{"band_name": ..., "factors": [[feature, value, contribution], ...]}`: every input, the largest
+  contribution (LightGBM `pred_contrib`, the trees' log-odds) first, a missing value `null`.
+- `model.registry.status` = `approved` for the model the researcher approved and the holdout test
+  scored; only such models' forecasts are published (`app.daily_score`, `app.live_outcomes`).
+- `app.daily_score`: each company's newest approved forecast whose day is within 7 days of the
+  newest; always present, empty when the build has none.
+

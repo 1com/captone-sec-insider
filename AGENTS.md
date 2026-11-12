@@ -167,8 +167,8 @@ holds and what does not:
   year (the textbook rule would keep the ridge); bands rise every year; H-R1 to H-R6 supported;
   frozen candidate passes the dry run. **006 approved on 9 Nov (V2-55): LightGBM**, packaged in
   `src/sentinel/models/results_move.py` (the notebook imports it, same numbers); `sentinel train` and
-  `sentinel score results_move` work; the paused daily scores store the chance above 10% (V2-53)
-  and live outcomes compare it with a move above 10%. Merged by #94 (9 Nov), #77 closed. **005 built
+  `sentinel score results_move` work; the daily scores (then paused; since V2-72 dilution only)
+  stored the chance above 10% (V2-53), compared with a move above 10% in live outcomes. Merged by #94 (9 Nov), #77 closed. **005 built
   9 Nov** (branch `005-volatility-model`, V2-48 cutoff: approved by 11 Nov evening or left out):
   deciding measure the mean absolute log error (V2-56); ridge and LightGBM forecast the change from
   past volatility; the 80% range on all earlier years' out-of-sample errors (walk-forward from
@@ -177,7 +177,7 @@ holds and what does not:
   ridge, 0.326 rule, 0.346 baseline, best every year; range coverage 78/72/84/88%. **005 approved
   on 9 Nov (V2-58)**, packaged in `src/sentinel/models/volatility.py` (the notebook imports it,
   same numbers); `sentinel train volatility` computes its range history from 2014 itself
-  (minutes); the paused daily scores use its bands. Merged by #96 (9 Nov), #67 closed. All three
+  (minutes); the daily scores (then paused; since V2-72 dilution only) used its bands. Merged by #96 (9 Nov), #67 closed. All three
   models are approved and in `main`. **008 built 9 Nov** (branch `008-model-report`): each model
   notebook ends by recording its tables in MLflow (`sentinel.models.report.record`); `sentinel
   report` writes `docs/report/model_report.md`, figures and `model_card.json` from the newest
@@ -198,16 +198,26 @@ holds and what does not:
   then `sentinel report` adds the results unedited (`specs/010-holdout-test/quickstart.md`). The
   app now serves on port 8090 (8000 and 8080 belong to other projects; `sentinel serve` refuses a
   busy port, the researcher, 10 Nov). 010 merged by #100 (10 Nov); run once on 12 Nov (V2-69), its report merged by the
-  pull request of 12 Nov, which closes #69. Before the daily scores resume (009): train the approved
-  models into `data/models/` (`sentinel train results_move`, `sentinel train dilution`; the folder
-  still holds Gemini's unapproved files of 2 Nov) and give `prev4_mean` the moves after 2022 (sealed until
-  the holdout test; usable since it ran, V2-69).
+  pull request of 12 Nov, which closes #69. The daily update makes the dilution forecasts with the
+  frozen approved model since 12 Nov (V2-72, below); it never reads `data/models/`, which still
+  holds Gemini's unapproved files of 2 Nov (only the by-hand `sentinel score` command reads that
+  folder). Scoring volatility or the results-day move daily would need `prev4_mean` given the moves
+  after 2022 (usable since the holdout ran, V2-69); not planned (V2-61).
 - **Report (008):** Gemini's typed-in report (numbers contradicting MLflow) was replaced by the
   generated one (#98, 10 Nov; see above).
-- **Daily scores (009):** paused until the researcher approves the models (V2-42,
-  `update.score: false`); when on, only companies still trading are scored. Live outcomes waited for
-  the holdout test (010), run on 12 Nov (V2-69): they may now be computed. `score.daily` holds one
-  day (4 Nov) from Gemini's models.
+- **Daily scores (009), V2-72 (12 Nov; the researcher chose to build it before the hand-in):** the
+  update (`update.score: true`) makes the **dilution forecasts only** for the companies still
+  trading, with the frozen object the holdout test scored (`holdout.frozen_models`, V2-59), and
+  stores each in `score.daily` with every input's value and contribution (the reasons; about 15 MB
+  of text a day before compression); the model is `approved` in `model.registry`; `sentinel
+  publish` serves approved models' forecasts only (`app.daily_score`); the 026 app reads them and
+  never computes one. Gemini's 35,225 rows of 2 and 4 Nov (all three questions, unapproved
+  `lightgbm_v1`) stay in the log, never served. On the data of 11 Nov: 4,095 forecasts in 8 s
+  (1.1 GB); the app's panel for all 6,922 current companies identical before and after; the 13
+  named cases pass. **To check after the 10:00 run of 13 Nov** (009 T013): the log's forecast line
+  and status, a same-day rerun `nothing_new`, `sentinel verify` identical. Outcomes
+  (`score.outcome`): the first windows close in May 2027; the outcome code reads `label.dilution`,
+  which stops at 2022, so live answers need the label code over current data first.
 - **App (011–018):** serves Tiingo-derived prices (8.1 M rows, 4,840 companies) without a filter;
   a ticker shared by several companies opens an arbitrary one (`/stock/DIS` can be TWDC
   Enterprises, 2019); the price chart is broken (JSON escaped inside `<script>`); the insider
@@ -235,9 +245,10 @@ holds and what does not:
   2012 stays a fund (`ref.company.is_fund`) and gets no prices, so former funds now operating
   (Global Self Storage, Seven Hills Realty, NexPoint Diversified Real Estate; 7 listed in all)
   have no prices or forecast: a pipeline rule, for the researcher to decide. Key financials as
-  first filed added (T015, 12 Nov; checked by the named cases). Left
-  (`specs/026-stock-research-app/tasks.md`): daily dilution forecasts in the update (T018), insider clusters (T011), short interest (T014, last), the old app removed
-  (T021).
+  first filed added (T015, 12 Nov; checked by the named cases). The daily dilution forecasts in
+  the update (T018, 12 Nov, V2-72; see "Daily scores" below). Left
+  (`specs/026-stock-research-app/tasks.md`): insider clusters (T011), short interest (T014, last),
+  the old app removed (T021).
 - **V2-63 (10 Nov):** a stray Form 4 of another company naming a ticker (DoorDash giving FN) no
   longer cuts a company's price history; rebuilt on 10 Nov with the researcher's agreement (121
   listed companies' histories restored).
@@ -373,18 +384,18 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
 ### Step 6 · 008 Model report, 009 Daily scores
 - [X] 008 (#79): `sentinel report` regenerates the report from the notebooks' MLflow records
   (merged by #98, 10 Nov).
-- [ ] 009 (#74): `sentinel update` scores every covered company daily into `score.daily`; paused
-  (V2-42) until the approved models are trained into `data/models/`; `score.outcome` waited for
-  the holdout test, run on 12 Nov (V2-69).
+- [ ] 009 (#74): since 12 Nov (V2-72) `sentinel update` makes the dilution forecasts of every
+  company still trading with the frozen approved model into `score.daily`, published to the app.
+  Left: T013, the first scheduled run with forecasts checked (13 Nov: log, rerun, verify).
+  Outcomes once the first windows close (May 2027).
 
 ### Step 7 · The app: 026 stock research app (V2-61), with the researcher
 - [X] 026 MVP (10 Nov, #101): search, facts, dilution panel, price and volume chart, insiders,
   filings in plain English, short-sale share, diagnostics; on this computer only (V2-71).
 - [ ] 026 later tasks, in this order: key financials as first filed (T015: done 12 Nov); ten named cases
   checked against the data (T019, SC-002: done 12 Nov, 13 cases); the daily dilution forecasts
-  in the update (T018,
-  with 009); insider clusters (T011) and short interest (T014) if time allows; the old app
-  removed once the researcher approves 026 (T021).
+  in the update (T018, with 009: done 12 Nov, V2-72); insider clusters (T011) and short interest
+  (T014) if time allows; the old app removed once the researcher approves 026 (T021).
 - Gemini's old app, kept until T021 (V2-61 replaces it; its faults are in section 7):
 - [ ] 011–017 (built by Gemini, replaced by 026): on branch `011-app-design`. Design and forecast contract (`specs/011-app-design/contracts/`),
   FastAPI read-only API over `data/serving.duckdb` (`src/sentinel/app/`, on port 8090, refusing a busy port), stock research terminal

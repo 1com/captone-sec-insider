@@ -55,7 +55,15 @@ The researcher asked for a presentable MVP first (10 Nov); tasks after the MVP a
 
 - [X] T017 Tests: `tests/unit/test_web_app.py` (search, facts, split adjustment, insider totals,
   filings, no volatility or results-day forecast, missing serving copy)
-- [ ] T018 Daily forecasts in the daily update (009, dilution only) instead of the app (later)
+- [X] T018 Daily forecasts in the daily update (009, dilution only; V2-72, 12 Nov):
+  `src/sentinel/scoring/daily.py` scores the companies still trading with the frozen approved
+  model (V2-59) into `score.daily`, with every input's value and contribution; `sentinel publish`
+  serves approved models' forecasts only (`app.daily_score`); the app reads them, never computes
+  one, marks a forecast older than the company's data and says when a company in the question has
+  none yet; `update.score` on. Tests in `tests/unit/test_daily_scores.py`, `test_serving.py`,
+  `test_update.py`, `test_web_app.py`. On 12 Nov the dilution panel of all 6,922 current companies
+  was identical before and after; the 13 named cases pass, now comparing every stored reason
+  with the frozen model
 - [X] T019 Ten named cases checked against the data (SC-002, SC-005): `src/sentinel/web/named_cases.py`
   (`python -m sentinel.web.named_cases`) compares every section of 13 named companies' pages, from
   the app's own endpoints, with the build database, the frozen dilution model and the SEC's files,
