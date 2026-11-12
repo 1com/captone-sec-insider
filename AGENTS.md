@@ -223,9 +223,10 @@ holds and what does not:
   chart (TradingView Lightweight Charts 4.2.0, vendored, V2-62) with insider and offering markers,
   monthly insider buys and sells with the trade table, filings in plain English
   (`web/glossary.py`), FINRA's short-sale share, diagnostics. A missing serving copy shows an error
-  and no data. MVP merged by #101 (10 Nov). It shows Tiingo-derived prices, so it is shared only
-  behind one password (`WEB_PASSWORD` in `.env`; `scripts/start_web.sh` opens a Tailscale Funnel
-  link only when it is set, otherwise the tailnet only; V2-64): never open the link without it.
+  and no data. MVP merged by #101 (10 Nov). It shows Tiingo-derived prices; since 12 Nov it runs
+  on this computer only, http://localhost:8100, with no Tailscale or other link (the researcher;
+  V2-71, replacing V2-64's password link; `scripts/start_web.sh` never touches Tailscale). Never
+  share it again without the researcher's decision.
   The named cases checked (T019, 12 Nov): `python -m sentinel.web.named_cases` compares every
   section of 13 named companies' pages with the build database, the frozen model and the SEC's
   files; the first run found two wrong reasons for a missing forecast (a blank-check company, a
@@ -378,7 +379,7 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
 
 ### Step 7 · The app: 026 stock research app (V2-61), with the researcher
 - [X] 026 MVP (10 Nov, #101): search, facts, dilution panel, price and volume chart, insiders,
-  filings in plain English, short-sale share, diagnostics; shared behind one password (V2-64).
+  filings in plain English, short-sale share, diagnostics; on this computer only (V2-71).
 - [ ] 026 later tasks, in this order: key financials as first filed (T015); ten named cases
   checked against the data (T019, SC-002: done 12 Nov, 13 cases); the daily dilution forecasts
   in the update (T018,
@@ -390,7 +391,7 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
   with the four Sentinel intelligence panels, live interactive price chart, reported financials, Form 4 insider activity,
   and SEC filings. Multi-factor screener, market insider feed, and model card view. Tested with 8 unit tests in
   `tests/unit/test_app_api.py`. CLI entrypoint: `sentinel serve` (port 8090, this machine only by default).
-- [ ] 018 (026 is shared behind one password, V2-64; Gemini's Docker files are the old app's): Hosting / production deployment configuration with no Tiingo-derived value on a public page. Dockerfile and docker-compose.yml serving read-only over port 8090, audited by test_public_data.py.
+- [ ] 018 (026 runs on this computer only, V2-71; Gemini's Docker files are the old app's): Hosting / production deployment configuration with no Tiingo-derived value on a public page. Dockerfile and docker-compose.yml serving read-only over port 8090, audited by test_public_data.py.
 
 ### Step 7b · 027 Price history repair, then retrain and test (V2-65, V2-66)
 - [X] Spec, plan, tasks; the audit and its baseline; the repair with tests; the old tickers'

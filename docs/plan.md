@@ -49,8 +49,8 @@ branch `NNN-name`), so two people specifying at once never collide.
    verify`; the three model notebooks re-run and approved again (V2-68), their export kept, the
    levels frozen again, `sentinel holdout --check` passing; merged by #103. **Done on 12 Nov: the
    holdout test (010), run once (V2-69)**, its results added unedited to the model report.
-6. **026 stock research app** (V2-61; replaces 011–017): MVP merged (#101, 10 Nov), shared by a
-   password link (V2-64); the named cases checked against the data (12 Nov, 13 cases, all pass).
+6. **026 stock research app** (V2-61; replaces 011–017): MVP merged (#101, 10 Nov), on this
+   computer only (V2-71); the named cases checked against the data (12 Nov, 13 cases, all pass).
    Next: key financials, the daily dilution forecasts in the update (009, dilution only), then insider clusters and short
    interest if time allows; the old app removed once the researcher approves the new one.
    **025** (the unusual-volume tracker, V2-51) only if time allows.
