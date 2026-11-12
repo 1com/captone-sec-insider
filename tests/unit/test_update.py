@@ -102,10 +102,39 @@ def test_an_update_equals_a_full_rebuild_and_a_rerun_changes_nothing(world):
     assert verifier.verify(p, layers=("staging", "test"), echo=QUIET) == []
 
 
-def test_scoring_waits_for_approved_models(world):
+def _snapshot(con, p, echo) -> dict:
+    """The stand-in for the feature layer: scoring needs `feature.snapshot`."""
+    con.execute("create schema if not exists feature")
+    con.execute("create or replace table feature.snapshot as select 1 as x")
+    return {"rows": 1}
+
+
+def test_the_forecasts_follow_the_setting_and_a_failure_makes_the_run_partial(world, monkeypatch):
+    """`update.score` (V2-72: on): the day's dilution forecasts after the layers; a scoring failure
+    (no approved model, V2-59) keeps the data built and the run is partial."""
+    from sentinel.scoring import daily
+
     p, _, options = world
+    text = p.sources_file.read_text()
+    assert "  score: true\n" in text  # the project's setting since 12 Nov (V2-72)
+    p.sources_file.write_text(text.replace("  score: true\n", "  score: false\n"))
     result = updater.update(p, today=DAYS[0], **options)
     assert "scoring: paused (update.score in config/sources.yaml)" in result["log_file"].read_text()
+    p.sources_file.write_text(text)
+    monkeypatch.setitem(build.LAYERS, "test", {"twice": _twice, "snapshot": _snapshot})
+    scored = []
+    monkeypatch.setattr(daily, "score_snapshot", lambda con, p, echo: scored.append(p))
+    assert updater.update(p, today=DAYS[1], **options)["status"] == "complete"
+    assert scored == [p]
+
+    def refused(con, p, echo):
+        raise RuntimeError("no approved frozen model for dilution")
+
+    monkeypatch.setattr(daily, "score_snapshot", refused)
+    result = updater.update(p, today=DAYS[2], **options)
+    assert result["status"] == "partial"
+    assert result["errors"] == ["scoring: RuntimeError: no approved frozen model for dilution"]
+    assert _scalar(p, "select count(*) from core.test_close") == 3  # the data still built
 
 
 def test_missed_days_are_caught_up_in_order(world):

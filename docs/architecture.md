@@ -142,9 +142,9 @@ blank-check companies) and `eligible` (the rows the models learn from); a foreig
 |---|---|
 | `label.volatility`, `label.dilution` | per month-end row: the registered answer and the date its window ends; development only (windows ending by 31 December 2022); the step refuses to run unless `config/risk_params.yaml` equals its `prereg-risk-v5` version |
 | `label.results_move` | per results release: the market-adjusted move, the mean of the previous four (the naive baseline); `as_of` is the release-eve row its features come from |
-| `model.registry` | model version, risk, training data version, test results, status (live / candidate / retired), MLflow run (next step) |
-| `score.daily` | every forecast every day: security, risk, model version, value, band, coverage level; append only (next step) |
-| `score.outcome` | each forecast's outcome once its window closes: the live hit rates (next step) |
+| `model.registry` | per question and model version: algorithm, training end, number of inputs, status (`approved`: the frozen model the researcher approved and the holdout test scored, V2-59, V2-72) |
+| `score.daily` | every forecast every day: company, question, model version (`lightgbm-<frozen MLflow run>`), value, band, coverage level, and for dilution every input's value and contribution; a log, never rebuilt (since 12 Nov: dilution only, V2-72) |
+| `score.outcome` | each forecast's outcome once its window closes: the live hit rates (the first dilution windows close in May 2027) |
 
 ## Layer 6: serving
 

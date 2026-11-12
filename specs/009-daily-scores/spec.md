@@ -4,7 +4,16 @@
 
 **Created**: 2026-11-02
 
-**Status**: Draft
+**Status**: Dilution forecasts in use since 12 Nov 2026 (V2-72); see the note below
+
+> **Amended 12 Nov 2026 (decision V2-72; feature 026, T018).** Gemini's version of 2 Nov scored
+> all three questions with files from `data/models/` that the researcher never approved; it stayed
+> paused (V2-42). It was redone: the update now makes the **dilution forecasts only** (the app shows
+> no volatility or results-day forecast, V2-61) with the **frozen approved object the holdout test
+> scored** (V2-59, loaded from MLflow, never from `data/models/`), stores every input's value and
+> contribution with each forecast, registers the model as `approved` in `model.registry`, and
+> publishes approved models' forecasts only. Outcomes wait for the first windows to close (May
+> 2027). Where the text below disagrees, this note wins.
 
 **Input**: User description: "Step 6: implement daily scores and live outcomes (feature 009, issue #74)."
 

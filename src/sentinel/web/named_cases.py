@@ -25,6 +25,7 @@ import pandas as pd
 
 from sentinel import config, db
 from sentinel.models import dilution
+from sentinel.scoring import daily
 from sentinel.web.data import FINANCIALS
 
 CASES = [  # (CIK, ticker searched, what it stands for: SC-002's kinds and earlier fixes)
@@ -132,6 +133,8 @@ def expected_reason(facts: dict, card: dict) -> str:
         return "no recent price"
     if facts.get("is_fund"):
         return "funds"
+    if card.get("eligible_dilution"):
+        return "No forecast yet"
     return "not complete"
 
 
@@ -254,10 +257,17 @@ def check(page: dict, b: duckdb.DuckDBPyConnection, raw: Path, model, cik: str) 
         rows = snap.copy()
         rows["as_of"] = pd.to_datetime(rows["as_of"])
         pred = dilution.predict(model, rows).iloc[0]
+        again = daily.forecasts(model, rows).iloc[0]["factors"]
+        shown = [(f["feature"], f["value"], f["effect"]) for f in d.get("factors") or []]
+        reasons = len(shown) == len(again) and all(
+            s[0] == a[0] and _same(s[1], a[1], 1e-9) and _same(s[2], a[2], 1e-9)
+            for s, a in zip(shown, again, strict=True)
+        )
         ok = (_same(d["chance"], float(pred["dilution_prob"]), 1e-9)
               and int(d["band"]) == int(pred["dilution_band"])
-              and _same(d["as_of"], row["as_of"]))  # fmt: skip
-        out["dilution"] = (ok, "chance, band and date against the frozen model on the data's row")
+              and _same(d["as_of"], row["as_of"]) and reasons and not d.get("stale"))  # fmt: skip
+        out["dilution"] = (ok, "chance, band, date and every reason (value and contribution) "
+                               "against the frozen model on the data's row")  # fmt: skip
     else:
         want = expected_reason(facts, card)
         given = d.get("reason", "")

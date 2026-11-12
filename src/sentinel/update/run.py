@@ -4,8 +4,9 @@ In order: take the update lock; refuse below `update.min_free_gb` of free disk; 
 source (`raw.run("all")`: each source from where it last stopped, so missed days are caught up)
 in a child process, so the memory the downloads leave behind is returned before staging; re-stage
 the sources with stored files not yet applied (`ops.staged_file`); rebuild the layers above
-staging in full; score the companies still trading with the frozen models (`score.daily`); publish
-the serving copy and write the export, keeping the previous copy to report what changed; record
+staging in full; give the companies still trading their dilution forecasts with the approved frozen
+model (`score.daily`; 026 FR-005, V2-72; `update.score` in config/sources.yaml); publish the serving
+copy and write the export, keeping the previous copy to report what changed; record
 the run in `ops` and in `data/logs/update-<date>.log`.
 
 A step's own check failing (`db.StepFailed`, e.g. the calendar refusing an old SPY file) keeps
@@ -99,9 +100,9 @@ def fetch_apart(p: Paths, today: date) -> tuple[list[raw.FetchReport], list[str]
 
 
 def _score(con, p: Paths, echo, errors: list[str]) -> None:
-    """Today's forecasts (`score.daily`, feature 009). Live outcomes (`score.outcome`) are not
-    recorded: a forecast made now has a window starting after 2022, whose answer stays sealed
-    until the holdout test (010) has run."""
+    """Today's dilution forecasts by the approved frozen model (`score.daily`; 009, 026 FR-005,
+    V2-72). Their outcomes (`score.outcome`) are not recorded yet: the first six-month windows
+    close in May 2027."""
     from sentinel.scoring import daily
 
     try:

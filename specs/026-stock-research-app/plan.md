@@ -8,9 +8,10 @@ A new package `src/sentinel/web/` (separate from Gemini's `src/sentinel/app/`, w
 researcher approves the new app): FastAPI serving one server-rendered page and small JSON endpoints,
 read-only over the serving copy. The page is drawn by one plain JavaScript file with TradingView
 Lightweight Charts 4.2.0 (vendored, Apache-2.0; V2-62). The dilution forecast comes from the frozen
-approved model (V2-52, V2-59), loaded once from MLflow and applied to the latest feature rows
-(`app.company_card`) of every eligible company still trading, again whenever a new serving copy is
-published; its reasons are the trees' per-feature contributions. The SEC forms and 8-K items are
+approved model (V2-52, V2-59), applied to the latest feature rows of every eligible company still
+trading: in the MVP by the app, whenever a new serving copy was published; since T018 (12 Nov, V2-72)
+by the daily update, which stores each forecast in `score.daily` and publishes it in
+`app.daily_score`, read by the app. Its reasons are the trees' per-feature contributions. The SEC forms and 8-K items are
 explained by a glossary module. `sentinel web` serves it on port 8100 (checked free in WSL and on
 Windows), this machine only by default.
 
@@ -22,8 +23,9 @@ under "After the MVP" and in `tasks.md`.
 **Language/Version**: Python 3.14 (uv); JavaScript in the browser (no build step).
 **Dependencies**: existing (FastAPI, Jinja2, DuckDB, pandas, LightGBM, MLflow); new: Lightweight
 Charts 4.2.0, one vendored file in `src/sentinel/web/static/` (V2-62).
-**Storage**: reads `data/serving.duckdb` (read-only, one connection per request, 2 GB cap), the
-frozen model in MLflow (`data/mlflow.db`) and `docs/report/model_card.json` (bands, test years).
+**Storage**: reads `data/serving.duckdb` (read-only, one connection per request, 2 GB cap; the
+forecasts in `app.daily_score` since T018), the frozen model's identity in MLflow (`data/mlflow.db`)
+and `docs/report/model_card.json` (bands, test years).
 **Testing**: pytest on a small test copy of the serving tables; the glossary's coverage of every
 form type with at least 100 filings and every 8-K item.
 **Constraints**: no invented or typed-in value; no volatility or results-day forecast; the app binds
@@ -46,7 +48,7 @@ no public page); the port checked free.
 ```text
 src/sentinel/web/main.py        the app: the page and the JSON endpoints
 src/sentinel/web/data.py        read-only queries of the serving copy; NoData when it is missing
-src/sentinel/web/forecast.py    the frozen model's chances, bands and reasons for current companies
+src/sentinel/web/forecast.py    the stored forecasts of the approved model, with their reasons
 src/sentinel/web/glossary.py    plain-English names of SEC forms and 8-K items
 src/sentinel/web/templates/     index.html (one page)
 src/sentinel/web/static/        app.js, app.css, lightweight-charts.js (4.2.0)
@@ -56,7 +58,8 @@ tests/unit/test_web_app.py, tests/unit/test_web_glossary.py
 
 ## After the MVP
 
-The daily forecasts moved into the daily update (009, dilution only, FR-005); insider clusters
+The daily forecasts moved into the daily update (009, dilution only, FR-005; T018, V2-72, done
+12 Nov: `src/sentinel/scoring/daily.py`, read by `web/forecast.py`); insider clusters
 highlighted (FR-008); key financials (User Story 6); short interest as a new source (researcher,
 10 Nov: built last); a page-number test against the data for ten named cases (SC-002, SC-005);
 removing the old app (FR-024, with the researcher's agreement).

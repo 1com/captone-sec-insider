@@ -47,3 +47,21 @@ description: "Task list for feature 009: Daily scores and live outcomes"
 ## Phase 5: Polish & Verification
 
 - [X] T008 Run code checks (`ruff check`, `ruff format`), execute `uv run pytest -q`, and verify pipeline determinism
+
+---
+
+## Phase 6: Redone for the approved model (V2-72, 12 Nov 2026; feature 026 T018)
+
+- [X] T009 `src/sentinel/scoring/daily.py`: dilution only, with the frozen approved model from
+  MLflow (`holdout.frozen_models`, V2-59), never `data/models/`; every input's value and
+  contribution in `extra_json`; the model registered as `approved` in `model.registry`
+- [X] T010 `src/sentinel/serving/publish.py`: `app.daily_score` holds each company's newest
+  forecast of the last week from approved models only (Gemini's rows of 2 and 4 Nov stay in the
+  log, never served); always present, empty when there is none
+- [X] T011 The app (026) reads the stored forecasts instead of computing them
+  (`src/sentinel/web/forecast.py`); `update.score: true` in `config/sources.yaml`
+- [X] T012 Tests (`tests/unit/test_daily_scores.py`, `test_serving.py`, `test_update.py`,
+  `test_web_app.py`); on the data of 11 Nov: 4,095 forecasts in 8 s (1.1 GB), the app's dilution
+  panel for all 6,922 current companies identical before and after, the 13 named cases pass
+- [ ] T013 The first scheduled run with forecasts: its log, a same-day rerun `nothing_new`,
+  `sentinel verify` identical

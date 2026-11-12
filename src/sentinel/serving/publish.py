@@ -18,7 +18,9 @@ sees a half-written file; the app and anyone exploring open it read-only.
 - `app.screener`: one row per priced company with the screeners' filters.
 - `app.freshness`: each dataset's latest date, for "data as of" on every page.
 
-The risk forecasts and the model card join these once the models exist (plan steps 5 and 8).
+- `app.daily_score`: each company's newest dilution forecast of the last week, from approved
+  models only, with its band and reasons (009, 026 FR-005, V2-72); empty when the build has none.
+- `app.live_outcomes`: those forecasts' outcomes once their windows close (none before May 2027).
 """
 
 import os
@@ -132,6 +134,13 @@ TABLES = {
         order by c.cik
     """,
 }
+# `app.daily_score` when the build has no forecasts of an approved model: empty, same columns
+NO_SCORES = """
+    select null::VARCHAR as cik, null::DATE as as_of, null::VARCHAR as question,
+           null::VARCHAR as model_version, null::DOUBLE as forecast_val, null::INTEGER as band,
+           null::VARCHAR as coverage, null::VARCHAR as extra_json, null::TIMESTAMP as scored_at
+    where false
+"""
 
 
 def publish(p: Paths, echo=print) -> dict:
@@ -161,17 +170,29 @@ def publish(p: Paths, echo=print) -> dict:
             con.execute("create temp view _blank_check as select null::VARCHAR as cik, "
                         "null::VARCHAR as former_name, null::DATE as valid_to, "
                         "null::BOOLEAN as counted where false")  # fmt: skip
-        if "score.daily" in existing_b:  # the log keeps every day; the app shows today's
-            all_tables["daily_score"] = (
-                "select * from b.score.daily where as_of >= "
-                "(select max(as_of) from b.score.daily) - 7 qualify row_number() over "
-                "(partition by cik, question order by as_of desc, scored_at desc) = 1 "
-                "order by cik, question"
-            )
-        if "score.outcome" in existing_b:
-            all_tables["live_outcomes"] = (
-                "select * from b.score.outcome order by cik, as_of, question"
-            )
+        # the forecasts (009, 026 FR-005): the log keeps every day and every model; the app gets
+        # each company's newest forecast of the last week, from approved models only (V2-72: the
+        # unapproved models' rows of 2 and 4 Nov stay in the log, never served)
+        if {"score.daily", "model.registry"} <= existing_b:
+            all_tables["daily_score"] = """
+                with approved as (
+                    select d.* from b.score.daily d join b.model.registry r
+                        using (question, model_version)
+                    where r.status = 'approved')
+                select * from approved
+                qualify as_of >= max(as_of) over (partition by question) - 7
+                    and row_number() over (partition by cik, question
+                                           order by as_of desc, scored_at desc) = 1
+                order by cik, question
+            """
+        else:
+            all_tables["daily_score"] = NO_SCORES
+        if {"score.outcome", "model.registry"} <= existing_b:
+            all_tables["live_outcomes"] = """
+                select o.* from b.score.outcome o join b.model.registry r
+                    using (question, model_version)
+                where r.status = 'approved' order by cik, as_of, question
+            """
 
         for name, sql in all_tables.items():
             con.execute(f"create table app.{name} as {sql.format(kinds=kinds)}")

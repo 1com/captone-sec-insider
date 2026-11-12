@@ -191,3 +191,51 @@ def test_with_a_password_every_request_needs_it(client, monkeypatch):
     assert client.get("/api/search?q=dis", headers={"Authorization": bad}).status_code == 401
     assert client.get("/api/search?q=dis", headers={"Authorization": good}).status_code == 200
     assert client.get("/", headers={"Authorization": good}).status_code == 200
+
+
+def test_the_page_shows_the_daily_updates_forecasts_of_the_approved_model_only(tmp_path):
+    """T018, V2-72: the app reads the stored forecasts (never computes one) and shows only the
+    approved model's; a forecast older than the company's data says so; a company in the question
+    without one is told it has none yet."""
+    import json
+
+    from sentinel.web import forecast
+
+    path = tmp_path / "serving.duckdb"
+    extra = json.dumps({"band_name": "4 · High risk", "factors": [
+        ["n_offering_12m", 2.0, 0.8], ["log_market_cap", None, -0.2]]})  # fmt: skip
+    with duckdb.connect(str(path)) as con:
+        con.execute("create schema app")
+        con.execute("create table app.company_card as select * from (values "
+                    "('1', DATE '2026-11-10'), ('2', DATE '2026-11-10'), ('3', DATE '2026-11-10'), "
+                    "('4', DATE '2026-10-01')) t(cik, as_of)")  # fmt: skip
+        con.execute("create table app.daily_score as select * from (values "
+                    "('1', DATE '2026-11-10', 'dilution', 'lightgbm-ok', 0.31, 4, 'full', $e, "
+                    " TIMESTAMP '2026-11-10 10:30'), "
+                    "('2', DATE '2026-11-09', 'dilution', 'lightgbm-ok', 0.05, 2, 'full', $e, "
+                    " TIMESTAMP '2026-11-09 10:30'), "
+                    "('3', DATE '2026-11-10', 'dilution', 'lightgbm_v1', 0.9, 5, 'full', $e, "
+                    " TIMESTAMP '2026-11-10 10:31')) t(cik, as_of, question, model_version, "
+                    "forecast_val, band, coverage, extra_json, scored_at)",
+                    {"e": extra})  # fmt: skip
+    fc = forecast.Forecasts(dataclasses.replace(config.paths(), serving_db=path))
+    fc._load = lambda: setattr(fc, "version", "lightgbm-ok")  # the approved model, no MLflow
+    with duckdb.connect(str(path), read_only=True) as con:
+        fc.refresh(con)
+    assert set(fc.by_cik) == {"1", "2"} and fc.as_of == "2026-11-10"
+    assert fc.current == {"1", "2", "3"}  # 4: no price in the last week
+    one = fc.for_company("1", {"as_of": "2026-11-10"}, True, {})
+    assert {k: one[k] for k in ("available", "chance", "band", "band_name", "as_of")} == {
+        "available": True, "chance": 0.31, "band": 4, "band_name": "4 · High risk",
+        "as_of": "2026-11-10"}  # fmt: skip
+    assert "stale" not in one and "extra" not in one
+    assert one["factors"] == [
+        {"feature": "n_offering_12m", "label": "Share offering filings, 12 months",
+         "kind": "count", "value": 2.0, "effect": 0.8},
+        {"feature": "log_market_cap", "label": "Market value of the company",
+         "kind": "logmoney", "value": None, "effect": -0.2}]  # fmt: skip
+    assert fc.for_company("2", {"as_of": "2026-11-10"}, True, {})["stale"] is True
+    three = fc.for_company("3", {"as_of": "2026-11-10", "eligible_dilution": True}, True,
+                           {"has_prices": True})  # fmt: skip
+    assert not three["available"] and three["reason"].startswith("No forecast yet")
+    assert fc.top(1) == [{"cik": "1", "chance": 0.31, "band": 4}]

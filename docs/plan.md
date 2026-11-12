@@ -24,7 +24,8 @@ Three tracks run in parallel and meet only at three written contracts, so no one
 | The forecast contract: the table and columns each forecast is published in | app (011), agreed with data science | app; filled by 009 | `specs/011-app-design/contracts/` |
 
 The app is built against the serving copy as it is today, with forecast panels as placeholders;
-when the daily scores (009) land, the placeholders fill without changing the pages.
+when the daily scores (009) land, the placeholders fill without changing the pages. (026, which
+replaced 011–017, reads the daily dilution forecasts since 12 Nov, V2-72.)
 
 Every feature has a fixed number; its spec-kit folder and branch use it (`specs/NNN-name/`,
 branch `NNN-name`), so two people specifying at once never collide.
@@ -37,8 +38,8 @@ branch `NNN-name`), so two people specifying at once never collide.
 2. **Done (9 Nov): the three models**, each redone in its notebook (V2-48, V2-49, V2-50) and
    approved by the researcher: 007 dilution (V2-52, #92), 006 results-day move (V2-55, #94), 005
    volatility (V2-58, #96); packaged in `src/sentinel/models/`, the notebooks import them and give
-   the same numbers. The daily scores (009) stay paused until the approved models are trained into
-   `data/models/` (V2-42).
+   the same numbers. The daily scores (009) were paused until then (V2-42); since 12 Nov the
+   update makes the dilution forecasts with the frozen approved model (V2-72, item 6).
 3. **Done (10 Nov): 008 report** generated from the notebooks' MLflow records (#98).
 4. **Done (10 Nov): V2-63** (a stray filing of another company no longer cuts a price history),
    rebuilt with the researcher's agreement before the holdout test.
@@ -50,9 +51,12 @@ branch `NNN-name`), so two people specifying at once never collide.
    levels frozen again, `sentinel holdout --check` passing; merged by #103. **Done on 12 Nov: the
    holdout test (010), run once (V2-69)**, its results added unedited to the model report.
 6. **026 stock research app** (V2-61; replaces 011–017): MVP merged (#101, 10 Nov), on this
-   computer only (V2-71); the named cases checked against the data (12 Nov, 13 cases, all pass).
-   Next: key financials, the daily dilution forecasts in the update (009, dilution only), then insider clusters and short
-   interest if time allows; the old app removed once the researcher approves the new one.
+   computer only (V2-71); the named cases checked against the data (12 Nov, 13 cases, all pass);
+   key financials as first filed (12 Nov). **Done on 12 Nov: the daily dilution forecasts in the
+   update** (T018 with 009, V2-72): made with the frozen approved model, stored with their reasons,
+   read by the app; the first scheduled run with them is on 13 Nov (its log, a same-day rerun and
+   `sentinel verify` to check). Next: insider clusters and short interest if time allows; the old
+   app removed once the researcher approves the new one.
    **025** (the unusual-volume tracker, V2-51) only if time allows.
 7. **Done on 12 Nov: V2-70**, the dilution answer's catching-up effect measured
    (`docs/report/dilution_catching_up.md`), for the report's limitations.
@@ -135,7 +139,7 @@ the results move, `eligible_dilution`: V2-26, V2-27) and the answer is present. 
 | 006 | **Results-day move model**: The expected size of the next results-day move (one row per release): baseline = the mean of the company's previous four moves, then rule, classic model, LightGBM as in D60; bands with hit rates (D62); MLflow; deterministic. | teammate, with coding agent | Mon 9 – Wed 11 Nov | 004 | two runs give identical predictions; the results table is generated; the level is approved | redo (audit, 4 Nov): evaluated with the look-ahead input `cum_split_after`; packaged model never evaluated; not approved. Restarted 9 Nov: spec and plan rewritten (V2-53, V2-54; design check on 2016–2018); approved 9 Nov (V2-55): LightGBM, mean log loss of the three chances 0.404 against 0.409 for the ridge, better every year; packaged in `src/sentinel/models/results_move.py` with tests (the notebook gives the same numbers); merged by #94 (9 Nov) | #77 |
 | 007 | **Dilution model**: The chance that shares outstanding rise 10% or more within six months (base rate about 10% on the rows models learn from): baselines, rule, classic model, LightGBM as in D60; calibration; the chance shown in bands with hit rates; MLflow; deterministic. | teammate, with coding agent | Thu 5 – Sat 7 Nov (first, V2-48) | 004 | two runs give identical predictions; calibration checked; the level is approved | approved 5 Nov (V2-52): LightGBM, log loss 0.225 against 0.302 for the offering rule, better in every test year; packaged in `src/sentinel/models/dilution.py` with tests (the notebook gives the same numbers); merged by #92 (9 Nov) | #78 |
 | 008 | **Model report and model card**: A generated report: the data, the methods, walk-forward results per question against the baselines, calibration, the chosen levels and why; the test hit rates that feed `app.model_card`. | teammate, with coding agent | Thu 12 Nov | 005, 006, 007 | one command regenerates the report from the data and MLflow runs | 9 Nov: rebuilt: the model notebooks record their tables in MLflow, `sentinel report` writes `docs/report/` (Markdown, figures, `model_card.json`) from them, no number typed in; Gemini's typed-in report removed; merged by #98 (10 Nov) | #79 |
-| 009 | **Daily scores and live outcomes**: Each day's forecasts from the chosen models inside `sentinel update`: `score.daily` (every forecast: company, question, model version, value, band, coverage level; append only), `score.outcome` (each forecast's outcome once its window closes: live hit rates), published in the columns the forecast contract (011) fixes. | coding agent, with teammate | Thu 12 – Fri 13 Nov | 005–007; the forecast contract of 011 | an update scores every covered company; a rerun the same day changes nothing; `sentinel verify` identical | paused (V2-42, `update.score: false`): the scoring code uses the approved models (#94, #96); resumes once they are trained into `data/models/`; live outcomes wait for 010 | #74 |
+| 009 | **Daily scores and live outcomes**: Each day's forecasts from the chosen models inside `sentinel update`: `score.daily` (every forecast: company, question, model version, value, band, coverage level; append only), `score.outcome` (each forecast's outcome once its window closes: live hit rates), published in the columns the forecast contract (011) fixes. | coding agent, with teammate | Thu 12 – Fri 13 Nov | 005–007; the forecast contract of 011 | an update scores every covered company; a rerun the same day changes nothing; `sentinel verify` identical | dilution only since 12 Nov (V2-72, with 026 T018): the frozen approved model (V2-59), never `data/models/`; approved models' forecasts only are published; volatility and results-day move not scored (V2-61); outcomes once the first windows close (May 2027); the first scheduled run to check on 13 Nov | #74 |
 
 ### v2 · 3 App (due 2026-11-16)
 

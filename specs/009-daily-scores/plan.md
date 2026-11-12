@@ -4,6 +4,15 @@
 
 **Input**: Feature specification from `specs/009-daily-scores/spec.md`
 
+> **Amended 12 Nov 2026 (decision V2-72; feature 026, T018).** Gemini's version of 2 Nov scored
+> all three questions with files from `data/models/` that the researcher never approved; it stayed
+> paused (V2-42). It was redone: the update now makes the **dilution forecasts only** (the app shows
+> no volatility or results-day forecast, V2-61) with the **frozen approved object the holdout test
+> scored** (V2-59, loaded from MLflow, never from `data/models/`), stores every input's value and
+> contribution with each forecast, registers the model as `approved` in `model.registry`, and
+> publishes approved models' forecasts only. Outcomes wait for the first windows to close (May
+> 2027). Where the text below disagrees, this note wins.
+
 ## Summary
 
 Feature 009 connects the approved forecasting models (`results_move`, `dilution`, `volatility`) from `src/sentinel/models/` into the automated daily pipeline. Each weekday when `sentinel update` runs, it scores all active covered stocks into DuckDB table `score.daily`, checks past closed windows to compute realized results in `score.outcome`, and publishes the tables into `data/serving.duckdb` (schema `app`).
