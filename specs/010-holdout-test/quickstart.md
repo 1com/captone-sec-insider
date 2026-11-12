@@ -1,5 +1,10 @@
 # Quickstart: the holdout test (010)
 
+**Run once on 12 November 2026 (decision V2-69); a second run is refused.** The results are in
+`docs/report/model_report.md`; the records in `data/mlflow.db` (experiment `010-holdout`), their
+files in `mlruns/9/` at the project root (ignored by git; never delete; a copy in
+`data/backup/after-holdout/`). The steps below are kept as the record of how it was run.
+
 The holdout test is run **once**, by the researcher, on **16 November 2026**, after this feature is
 merged into `main`. It scores the three approved models (and every simpler level beside them) on
 the answers from 2023 on, which no code has computed until then. A second run is refused.

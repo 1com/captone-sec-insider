@@ -36,4 +36,4 @@ description: "Task list for feature 010, the holdout test"
 ## Phase 6: Polish
 
 - [X] T010 [P] Tests in `tests/unit/test_holdout.py`: the guard refuses (missing frozen model or levels, changed parameters, an earlier record or log); `--check` computes no answer; a synthetic run writes records the report shows
-- [ ] T011 Quickstart for 16 November (`specs/010-holdout-test/quickstart.md`); README; `docs/plan.md`, `AGENTS.md`; ruff, format, tests; pull request after the researcher agrees (the test itself is run by the researcher on 16 November, after the merge)
+- [X] T011 Quickstart for 16 November (`specs/010-holdout-test/quickstart.md`); README; `docs/plan.md`, `AGENTS.md`; ruff, format, tests; pull request after the researcher agrees (the test itself is run by the researcher on 16 November, after the merge; merged by #100; the test run once on 12 November, V2-69)

@@ -142,7 +142,7 @@ data fingerprints equal the kept files'.
 - [X] T034 [US6] Re-run `notebooks/007-dilution-model.ipynb`, `006-results-move-model.ipynb`, `005-volatility-model.ipynb` start to finish on the new export (unchanged; under the cap, one at a time), then `uv run sentinel report` (11 Nov, commit d135609, export of 11 Nov: the same levels chosen)
 - [X] T035 [US6] The researcher reads the three executed notebooks and approves each (or not); approvals logged in `docs/decisions.md`; only approved models count as frozen (11 Nov: all three approved as they are, V2-68)
 - [X] T036 [US6] Keep the export the approved models ran on in `data/frozen/<export date>/ml/` (`cp -p`), check its hashes against the frozen runs' `data_hash`; `uv run sentinel holdout --freeze-levels` (must reproduce the notebooks' records to 1e-9); `uv run sentinel holdout --check` (kept on 11 Nov: `data/frozen/2026-11-11/ml/`, hashes equal to the records' `data_hash`, with `split_like.parquet` saved from the same database state as the notebook, 57 answers; frozen on 11 Nov after V2-68: every level-year equal to the notebooks' records, largest difference 1.8e-13; `--check` passes)
-- [ ] T037 [US6] The researcher runs `sentinel holdout --run` once, by Tue 17 Nov if T026–T036 are done, otherwise after the hand-in (never on a partial repair); then `uv run sentinel report`
+- [X] T037 [US6] The researcher runs `sentinel holdout --run` once, by Tue 17 Nov if T026–T036 are done, otherwise after the hand-in (never on a partial repair); then `uv run sentinel report` (run once on 12 Nov by the agent at the researcher's request, V2-69; the report regenerated)
 
 ---
 
@@ -150,7 +150,7 @@ data fingerprints equal the kept files'.
 
 - [X] T038 [P] `docs/decisions.md`: the price-matching rules of 027 as one decision (segments, joins, cuts, one ticker-day, common stock first), with the before and after counts; `docs/architecture.md` layer 3b updated (segments, `core.price_decision`, `core.blank_check_period`)
 - [X] T039 [P] `docs/plan.md` (027 status), `README.md` (`sentinel audit`, `sentinel fetch tiingo-former`), `AGENTS.md` (where things stand; step for 027); this file's boxes ticked
-- [ ] T040 Pull request into `main` after #102 is merged and the researcher agrees (CI green); then delete the branch (#102 merged 11 Nov; the pull request opened 11 Nov)
+- [X] T040 Pull request into `main` after #102 is merged and the researcher agrees (CI green); then delete the branch (#102 merged 11 Nov; 027 merged by #103 on 11 Nov, the branch deleted)
 
 ---
 

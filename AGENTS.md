@@ -116,7 +116,7 @@ done, merge it into `main` (pull request, after the researcher agrees), delete t
 close its GitHub issue (#67–#87, one per feature). Keep `docs/plan.md`, `README.md` and this
 file in step.
 
-## 7. Where things stand (11 November 2026; the audit of the work of 30 Oct – 3 Nov was on 4 Nov)
+## 7. Where things stand (12 November 2026; the audit of the work of 30 Oct – 3 Nov was on 4 Nov)
 
 Between 30 October and 3 November another agent (Gemini) added models, daily scores, a report,
 the app, Docker and option chains, pushing straight to `main` without pull requests. On
@@ -189,23 +189,23 @@ holds and what does not:
   `--freeze-levels` (done once, 10 Nov: the simpler levels, moved unchanged from the notebooks into
   `src/sentinel/models/levels.py`, re-run on the export of 9 Nov kept in `data/frozen/2026-11-09/`
   (hashes equal to the frozen models' data hashes) gave every recorded test-year number (largest
-  difference 6.6e-13), then were frozen for 2023 in MLflow, runs `frozen-levels`), `--run` (once,
-  by the researcher on 16 Nov after the merge: the 2023+ answers in memory by the development
+  difference 6.6e-13), then were frozen for 2023 in MLflow, runs `frozen-levels`), `--run` (run once,
+  on 12 Nov, V2-69: the 2023+ answers in memory by the development
   label functions with a later end date; every level and the frozen model per calendar year and
   over all; the rows left out counted; three records in experiment `010-holdout` and one line in
   `data/holdout/log.jsonl`, written only after all three are scored; a second run is refused),
   then `sentinel report` adds the results unedited (`specs/010-holdout-test/quickstart.md`). The
   app now serves on port 8090 (8000 and 8080 belong to other projects; `sentinel serve` refuses a
-  busy port, the researcher, 10 Nov). 010 merged by #100 (10 Nov); #69 stays open until the run on
-  16 Nov. Before the daily scores resume (009): train the approved
+  busy port, the researcher, 10 Nov). 010 merged by #100 (10 Nov); run once on 12 Nov (V2-69), its report merged by the
+  pull request of 12 Nov, which closes #69. Before the daily scores resume (009): train the approved
   models into `data/models/` (`sentinel train results_move`, `sentinel train dilution`; the folder
-  still holds Gemini's unapproved files of 2 Nov) and give `prev4_mean` the moves after 2022, which
-  the holdout test computes.
+  still holds Gemini's unapproved files of 2 Nov) and give `prev4_mean` the moves after 2022 (sealed until
+  the holdout test; usable since it ran, V2-69).
 - **Report (008):** Gemini's typed-in report (numbers contradicting MLflow) was replaced by the
   generated one (#98, 10 Nov; see above).
 - **Daily scores (009):** paused until the researcher approves the models (V2-42,
-  `update.score: false`); when on, only companies still trading are scored. Live outcomes wait for
-  the holdout test (010): a forecast made now has its window after 2022. `score.daily` holds one
+  `update.score: false`); when on, only companies still trading are scored. Live outcomes waited for
+  the holdout test (010), run on 12 Nov (V2-69): they may now be computed. `score.daily` holds one
   day (4 Nov) from Gemini's models.
 - **App (011–018):** serves Tiingo-derived prices (8.1 M rows, 4,840 companies) without a filter;
   a ticker shared by several companies opens an arbitrary one (`/stock/DIS` can be TWDC
@@ -250,12 +250,15 @@ holds and what does not:
   regenerated; EDA Findings updated (two small known problems, research R15). The researcher
   approved the three re-run models (V2-68, 11 Nov); `--freeze-levels` reproduced every notebook
   number (largest difference 1.8e-13) and froze the levels; `--check` passes (frozen models from
-  commit d135609, export of 11 Nov). #102 merged (11 Nov); 027's pull request opened the same
-  evening, merged once the researcher agrees: the holdout run needs 027's code in `main` (`main`
-  before it still has the fixed kept date of 9 Nov and refuses). **Next:** the researcher runs
-  `sentinel holdout --run` once (16 or 17 Nov), then `sentinel report`. Until then nobody
-  re-executes the model notebooks: each execution writes new records, and the holdout takes the
-  newest.
+  commit d135609, export of 11 Nov). #102 and 027 (#103) merged (11 Nov). **The holdout test ran once on
+  12 Nov** (V2-69; the researcher asked the agent to run it): dilution LightGBM 0.2292 (2019–2022:
+  0.2257), best every year; results-day move LightGBM 0.4672 (0.4038), the ridge better every
+  year (0.4517) and the chances of a 10%+ move too low; volatility LightGBM 0.2522 (0.2749), the
+  ridge 0.2529. `sentinel report` added the results unedited; a second run is refused. The
+  records' files are in `mlruns/9/` at the project root (ignored by git, never delete; a copy in
+  `data/backup/after-holdout/`). No model is changed after the test. Do not re-execute the model
+  notebooks before the hand-in: each execution writes a new record, which the report would show
+  instead of the approved one.
 - **Options (023):** the spot price comes from a table that does not exist (falls back to the
   median strike or 100); the tables now live in schema `live` (a rebuild cannot reproduce them).
 - **Process:** no pull requests since #90; three of the last five CI runs on `main` failed.
@@ -357,8 +360,8 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
 - [X] 008 (#79): `sentinel report` regenerates the report from the notebooks' MLflow records
   (merged by #98, 10 Nov).
 - [ ] 009 (#74): `sentinel update` scores every covered company daily into `score.daily`; paused
-  (V2-42) until the approved models are trained into `data/models/`; `score.outcome` waits for
-  the holdout test.
+  (V2-42) until the approved models are trained into `data/models/`; `score.outcome` waited for
+  the holdout test, run on 12 Nov (V2-69).
 
 ### Step 7 · The app: 026 stock research app (V2-61), with the researcher
 - [X] 026 MVP (10 Nov, #101): search, facts, dilution panel, price and volume chart, insiders,
@@ -384,13 +387,13 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
   `data/frozen/2026-11-11/`); `KEPT` read from the approved records (T033).
 - [X] The researcher's approval (T035, V2-68); `sentinel holdout --freeze-levels` and `--check`
   (T036, 11 Nov).
-- [ ] The researcher's `--run` (T037), once, on 16 or 17 Nov; then `sentinel report`.
+- [X] The holdout `--run` (T037), once, on 12 Nov (V2-69: run by the agent at the researcher's
+  request); `sentinel report` regenerated.
 
-### Step 8 · 010 Holdout test (16 November)
-**Status (11 Nov evening): built and merged by #100 (10 Nov); after the price repair (027) the models
-were approved again (V2-68), the export of 11 Nov kept in `data/frozen/2026-11-11/`, the levels
-frozen again and `--check` passes; the researcher runs `sentinel holdout --run` once on 16 or 17 Nov,
-then `sentinel report`.**
+### Step 8 · 010 Holdout test (run 12 November)
+**Status: done (12 Nov, V2-69).** Built and merged by #100 (10 Nov); after the price repair (027) the
+models were approved again (V2-68) and the levels frozen again; run once on `main` at `ed41646`, the
+results added unedited to the model report by `sentinel report`; a second run is refused.
 **Already true (checked 30 Oct):** the holdout rows (`feature_snapshot` from 2023 on, built from
 `feature.snapshot` like the training files) have the training files' feature columns in the same
 order and types; the holdout answers come from the same label code (`labels/risk.py`) with
