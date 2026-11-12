@@ -113,7 +113,7 @@ def api_company(cik: str) -> JSONResponse:
             return JSONResponse({"error": f"no company with CIK {cik}"}, status_code=404)
         FORECASTS.refresh(con)
         listed = any(t["listed"] for t in c["tickers"])
-        c["dilution"] = FORECASTS.for_company(cik, c["card"], listed)
+        c["dilution"] = FORECASTS.for_company(cik, c["card"], listed, c["facts"])
         c["shares"] = data.shares(con, cik)
         c["freshness"] = _fresh(con)
         c["diagnostics"] = data.diagnostics(con, cik)

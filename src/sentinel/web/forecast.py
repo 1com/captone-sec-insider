@@ -178,20 +178,34 @@ class Forecasts:
             self.current = set(current["cik"].astype(str))
             self._version = version
 
-    def for_company(self, cik: str, card: dict, listed: bool) -> dict:
-        """The forecast, or why there is none (FR-004)."""
+    def for_company(self, cik: str, card: dict, listed: bool, facts: dict | None = None) -> dict:
+        """The forecast, or why there is none (FR-004; the reasons checked by the named cases,
+        T019): `facts` as `data.company` gives them (filer type, blank-check, prices, fund)."""
         f = self.by_cik.get(cik)
         if f is not None:
             return {"available": True, **f}
-        if card.get("foreign_filer"):
+        facts = facts or {}
+        if card.get("foreign_filer") or facts.get("filer_type") == "foreign":
             reason = (
                 "No forecast for foreign companies: they report their share counts differently "
                 "(annual 20-F reports instead of quarterly 10-Q), so the model cannot follow "
                 "them (decision V2-27)."
             )
-        elif not listed or cik not in getattr(self, "current", set()):
+        elif facts.get("is_blank_check"):
+            reason = (
+                "No forecast for blank-check companies: a shell company without a business of its "
+                "own is left out of every question until it merges with one (decision V2-66)."
+            )
+        elif not listed:
             reason = "No forecast: the company's shares no longer trade."
-        elif card.get("excluded"):
+        elif not facts.get("has_prices", True):
+            reason = (
+                "No forecast: our data has no share prices for this company, and the model "
+                "needs them."
+            )
+        elif cik not in getattr(self, "current", set()):
+            reason = "No forecast: the company's shares have no recent price in our data."
+        elif card.get("excluded") or facts.get("is_fund"):
             reason = "No forecast: funds, trusts and similar vehicles are outside this question."
         else:
             reason = (

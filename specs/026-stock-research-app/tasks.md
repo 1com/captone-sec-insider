@@ -51,7 +51,13 @@ The researcher asked for a presentable MVP first (10 Nov); tasks after the MVP a
 - [X] T017 Tests: `tests/unit/test_web_app.py` (search, facts, split adjustment, insider totals,
   filings, no volatility or results-day forecast, missing serving copy)
 - [ ] T018 Daily forecasts in the daily update (009, dilution only) instead of the app (later)
-- [ ] T019 Ten named cases checked against the data (SC-002, SC-005) (later)
+- [X] T019 Ten named cases checked against the data (SC-002, SC-005): `src/sentinel/web/named_cases.py`
+  (`python -m sentinel.web.named_cases`) compares every section of 13 named companies' pages, from
+  the app's own endpoints, with the build database, the frozen dilution model and the SEC's files,
+  and scans the template and scripts for typed-in dates; writes `docs/report/app_named_cases.md`
+  (verdicts only). 12 Nov: the first run found two wrong reasons for a missing forecast (a
+  blank-check company, a listed company without prices), fixed in `web/forecast.py`; all 130
+  checks pass; tests in `tests/unit/test_web_named_cases.py`
 - [X] T020 Docs (README, `docs/plan.md`, AGENTS.md); pull request after the researcher agrees (the
   MVP merged by #101, 10 Nov; the shared password, V2-63 and the docs by a second pull request,
   11 Nov)
