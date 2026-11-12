@@ -54,7 +54,9 @@ branch `NNN-name`), so two people specifying at once never collide.
    daily dilution forecasts in the update (009, dilution only), then insider clusters and short
    interest if time allows; the old app removed once the researcher approves the new one.
    **025** (the unusual-volume tracker, V2-51) only if time allows.
-7. **019 hand-in** (17–18 Nov); **020** before the Tiingo plan ends (25 Nov).
+7. **Done on 12 Nov: V2-70**, the dilution answer's catching-up effect measured
+   (`docs/report/dilution_catching_up.md`), for the report's limitations.
+8. **019 hand-in** (17–18 Nov); **020** before the Tiingo plan ends (25 Nov).
 
 ## Notebooks and code
 

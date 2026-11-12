@@ -130,6 +130,14 @@ a named choice.
 - [X] T025 [P] Unit tests in `tests/unit/test_models_dilution.py`: feature list excludes non-features and `cum_split_after`; predict skips ineligible rows; deterministic output; missing feature column raises (5 Nov: same numbers, every table identical)
 - [X] T026 Pull request into `main` after the researcher agrees; close issue #78 (#92, merged 9 Nov; #78 closed)
 
+## Phase 9: After the holdout test (12 Nov, V2-70)
+
+- [X] T040 The answer's catching-up effect measured (V2-70, research R11):
+  `src/sentinel/models/catching_up.py` (`python -m sentinel.models.catching_up`) writes
+  `docs/report/dilution_catching_up.md` from the approved model's rows and its four test years
+  refitted with the approved code (equal to the record); tests in `tests/unit/test_catching_up.py`;
+  for the report's limitations (019)
+
 ---
 
 ## Dependencies & Execution Order

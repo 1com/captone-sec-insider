@@ -155,3 +155,22 @@ the export of 30 October 2026 and `notebooks/004-eda-dilution.ipynb`.
 - **Alternatives**: install `libomp` and use LightGBM (cleanest; the teammate's choice for
   later); point LightGBM at scikit-learn's bundled `libomp` (fragile); XGBoost or CatBoost (new
   dependency, also off D60).
+
+## R11 · Forecasts that catch up with an announced sale (12 Nov, V2-70)
+
+- **What.** The answer compares the last share count published by the forecast date with the last
+  one published within the next 182 days (`labels/risk.py`). Counts are published about every
+  91 days (median), five days after their own date; on the forecast date the start count is
+  typically two months old (median 60 days). A sale made between the start count's date and the
+  forecast date is answered 1 although it has already happened. AMC, 2021: 43 M shares sold in May
+  under the at-the-market program announced on 27 Apr, 20 M more on 1 and 3 Jun (AMC's
+  announcements; our counts rise by 63 M between those of 2 May and 2 Aug); the report of 9 Aug
+  showed 513 M against 450 M, so the rows of 28 May, 30 Jun and 30 Jul are 1, none a pure forecast.
+- **Measured** (`python -m sentinel.models.catching_up`, `docs/report/dilution_catching_up.md`):
+  41% of the answers of 1 of 2012 to mid-2022 (34% strict) had a share-sale filing after the start
+  count's date and known by the forecast date, against 7% of the answers of 0. On the test years
+  2019–2022 the approved model's AUC is 0.87 on the rows with nothing announced (0.89 on all rows),
+  and its band 5 diluted 33% of the time there (41% on all rows).
+- **Decision (V2-70).** The answer stays as registered; the effect is stated in the report's
+  limitations (019). The measure misses programs announced before the start count whose sales came
+  after it (AMC's May row) and counts filings that cover only part of a rise.
