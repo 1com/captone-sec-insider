@@ -130,6 +130,34 @@ async function show(cik, push) {
   if (current !== cik) return;
   renderPrices(p, ins); renderInsiders(ins, c);
   loadFilings(cik, null);
+  const f = await getJSON(`/api/financials/${encodeURIComponent(cik)}`);
+  if (current === cik) renderFinancials(f);
+}
+
+let finState = null;
+function renderFinancials(f, which = "quarters") {
+  finState = f;
+  const tab = (k, label) => `<button data-k="${k}" class="${k === which ? "on" : ""}">${label} · ${f[k].length}</button>`;
+  $("#fin-tabs").innerHTML = tab("quarters", "Last quarters") + tab("years", "Fiscal years");
+  document.querySelectorAll("#fin-tabs button").forEach((b) => b.addEventListener("click", () => renderFinancials(finState, b.dataset.k)));
+  const cols = f[which];
+  if (!cols.length) {
+    $("#financials").innerHTML = `<tbody><tr><td class="empty">No financial statements in our data for this company. Companies reporting under international accounting standards (IFRS), as many foreign companies do, are not read.</td></tr></tbody>`;
+    $("#fin-note").textContent = "";
+    return;
+  }
+  const usual = which === "years" ? 12 : 3;
+  const cell = (it, v) => {
+    if (!v) return `<td class="muted" title="Not in our data: not reported, or under a label (XBRL tag) we do not read">–</td>`;
+    const txt = it.kind === "shares" ? fmt.count(v.value) : fmt.money(v.value);
+    const len = it.kind === "flow" && v.months && v.months !== usual ? ` <span class="muted small">(${v.months} mo)</span>` : "";
+    return `<td class="nowrap" title="Filed ${fmt.date(v.filed)}">${txt}${len}</td>`;
+  };
+  $("#financials").innerHTML = `<thead><tr><th></th>${cols.map((c) => `<th class="nowrap">${fmt.date(c.period_end)}<div class="muted small">filed ${fmt.date(c.filed)}</div></th>`).join("")}</tr></thead><tbody>` +
+    f.items.map((it) => `<tr><th>${esc(it.label)}</th>${cols.map((c) => cell(it, c.values[it.item])).join("")}</tr>`).join("") + "</tbody>";
+  $("#fin-note").textContent = which === "years"
+    ? "Each fiscal year's totals and its year-end balances, from the annual report (10-K)."
+    : "Revenue, income and cash flows for the quarter's three months; where the company reported only a longer total, such as six or nine months of the year so far, its length is shown in brackets. Cash, debt and shares are at the date shown.";
 }
 
 function renderCompany(c) {

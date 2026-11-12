@@ -129,6 +129,12 @@ def api_prices(cik: str) -> dict:
         return out
 
 
+@app.get("/api/financials/{cik}")
+def api_financials(cik: str) -> dict:
+    with data.connect(PATHS.serving_db) as con:
+        return data.financials(con, cik)
+
+
 @app.get("/api/insiders/{cik}")
 def api_insiders(cik: str) -> dict:
     with data.connect(PATHS.serving_db) as con:

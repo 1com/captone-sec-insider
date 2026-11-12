@@ -267,6 +267,70 @@ def shares(con, cik: str) -> list[dict]:
     )
 
 
+FINANCIALS = {  # item: (label, kind), in the order shown (FR-013, User Story 6)
+    "revenue": ("Revenue", "flow"),
+    "net_income": ("Net income (loss)", "flow"),
+    "operating_cash_flow": ("Cash from operations", "flow"),
+    "stock_issue_proceeds": ("Cash raised by selling shares", "flow"),
+    "cash": ("Cash and equivalents", "balance"),
+    "long_term_debt": ("Long-term debt", "balance"),
+    "shares_outstanding": ("Shares outstanding (cover page)", "shares"),
+}
+QUARTER, YEAR = (80, 100), (350, 380)  # the days a quarter's and a fiscal year's figures cover
+
+
+def financials(con, cik: str) -> dict:
+    """Key financials as first filed (FR-013): the last eight statement dates and four fiscal
+    years. Flows for the quarter's three months (the year's twelve) when the company reported
+    them, else the period it did report, such as a six- or nine-month year-to-date total, with its
+    length in `months`; balances at the statement date; the cover page's share count filed the
+    same day as the statements. A number the company did not report stays missing, never zero."""
+    rows = _rows(
+        con,
+        "select item, period_start, period_end, period_days, value, filed from app.financials "
+        "where cik = ? and item in (select unnest(?::varchar[])) "
+        "qualify row_number() over (partition by item, period_start, period_end "
+        "order by filed, value) = 1",
+        [cik, list(FINANCIALS)],
+    )
+    kind = {r["item"]: FINANCIALS[r["item"]][1] for r in rows}
+    days = lambda r: r["period_days"] or 0  # noqa: E731
+    ends: dict[str, str] = {}  # statement date: the first filing day of its figures
+    for r in rows:
+        k = kind[r["item"]]
+        if k == "balance" or (k == "flow" and QUARTER[0] <= days(r) <= YEAR[1]):
+            ends[r["period_end"]] = min(ends.get(r["period_end"], r["filed"]), r["filed"])
+    years = {
+        r["period_end"] for r in rows if kind[r["item"]] == "flow" and YEAR[0] <= days(r) <= YEAR[1]
+    }
+
+    def column(end: str, annual: bool) -> dict:
+        values = {}
+        for item, (_, k) in FINANCIALS.items():
+            same = [r for r in rows if r["item"] == item]
+            if k == "balance":
+                pick = [r for r in same if r["period_end"] == end]
+            elif k == "shares":
+                pick = [r for r in same if r["filed"] == ends[end]]
+            else:
+                lo, hi = YEAR if annual else QUARTER
+                at = [r for r in same if r["period_end"] == end]
+                pick = [r for r in at if lo <= days(r) <= hi]
+                if not pick and not annual:  # only a longer total was reported for this date
+                    pick = sorted((r for r in at if days(r) > hi), key=days)[:1]
+            if pick:
+                r = min(pick, key=lambda r: (r["filed"], r["value"]))
+                months = round(days(r) / 30.44) if k == "flow" else None
+                values[item] = {"value": r["value"], "filed": r["filed"], "months": months}
+        return {"period_end": end, "filed": ends[end], "values": values}
+
+    return {
+        "items": [{"item": i, "label": lab, "kind": k} for i, (lab, k) in FINANCIALS.items()],
+        "quarters": [column(e, False) for e in sorted(ends, reverse=True)[:8]],
+        "years": [column(e, True) for e in sorted(years & set(ends), reverse=True)[:4]],
+    }
+
+
 def diagnostics(con, cik: str) -> dict:
     """The data behind the page (FR-015, first part)."""
     prices_ = _one(

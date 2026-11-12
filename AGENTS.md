@@ -234,9 +234,9 @@ holds and what does not:
   (`docs/report/app_named_cases.md`). Found on the way: a company that filed fund reports since
   2012 stays a fund (`ref.company.is_fund`) and gets no prices, so former funds now operating
   (Global Self Storage, Seven Hills Realty, NexPoint Diversified Real Estate; 7 listed in all)
-  have no prices or forecast: a pipeline rule, for the researcher to decide. Left
-  (`specs/026-stock-research-app/tasks.md`): key financials (T015), daily dilution forecasts in
-  the update (T018), insider clusters (T011), short interest (T014, last), the old app removed
+  have no prices or forecast: a pipeline rule, for the researcher to decide. Key financials as
+  first filed added (T015, 12 Nov; checked by the named cases). Left
+  (`specs/026-stock-research-app/tasks.md`): daily dilution forecasts in the update (T018), insider clusters (T011), short interest (T014, last), the old app removed
   (T021).
 - **V2-63 (10 Nov):** a stray Form 4 of another company naming a ticker (DoorDash giving FN) no
   longer cuts a company's price history; rebuilt on 10 Nov with the researcher's agreement (121
@@ -380,7 +380,7 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
 ### Step 7 · The app: 026 stock research app (V2-61), with the researcher
 - [X] 026 MVP (10 Nov, #101): search, facts, dilution panel, price and volume chart, insiders,
   filings in plain English, short-sale share, diagnostics; on this computer only (V2-71).
-- [ ] 026 later tasks, in this order: key financials as first filed (T015); ten named cases
+- [ ] 026 later tasks, in this order: key financials as first filed (T015: done 12 Nov); ten named cases
   checked against the data (T019, SC-002: done 12 Nov, 13 cases); the daily dilution forecasts
   in the update (T018,
   with 009); insider clusters (T011) and short interest (T014) if time allows; the old app

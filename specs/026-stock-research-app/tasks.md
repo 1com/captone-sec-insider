@@ -43,7 +43,12 @@ The researcher asked for a presentable MVP first (10 Nov); tasks after the MVP a
 
 - [X] T013 [US5] Short-sale share of volume (FINRA), explained
 - [ ] T014 [US5] Short interest as a new source (later; researcher, 10 Nov: built last)
-- [ ] T015 [US6] Key financials as first filed (later)
+- [X] T015 [US6] Key financials as first filed (12 Nov): `data.financials`, `/api/financials/{cik}` and
+  the page's table (last statement dates and fiscal years: revenue, net income, cash from
+  operations, cash raised by selling shares, cash, long-term debt, the cover page's share count;
+  a quarter's three months, else the reported year-to-date total with its length; never zero for a
+  number not reported); tests in `tests/unit/test_web_financials.py`; the named-case check gained
+  a financials section (every value a first-filed value in the data: all 13 cases pass)
 - [X] T016 [US7] Diagnostics: the data behind the page and the dilution model's workings
 
 ## Phase 8: Polish

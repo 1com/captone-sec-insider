@@ -166,8 +166,8 @@ uv run sentinel fetch tiingo-former   # once (done 11 Nov): old tickers' histori
 ## Stock research app (026)
 
 One page per stock: search by ticker or name, the company's facts, the dilution forecast with its
-reasons, the price and volume chart, insider buying and selling, the SEC filings in plain English,
-short selling and diagnostics. It reads `data/serving.duckdb` read-only and picks up each day's new
+reasons, the price and volume chart, insider buying and selling, key financials as first filed, the
+SEC filings in plain English, short selling and diagnostics. It reads `data/serving.duckdb` read-only and picks up each day's new
 copy by itself.
 
 ```bash

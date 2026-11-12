@@ -25,6 +25,7 @@ import pandas as pd
 
 from sentinel import config, db
 from sentinel.models import dilution
+from sentinel.web.data import FINANCIALS
 
 CASES = [  # (CIK, ticker searched, what it stands for: SC-002's kinds and earlier fixes)
     ("320193", "AAPL", "a large US company"),
@@ -49,8 +50,8 @@ TYPED_DATES = [
     re.compile(rf"\b(?:{MONTHS})[a-z]*\.? \d{{1,2}}, (?:19|20)\d\d\b"),
     re.compile(rf"\b\d{{1,2}} (?:{MONTHS})[a-z]* (?:19|20)\d\d\b"),
 ]
-SECTIONS = ("search", "facts", "quote", "prices", "shares", "filings", "insiders", "card",
-            "dilution", "diagnostics")  # fmt: skip
+SECTIONS = ("search", "facts", "quote", "prices", "shares", "financials", "filings", "insiders",
+            "card", "dilution", "diagnostics")  # fmt: skip
 
 
 def typed_dates(web_dir: Path) -> list[str]:
@@ -192,6 +193,34 @@ def check(page: dict, b: duckdb.DuckDBPyConnection, raw: Path, model, cik: str) 
         f"differ; {len(at_sec)} found in the SEC's file, {len(off_sec)} differ",
     )
 
+    fin = page["financials"]
+    first = b.execute(
+        "select item, period_end::varchar, filed::varchar, value from core.financial_fact "
+        "where cik = ? and first_filed and item in (select unnest(?::varchar[]))",
+        [cik, list(FINANCIALS)],
+    ).fetchall()
+    known: dict[tuple, list] = {}
+    for item, end, filed, value in first:  # a share count is matched by its filing day
+        key = (item, None if item == "shares_outstanding" else end, filed)
+        known.setdefault(key, []).append(value)
+    shown = [
+        (item, None if item == "shares_outstanding" else col["period_end"], v)
+        for which in ("quarters", "years")
+        for col in fin[which]
+        for item, v in col["values"].items()
+    ]
+    off = [
+        s
+        for s in shown
+        if not any(_same(s[2]["value"], x) for x in known.get((*s[:2], s[2]["filed"]), []))
+    ]
+    statements = any(item != "shares_outstanding" for item, *_ in first)
+    out["financials"] = (
+        not off and bool(fin["quarters"]) == statements,
+        f"{len(shown)} values shown, each a first-filed value in core.financial_fact for its item, "
+        f"date and filing day: {len(off)} not; statements in the data: {statements}",
+    )
+
     n_f, last_f = one("select count(*), max(filing_date) from core.filing where cik = ?")
     shown_n = sum(page["filings"]["counts"].values())
     newest = page["filings"]["filings"][0]["filing_date"] if page["filings"]["filings"] else None
@@ -276,6 +305,7 @@ def main(p: config.Paths | None = None, out: Path = OUT, echo=print) -> Path:
                 "company": client.get(f"/api/company/{cik}").json(),
                 "prices": client.get(f"/api/prices/{cik}").json(),
                 "insiders": client.get(f"/api/insiders/{cik}").json(),
+                "financials": client.get(f"/api/financials/{cik}").json(),
                 "filings": client.get(f"/api/filings/{cik}", params={"limit": 1}).json(),
             }
             res = check(page, b, raw, model, cik)
