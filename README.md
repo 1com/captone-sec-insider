@@ -211,6 +211,16 @@ uv run sentinel report   # seconds; the same records give identical files
 Re-run it after any model notebook is re-run, and after the holdout test (feature 010), whose
 results it adds as they came out (`specs/008-model-report/quickstart.md`).
 
+`docs/report/dilution_catching_up.md` measures a limit of the dilution answer (V2-70): a share sale
+made before the forecast date but not yet in a published share count is answered 1 too, so part of
+the forecast catches up with a sale already announced. It is generated, never edited by hand, in
+about five minutes (the four test years are refitted with the approved code and checked against
+its record; read-only, no MLflow record written):
+
+```bash
+systemd-run --user --scope -p MemoryMax=5G -p MemorySwapMax=0 uv run python -m sentinel.models.catching_up
+```
+
 ## Holdout test (run once, 12 November)
 
 The one test of the approved models on the answers from 2023 on, sealed until then: each frozen
