@@ -174,6 +174,7 @@ copy by itself.
 uv run sentinel web               # http://localhost:8100, this machine only
 ./scripts/start_web.sh            # the same under the memory cap, shared by Tailscale (or: Start EDGAR-SENTINEL.bat)
 ./scripts/stop_web.sh             # stop it; the link then shows an error (or: Stop EDGAR-SENTINEL.bat)
+uv run python -m sentinel.web.named_cases   # the named cases: every section of 13 pages against the data
 ```
 
 The page shows Tiingo-derived prices, so it must never be public (constitution VI). With

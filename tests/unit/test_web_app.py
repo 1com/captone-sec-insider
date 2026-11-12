@@ -96,7 +96,7 @@ class _NoForecasts:
     def refresh(self, con):
         pass
 
-    def for_company(self, cik, card, listed):
+    def for_company(self, cik, card, listed, facts=None):
         return {"available": True, "chance": 0.05, "band": 2, "band_name": "2 · Low risk",
                 "as_of": "2026-11-09", "factors": []}  # fmt: skip
 

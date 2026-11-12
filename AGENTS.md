@@ -226,9 +226,17 @@ holds and what does not:
   and no data. MVP merged by #101 (10 Nov). It shows Tiingo-derived prices, so it is shared only
   behind one password (`WEB_PASSWORD` in `.env`; `scripts/start_web.sh` opens a Tailscale Funnel
   link only when it is set, otherwise the tailnet only; V2-64): never open the link without it.
-  Left (`specs/026-stock-research-app/tasks.md`): key financials (T015), ten named cases (T019),
-  daily dilution forecasts in the update (T018), insider clusters (T011), short interest (T014,
-  last), the old app removed (T021).
+  The named cases checked (T019, 12 Nov): `python -m sentinel.web.named_cases` compares every
+  section of 13 named companies' pages with the build database, the frozen model and the SEC's
+  files; the first run found two wrong reasons for a missing forecast (a blank-check company, a
+  listed company without prices), fixed; all 130 checks pass, no typed-in dates
+  (`docs/report/app_named_cases.md`). Found on the way: a company that filed fund reports since
+  2012 stays a fund (`ref.company.is_fund`) and gets no prices, so former funds now operating
+  (Global Self Storage, Seven Hills Realty, NexPoint Diversified Real Estate; 7 listed in all)
+  have no prices or forecast: a pipeline rule, for the researcher to decide. Left
+  (`specs/026-stock-research-app/tasks.md`): key financials (T015), daily dilution forecasts in
+  the update (T018), insider clusters (T011), short interest (T014, last), the old app removed
+  (T021).
 - **V2-63 (10 Nov):** a stray Form 4 of another company naming a ticker (DoorDash giving FN) no
   longer cuts a company's price history; rebuilt on 10 Nov with the researcher's agreement (121
   listed companies' histories restored).
@@ -372,7 +380,8 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
 - [X] 026 MVP (10 Nov, #101): search, facts, dilution panel, price and volume chart, insiders,
   filings in plain English, short-sale share, diagnostics; shared behind one password (V2-64).
 - [ ] 026 later tasks, in this order: key financials as first filed (T015); ten named cases
-  checked against the data (T019, SC-002); the daily dilution forecasts in the update (T018,
+  checked against the data (T019, SC-002: done 12 Nov, 13 cases); the daily dilution forecasts
+  in the update (T018,
   with 009); insider clusters (T011) and short interest (T014) if time allows; the old app
   removed once the researcher approves 026 (T021).
 - Gemini's old app, kept until T021 (V2-61 replaces it; its faults are in section 7):
