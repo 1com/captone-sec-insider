@@ -115,6 +115,21 @@ def test_the_companies_still_trading_get_the_approved_models_forecast_with_every
     assert con.execute("select count(*) from model.registry").fetchone()[0] == 1
 
 
+def test_a_forecast_made_again_unchanged_keeps_its_row(con, frozen, tmp_data):
+    """V2-73: the update's change report counts only the forecasts that changed; one made again
+    unchanged keeps its time."""
+    daily.score_snapshot(con, tmp_data, frozen=frozen)
+    sql = "select cik, forecast_val, coverage, scored_at from score.daily order by cik"
+    first = con.execute(sql).fetchall()
+    con.execute("update feature.snapshot set coverage = 'price_only' where latest and cik = '0010'")
+    daily.score_snapshot(con, tmp_data, frozen=frozen)
+    again = con.execute(sql).fetchall()
+    assert len(again) == len(first) == 55
+    assert [a[0] for a, b in zip(first, again, strict=True) if a != b] == ["0010"]
+    old, new = (dict((r[0], r) for r in rows)["0010"] for rows in (first, again))
+    assert new[2] == "price_only" and new[3] > old[3]
+
+
 def test_the_model_comes_from_mlflow_never_from_data_models(con, frozen, tmp_data, monkeypatch):
     from sentinel import holdout
 

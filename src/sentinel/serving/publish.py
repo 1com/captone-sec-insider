@@ -172,14 +172,23 @@ def publish(p: Paths, echo=print) -> dict:
                         "null::BOOLEAN as counted where false")  # fmt: skip
         # the forecasts (009, 026 FR-005): the log keeps every day and every model; the app gets
         # each company's newest forecast of the last week, from approved models only (V2-72: the
-        # unapproved models' rows of 2 and 4 Nov stay in the log, never served)
-        if {"score.daily", "model.registry"} <= existing_b:
+        # unapproved models' rows of 2 and 4 Nov stay in the log, never served), and only while
+        # the company's latest row is still in the question (V2-73: a stock that fell below $1
+        # keeps no forecast of the day before; an older one is served only when the latest
+        # update made none, e.g. its scoring step failed)
+        if {"score.daily", "model.registry", "feature.snapshot"} <= existing_b:
             all_tables["daily_score"] = """
                 with approved as (
                     select d.* from b.score.daily d join b.model.registry r
                         using (question, model_version)
-                    where r.status = 'approved')
-                select * from approved
+                    where r.status = 'approved'),
+                still_in as (
+                    select a.* from approved a
+                    join b.feature.snapshot s on s.cik = a.cik and s.latest
+                    where case a.question when 'dilution' then s.eligible_dilution
+                                          when 'volatility' then s.eligible_volatility
+                                          else s.eligible end)
+                select * from still_in
                 qualify as_of >= max(as_of) over (partition by question) - 7
                     and row_number() over (partition by cik, question
                                            order by as_of desc, scored_at desc) = 1

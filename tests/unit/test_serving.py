@@ -42,11 +42,20 @@ def test_publish_writes_every_app_table_read_only_for_the_product(built):
 
 
 def test_publish_serves_each_companys_newest_forecast_of_an_approved_model_only(built):
-    """V2-72: the unapproved models' forecasts of 2 and 4 Nov stay in the log, never served."""
+    """V2-72: the unapproved models' forecasts of 2 and 4 Nov stay in the log, never served.
+    V2-73: a company whose latest row has left the question (a stock that fell below $1) keeps
+    no forecast of an earlier day."""
     with db.connect(built) as con:
         schema.create_tables(con)
         con.execute("insert into model.registry values ('dilution', 'lightgbm-ok', 'LightGBM', "
                     "DATE '2021-06-30', 2, 'approved', TIMESTAMP '2026-11-12 10:00')")  # fmt: skip
+        # 4: in the question; 5: fell below $1 on its latest day
+        for cik, inside in (("4", True), ("5", False)):
+            con.execute(f"insert into feature.snapshot select * replace ('{cik}' as cik, "
+                        f"{inside} as eligible_dilution) from feature.snapshot "
+                        "where cik = '1' and latest")  # fmt: skip
+        con.execute("update feature.snapshot set eligible_dilution = true "
+                    "where cik = '1' and latest")  # fmt: skip
         con.execute("""insert into score.daily values
             ('1', DATE '2026-11-10', 'dilution', 'lightgbm-ok', 0.2, 3, 'full', '{}',
              TIMESTAMP '2026-11-10 10:30'),
@@ -54,10 +63,12 @@ def test_publish_serves_each_companys_newest_forecast_of_an_approved_model_only(
              TIMESTAMP '2026-11-11 10:30'),
             ('1', DATE '2026-11-11', 'dilution', 'lightgbm_v1', 0.9, 5, 'full', '{}',
              TIMESTAMP '2026-11-11 10:31'),
-            ('2', DATE '2026-11-03', 'dilution', 'lightgbm-ok', 0.1, 2, 'full', '{}',
+            ('4', DATE '2026-11-03', 'dilution', 'lightgbm-ok', 0.1, 2, 'full', '{}',
              TIMESTAMP '2026-11-03 10:30'),
+            ('5', DATE '2026-11-10', 'dilution', 'lightgbm-ok', 0.8, 5, 'full', '{}',
+             TIMESTAMP '2026-11-10 10:30'),
             ('3', DATE '2026-11-04', 'dilution', 'lightgbm_v1', 0.5, 5, 'full', '{}',
-             TIMESTAMP '2026-11-04 10:30')""")  # 2: more than a week old; 3: unapproved only
+             TIMESTAMP '2026-11-04 10:30')""")  # 4: more than a week old; 3: unapproved only
     publish.publish(built, **QUIET)
     with duckdb.connect(str(built.serving_db), read_only=True) as con:
         served = con.execute("select cik, as_of, model_version, forecast_val, band "

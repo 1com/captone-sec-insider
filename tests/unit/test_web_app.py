@@ -239,3 +239,31 @@ def test_the_page_shows_the_daily_updates_forecasts_of_the_approved_model_only(t
                            {"has_prices": True})  # fmt: skip
     assert not three["available"] and three["reason"].startswith("No forecast yet")
     assert fc.top(1) == [{"cik": "1", "chance": 0.31, "band": 4}]
+
+
+def test_a_company_left_out_by_a_rule_is_told_which_rule_with_its_own_values(tmp_path):
+    """V2-73: a stock below $1, too thinly traded, too new or without recent filings is told the
+    rule (`risk_params.yaml`, fixed before any model was built), not that its data is missing."""
+    from sentinel.web import forecast
+
+    fc = forecast.Forecasts(dataclasses.replace(config.paths(), serving_db=tmp_path / "s.duckdb"))
+    fc.current = {"5"}
+    card = {"as_of": "2026-11-12", "close": 4.0, "addv20": 50_000.0, "sessions_listed": 900,
+            "active_filer": True, "eligible_dilution": False}  # fmt: skip
+
+    def say(**changed) -> str:
+        return fc.for_company("5", {**card, **changed}, True, {"has_prices": True})["reason"]
+
+    assert say(close=0.62) == (
+        "No forecast: the share price is below $1.00 ($0.62 on 12 Nov 2026). The forecasts "
+        "leave out such companies (a rule fixed before any model was built)."
+    )
+    assert ("the shares trade less than $10,000 a day ($4,210 on average over the last 20 "
+            "trading days)") in say(addv20=4_210.0)  # fmt: skip
+    assert "no trading was recorded over the last 20 trading days" in say(addv20=None)
+    assert "traded for only 40 days (at least 63 are needed)" in say(sessions_listed=40)
+    assert "filed nothing with the SEC in the last 12 months" in say(active_filer=False)
+    both = say(close=0.5, addv20=3_000.0)
+    assert "below $1.00" in both and "less than $10,000" in both and "(rules fixed" in both
+    assert say(eligible_dilution=True).startswith("No forecast yet")
+    assert "not complete" in say()  # in no rule's way yet not in the question: kept as before

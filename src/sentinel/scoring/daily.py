@@ -133,6 +133,8 @@ def score_snapshot(
         }
     )
     con.register("_dilution_scores", records)
+    # a forecast made again unchanged keeps its row and time, so the update's change report
+    # counts only the forecasts that changed (V2-73)
     con.execute("""
         insert into score.daily
         select * from _dilution_scores
@@ -143,6 +145,10 @@ def score_snapshot(
             coverage = excluded.coverage,
             extra_json = excluded.extra_json,
             scored_at = excluded.scored_at
+        where forecast_val is distinct from excluded.forecast_val
+            or band is distinct from excluded.band
+            or coverage is distinct from excluded.coverage
+            or extra_json is distinct from excluded.extra_json
     """)
     con.unregister("_dilution_scores")
     echo(
