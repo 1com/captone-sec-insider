@@ -169,7 +169,8 @@ One page per stock: search by ticker or name, the company's facts, the dilution 
 reasons, the price and volume chart, insider buying and selling, key financials as first filed, the
 SEC filings in plain English, short selling and diagnostics. It reads `data/serving.duckdb` read-only and picks up each day's new
 copy by itself. The dilution forecasts are made by the daily update (with the frozen approved
-model, V2-72), not by the app; a forecast older than the company's data is marked as such.
+model, V2-72), not by the app; a forecast older than the company's data is marked as such, and a
+company left out of the forecasts is told which rule leaves it out, with its value (V2-73).
 
 ```bash
 uv run sentinel web               # http://localhost:8100, this machine only
