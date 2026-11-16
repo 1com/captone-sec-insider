@@ -89,4 +89,5 @@ The researcher asked for a presentable MVP first (10 Nov); tasks after the MVP a
   its page says why (`web/forecast.py`, `no_share_count`: a company that files no reports with a
   share count, or a US company whose filings give none yet); the named cases check the reason
   against the build database's row; Akzo Nobel added. Tests in `tests/unit/test_web_app.py` and
-  `tests/unit/test_web_named_cases.py`
+  `tests/unit/test_web_named_cases.py`. On 16 Nov's data the 15 named cases pass (0 failed,
+  `docs/report/app_named_cases.md`)
