@@ -226,6 +226,10 @@ holds and what does not:
   Outcomes (`score.outcome`): the first windows close in May 2027; the outcome code reads
   `label.dilution`, which stops at 2022, so live answers need the label code over current data
   first.
+  **V2-74 (16 Nov, the researcher: "A"):** a dilution forecast is served only while the company's
+  latest row has a share count; without one the answer cannot be measured, so the model was
+  never tested on such rows (388 of 4,071 served forecasts on 12 Nov, 288 in band 5; Akzo Nobel
+  was #10 on the landing page); such a page says why.
 - **App (011–018):** serves Tiingo-derived prices (8.1 M rows, 4,840 companies) without a filter;
   a ticker shared by several companies opens an arbitrary one (`/stock/DIS` can be TWDC
   Enterprises, 2019); the price chart is broken (JSON escaped inside `<script>`); the insider

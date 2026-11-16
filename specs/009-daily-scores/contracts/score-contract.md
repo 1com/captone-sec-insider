@@ -71,7 +71,9 @@ The web API and UI consume:
 - `app.daily_score`: each company's newest approved forecast whose day is within 7 days of the
   newest, and only while the company's latest feature row is still in the question (V2-73:
   `eligible_dilution` for dilution; an older forecast is served only when the latest update made
-  none, e.g. its scoring step failed); always present, empty when the build has none.
+  none, e.g. its scoring step failed) and, for dilution, has a share count (V2-74: without one
+  the answer cannot be measured, so the model was never tested on such rows); always present,
+  empty when the build has none.
 - A forecast made again for the same day unchanged keeps its row and `scored_at` (V2-73), so the
   update's change report counts only forecasts that changed.
 
