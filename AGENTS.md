@@ -232,7 +232,9 @@ holds and what does not:
   **V2-74 (16 Nov, the researcher: "A"):** a dilution forecast is served only while the company's
   latest row has a share count; without one the answer cannot be measured, so the model was
   never tested on such rows (388 of 4,071 served forecasts on 12 Nov, 288 in band 5; Akzo Nobel
-  was #10 on the landing page); such a page says why.
+  was #10 on the landing page); such a page says why. Merged by #111 (16 Nov); applied on 16 Nov's
+  data (the 10:00 run `complete` after three hours, the SEC slow after a US holiday): 3,682 of
+  4,065 forecasts served; the 15 named cases pass.
 - **App (011–018):** serves Tiingo-derived prices (8.1 M rows, 4,840 companies) without a filter;
   a ticker shared by several companies opens an arbitrary one (`/stock/DIS` can be TWDC
   Enterprises, 2019); the price chart is broken (JSON escaped inside `<script>`); the insider

@@ -547,7 +547,7 @@ def from_serving(con: duckdb.DuckDBPyConnection) -> list[Number]:
             count(forecasts),
             f"{src} → app.daily_score",
             "of them, companies with a dilution forecast (each of the others is told on its "
-            "page which rule fixed before any model leaves it out)",
+            "page why it has none: a rule fixed before any model, or no share count, V2-74)",
         ),
     ]
 

@@ -29,8 +29,10 @@ README's results table). **Deadline**: the dry run on Wednesday 18 Nov 2026 need
   `docs/presentation/numbers.md` per the contract, with a short "Terms" part (dilution, log loss, AUC,
   band, look-ahead, the one-time test) in plain words for questions (FR-005); the serving copy read
   read-only with `db.MEMORY_LIMIT`
-- [ ] T005 Generate `docs/presentation/numbers.md` on the data of 16 Nov (after the 10:00 update) and
-  compare its dilution numbers with the model report's "The holdout test (010)" by eye
+- [X] T005 Generate `docs/presentation/numbers.md` on the data of 16 Nov (after the 10:00 update) and
+  compare its dilution numbers with the model report's "The holdout test (010)" by eye. Done 16 Nov,
+  after V2-74 was applied: data to 13 Nov, 6,917 companies still trading, 3,682 dilution forecasts;
+  every dilution number equal to the report's tables (the rate of 12% is the bands' rows-weighted mean)
 
 ## Phase 3: User Story 1 - Follow the talk and judge the work (P1)
 
