@@ -65,7 +65,8 @@ branch `NNN-name`), so two people specifying at once never collide.
    (`docs/report/dilution_catching_up.md`), for the report's limitations.
 8. **019 hand-in** (the researcher, 16 Nov): a presentation with a live demo, 15 minutes in all,
    and the GitHub repository; no written report; the dry run on Wed 18 Nov
-   (`specs/019-hand-in/`). **020** before the Tiingo plan ends (25 Nov).
+   (`specs/019-hand-in/`). Done 16 Nov: the number sheet, the slides and their number check,
+   the demo path and its 20 named cases. **020** before the Tiingo plan ends (25 Nov).
 
 ## Notebooks and code
 

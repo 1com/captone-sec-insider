@@ -64,12 +64,16 @@ test**: one timed run of `demo.md` on the live app.
   company's band's record on the one-time test beside the test years'; the model section adds the
   one-time test's log loss and AUC per level and year and its calibration table; the limits sentence
   names the test's date; unchanged when `holdout` is absent
-- [ ] T011 [US2] Pick the demo companies on the data of 16 Nov by the roles in [plan.md](plan.md),
+- [X] T011 [US2] Pick the demo companies on the data of 16 Nov by the roles in [plan.md](plan.md),
   each with a spare, and write `specs/019-hand-in/demo.md`: per step the company (name, ticker, CIK),
-  the spare, what to open, what to point at, what to say and the time; no exact chance or price
-- [ ] T012 [US2] Add the demo companies not yet among the named cases to
+  the spare, what to open, what to point at, what to say and the time; no exact chance or price.
+  Done 16 Nov on the live app (data to 13 Nov): each step's need checked, recorded in `demo.md`;
+  Treasure Global replaces BioVie as step 2's spare (BioVie's prices are from the private source);
+  step 4's company and spare swapped (PDS Biotechnology's price is close to $1)
+- [X] T012 [US2] Add the demo companies not yet among the named cases to
   `src/sentinel/web/named_cases.py`; `python -m sentinel.web.named_cases` passes in full;
-  `docs/report/app_named_cases.md` regenerated (verdicts only)
+  `docs/report/app_named_cases.md` regenerated (verdicts only). Done 16 Nov: TCRT, TGL, MSFT, PDSB
+  and VIAV added (AAPL, GPUS and CASK were already there); 20 named cases, 11 sections each, 0 failed
 - [ ] T013 [US2] Backup screenshots of each step in `data/handin/backup/` (git-ignored; Chrome on
   Windows, headless), never committed and never in the slides
 - [ ] T014 [US2] Timed walk-through of `demo.md` on the live app (about 5 minutes), checked on

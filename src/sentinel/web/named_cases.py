@@ -44,6 +44,11 @@ CASES = [  # (CIK, ticker searched, what it stands for: SC-002's kinds and earli
     ("835011", "CASK", "a ticker change, MGPI to CASK (027)"),
     ("896493", "GPUS", "a stock below $1, left out by the price rule (V2-73)"),
     ("3124", "AKZOY", "no share count in its SEC filings: no forecast served (V2-74)"),
+    ("1107421", "TCRT", "the demo's high-risk company (019, step 2)"),
+    ("1905956", "TGL", "the demo's spare high-risk company (019, step 2)"),
+    ("789019", "MSFT", "the demo's spare large company (019, step 3)"),
+    ("1472091", "PDSB", "the demo's spare stock below $1 (019, step 4)"),
+    ("912093", "VIAV", "the demo's spare ticker change, JDSU to VIAV (019, step 5)"),
 ]
 SPLIT_DAYS = {"1411579": "2023-08-24"}  # adjusted prices must be continuous across these days
 OUT = Path("docs/report/app_named_cases.md")

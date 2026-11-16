@@ -312,7 +312,22 @@ holds and what does not:
   the serving copy); the app's dilution panel and model section show the one-time test's record
   (2023 on) from the model card. The slides are a claude.ai Slides artifact (private), downloaded
   as PDF and PowerPoint; the demo's backup screenshots stay in `data/handin/backup/` (the app's
-  price charts are Tiingo-derived).
+  price charts are Tiingo-derived). **Done 16 Nov:**
+  - the number sheet on 16 Nov's data (T005: 3,682 forecasts);
+  - the ten slides (T006), whose cover reads "Hashim Bin Shahbaz & Yassin Tourki · AI / ML
+    Project Management";
+  - their number check (T007, `specs/019-hand-in/slides-check.md`): 39 ids in 44 places,
+    0 differences, seven slides' wording corrected;
+  - the demo path checked on the live app (T011, `specs/019-hand-in/demo.md`): every demo
+    company's chart comes from Yahoo;
+  - the demo companies added to the named cases (T012): 20 cases, 0 failed.
+
+  Left for the dry run: the backup screenshots (T013), timed walk-throughs on 17 and 18 Nov (T014),
+  and the researcher's review with the PDF and PowerPoint (T008).
+
+  Found on the way, for after the hand-in: when a company changes ticker, our price chain does not
+  fill the new ticker's missing days from the old ticker's rows. CASK lacks 9-11 Nov 2026, which
+  MGPI has; this affects a few companies.
 - **Options (023):** the spot price comes from a table that does not exist (falls back to the
   median strike or 100); the tables now live in schema `live` (a rebuild cannot reproduce them).
 - **Process:** no pull requests since #90; three of the last five CI runs on `main` failed.
