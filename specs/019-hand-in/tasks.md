@@ -39,10 +39,11 @@ README's results table). **Deadline**: the dry run on Wednesday 18 Nov 2026 need
 **Goal**: about 10 slides for about 8.5 minutes. **Independent test**: a timed run-through of the
 slides alone; every number found on the sheet.
 
-- [ ] T006 [US1] The slides as a claude.ai Slides artifact (private), from the outline in
+- [X] T006 [US1] The slides as a claude.ai Slides artifact (private), from the outline in
   [plan.md](plan.md): 10 slides, a chart of log loss per level on the one-time test and a chart of the
   bands' forecast against what happened, speaker notes with times; every number by id from
-  `docs/presentation/numbers.md`; no value derived from the private price source
+  `docs/presentation/numbers.md`; no value derived from the private price source. All 10 written by
+  16 Nov (slide 3's counts from the sheet of 16 Nov); checked by T007, reviewed by T008
 - [ ] T007 [US1] Number check (SC-002): slide, id, number shown and the sheet's value, compared one
   by one, recorded in `specs/019-hand-in/slides-check.md`
 - [ ] T008 [US1] The researcher's review (the names on the title slide; the lessons slide) and the
