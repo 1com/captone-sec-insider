@@ -60,6 +60,12 @@ def _fresh(con) -> dict:
     return data.freshness(con)
 
 
+def _asset_version() -> str:
+    """Changes whenever the page's script or style changes, so a browser fetches the new files."""
+    stamp = max((HERE / "static" / name).stat().st_mtime_ns for name in ("app.css", "app.js"))
+    return format(stamp // 1_000_000, "x")
+
+
 @app.get("/", response_class=HTMLResponse)
 def page(request: Request) -> HTMLResponse:
     error, fresh = None, {}
@@ -71,7 +77,12 @@ def page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "index.html",
-        {"fresh": fresh, "error": error, "kinds": list(glossary.KINDS.items())},
+        {
+            "fresh": fresh,
+            "error": error,
+            "kinds": list(glossary.KINDS.items()),
+            "v": _asset_version(),
+        },
     )
 
 

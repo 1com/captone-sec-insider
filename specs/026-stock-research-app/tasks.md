@@ -91,3 +91,21 @@ The researcher asked for a presentable MVP first (10 Nov); tasks after the MVP a
   against the build database's row; Akzo Nobel added. Tests in `tests/unit/test_web_app.py` and
   `tests/unit/test_web_named_cases.py`. On 16 Nov's data the 15 named cases pass (0 failed,
   `docs/report/app_named_cases.md`)
+
+## Phase 9: User Story 8 - One section at a time (the researcher, 16 Nov)
+
+- [X] T024 [US8] Spec (User Story 8, FR-022 amended, FR-025, SC-009), plan ("The page in tabs") and
+  these tasks
+- [X] T025 [US8] `templates/index.html`: the company header with the dilution band, the tab bar and
+  five tab panels; a version on the static files' addresses (`main.py`)
+- [X] T026 [US8] `static/app.css`: the header, the sticky tab bar, cards, the list of key
+  statistics, tiles, fold-outs and segmented controls; a phone layout
+- [X] T027 [US8] `static/app.js`: tabs with their addresses; each section drawn into its tab; charts
+  drawn when their tab opens; the reasons as bars; first rows with a button for the rest
+- [X] T028 [US8] The landing page in the same style: the list of highest risks with a short guide to
+  the bands
+- [X] T029 [US8] Checks: ruff, the tests, the named cases; screenshots of each tab for three
+  companies on a 1440 × 900 screen (scratchpad only, never committed: the charts can use the
+  private price source). Done 16 Nov: 339 tests pass; no typed-in date in the page files;
+  screenshots of every tab (Apple, Alaunos, MGP, Hyperscale Data without a forecast), the landing
+  page, a tablet width and a phone width (390 pixels, in a frame); the fold-outs checked open

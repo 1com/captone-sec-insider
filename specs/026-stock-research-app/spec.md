@@ -32,6 +32,14 @@ diagnostics, form types (8-K, 10-K, 10-Q, Form 4) without explanations.
 - Q: What should the diagnostics section show? → A: Both parts: the data behind the page and the
   dilution model's workings (User Story 7).
 
+### Session 2026-11-16
+
+- Q: How should the page present so much data? → A (the researcher, 16 Nov): "the ux / ui is
+  terrible right now. everything is just open right in your face"; present it neatly with the
+  patterns modern platforms use so as not to overwhelm: the price chart, fundamentals and short
+  interest in one section, insiders in another, SEC filings in another, and the rest each in its
+  own section. The fixed demo path of 019 is dropped: the app is shown freely at the hand-in.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Look up a stock and judge its dilution risk (Priority: P1)
@@ -223,6 +231,33 @@ promise.
 
 ---
 
+### User Story 8 - A calm page: one section at a time (Priority: P1)
+
+A newcomer opens a company and sees at the top its name, ticker, price and dilution band, and below
+them five tabs: Price & fundamentals, Dilution risk, Insiders, SEC filings, About & data. Only the
+open tab's content shows; long lists show their first rows; explanations and the model's details
+fold away until asked for.
+
+**Why this priority**: the researcher found the one long page overwhelming (16 Nov), and the app is
+shown live at the hand-in.
+
+**Independent Test**: open a company; each tab shows its section alone; the address names the open
+tab, so a reload or the back button returns to it; on a laptop screen each tab's main content is
+visible without scrolling.
+
+**Acceptance Scenarios**:
+
+1. **Given** a company opened from search, **When** the page appears, **Then** the Price &
+   fundamentals tab shows the price chart beside the key statistics, then the key financials, the
+   share count over time and short selling.
+2. **Given** a company opened from the list of highest risks, **When** the page appears, **Then**
+   the Dilution risk tab shows the chance, its band, the band's record and the main reasons, with
+   every factor and the model's tests folded away.
+3. **Given** the Insiders tab, **Then** the last 12 months' totals come first, then the monthly
+   chart, then the first trades with a button for all of them.
+4. **Given** any tab, **When** its address is opened again or the browser goes back, **Then** the
+   same company and tab show.
+
 ### Edge Cases
 
 - A ticker reused by several companies, or a company with several tickers (share classes): the
@@ -312,14 +347,26 @@ promise.
 - **FR-021**: The app MUST run on a port checked to be free in WSL and on Windows, and refuse a busy
   or reserved port (8000, 8080, 8090 belong to other programs); by default it is reachable from
   this machine only.
-- **FR-022**: The page MUST look like a professional research tool: one page with its sections in a
-  fixed order, a consistent layout and typography, numbers with units and sensible rounding
+- **FR-022**: The page MUST look like a professional research tool: a company header above tabs
+  that show one section at a time (FR-025; amended 16 Nov, was "one page with its sections in a
+  fixed order"), a consistent layout and typography, numbers with units and sensible rounding
   (\$1.2B, 34%), the same colours for the same meaning everywhere (buy and sell, up and down,
   risk bands), every chart with labelled axes; usable on a laptop screen and readable on a phone.
 - **FR-023**: Every number on the page MUST come from the data; a test MUST compare the page's
   numbers with the data for named companies.
 - **FR-024**: After the researcher approves the new app, the old app (011–017) MUST be removed,
   with the researcher's agreement.
+
+- **FR-025**: The company page MUST show its sections as tabs (the researcher, 16 Nov): (1) Price &
+  fundamentals: the price and volume chart beside the key statistics, the key financials, the share
+  count over time and short selling; (2) Dilution risk: the chance, the band, the band's record (test
+  years and the one-time test) and the main reasons, with every factor and the model's workings
+  folded away (FR-015's second part); (3) Insiders: the last 12 months' totals, the monthly chart
+  and the trades; (4) SEC filings; (5) About & data: the company's facts and the data behind the page
+  (FR-015's first part). The header always shows the name, tickers, price and the dilution band. Each
+  tab has its own address; long lists show their first rows with a button for the rest;
+  explanations fold away, and the market terms keep their tooltips (FR-016). No data, endpoint or
+  number changes.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -360,6 +407,10 @@ promise.
 - **SC-007**: With the serving copy missing, every page shows the error and no data (a test).
 - **SC-008**: Across a daily update, the app keeps answering and shows the new day's data without a
   restart.
+
+- **SC-009**: On a 1440 × 900 screen, each tab's main content (the chart and key statistics; the
+  chance, band and reasons; the insider totals and chart; the first filings; the company's facts)
+  is visible without scrolling, checked on screenshots of named cases.
 
 ## Assumptions
 
