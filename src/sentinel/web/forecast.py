@@ -95,6 +95,24 @@ def _day(value) -> str:
     return f"{d.day} {d:%b %Y}"
 
 
+def no_share_count(card: dict, facts: dict) -> str | None:
+    """Why a company in the question has no forecast when its latest row has no share count
+    (V2-74): the answer cannot be measured, so the model was never trained or tested on such
+    rows (`sentinel publish` serves none of their forecasts)."""
+    shares = card.get("shares_outstanding")
+    if not card.get("eligible_dilution") or (shares is not None and shares == shares):
+        return None  # out of the question for another reason, or a count is known (not NaN)
+    whose = (
+        "the company files no reports with the SEC that give its share count"
+        if "non_reporting" in (card.get("filer_type"), facts.get("filer_type"))
+        else "no share count from the company's SEC filings is known yet"
+    )
+    return (
+        f"No forecast: {whose}, so whether its shares rise by 10% or more cannot be measured, "
+        "and the model was never tested on such companies (decision V2-74)."
+    )
+
+
 def rules_failed(card: dict, rules: dict) -> list[str]:
     """The rules every question applies (`risk_params.yaml` `panel`, fixed before any model was
     built) that the company's latest row fails, in plain words with its own values (V2-73)."""
@@ -243,6 +261,8 @@ class Forecasts:
             reason = "No forecast: the company's shares have no recent price in our data."
         elif card.get("excluded") or facts.get("is_fund"):
             reason = "No forecast: funds, trusts and similar vehicles are outside this question."
+        elif uncounted := no_share_count(card, facts):
+            reason = uncounted
         elif card.get("eligible_dilution"):
             reason = (
                 "No forecast yet: the daily update has not made one for this company (the "

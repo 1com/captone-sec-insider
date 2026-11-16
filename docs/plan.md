@@ -57,7 +57,8 @@ branch `NNN-name`), so two people specifying at once never collide.
    read by the app; the first scheduled run with them checked on 13 Nov (`complete`, a rerun
    `nothing_new`, `sentinel verify` identical). **Done on 13 Nov (V2-73):** a company left out by
    a rule is told which rule, with its value, and keeps no forecast of a day it was still in the
-   question (14 named cases pass). Next: insider clusters and short interest if time allows; the old
+   question (14 named cases pass). **Done on 16 Nov (V2-74):** a dilution forecast is shown only
+   while the company's latest row has a share count. Next: insider clusters and short interest if time allows; the old
    app removed once the researcher approves the new one.
    **025** (the unusual-volume tracker, V2-51) only if time allows.
 7. **Done on 12 Nov: V2-70**, the dilution answer's catching-up effect measured

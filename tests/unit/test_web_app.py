@@ -235,7 +235,8 @@ def test_the_page_shows_the_daily_updates_forecasts_of_the_approved_model_only(t
         {"feature": "log_market_cap", "label": "Market value of the company",
          "kind": "logmoney", "value": None, "effect": -0.2}]  # fmt: skip
     assert fc.for_company("2", {"as_of": "2026-11-10"}, True, {})["stale"] is True
-    three = fc.for_company("3", {"as_of": "2026-11-10", "eligible_dilution": True}, True,
+    three = fc.for_company("3", {"as_of": "2026-11-10", "eligible_dilution": True,
+                                 "shares_outstanding": 1_000_000.0}, True,
                            {"has_prices": True})  # fmt: skip
     assert not three["available"] and three["reason"].startswith("No forecast yet")
     assert fc.top(1) == [{"cik": "1", "chance": 0.31, "band": 4}]
@@ -249,7 +250,8 @@ def test_a_company_left_out_by_a_rule_is_told_which_rule_with_its_own_values(tmp
     fc = forecast.Forecasts(dataclasses.replace(config.paths(), serving_db=tmp_path / "s.duckdb"))
     fc.current = {"5"}
     card = {"as_of": "2026-11-12", "close": 4.0, "addv20": 50_000.0, "sessions_listed": 900,
-            "active_filer": True, "eligible_dilution": False}  # fmt: skip
+            "active_filer": True, "eligible_dilution": False,
+            "shares_outstanding": 2_000_000.0}  # fmt: skip
 
     def say(**changed) -> str:
         return fc.for_company("5", {**card, **changed}, True, {"has_prices": True})["reason"]
@@ -267,6 +269,15 @@ def test_a_company_left_out_by_a_rule_is_told_which_rule_with_its_own_values(tmp
     assert "below $1.00" in both and "less than $10,000" in both and "(rules fixed" in both
     assert say(eligible_dilution=True).startswith("No forecast yet")
     assert "not complete" in say()  # in no rule's way yet not in the question: kept as before
+    # V2-74: in the question without a share count: the answer cannot be measured
+    assert say(eligible_dilution=True, shares_outstanding=None) == (
+        "No forecast: no share count from the company's SEC filings is known yet, so whether its "
+        "shares rise by 10% or more cannot be measured, and the model was never tested on such "
+        "companies (decision V2-74)."
+    )
+    assert "files no reports with the SEC that give its share count" in say(
+        eligible_dilution=True, shares_outstanding=None, filer_type="non_reporting"
+    )
 
 
 def test_the_page_gets_the_one_time_test_from_the_model_card_and_types_in_none(client, monkeypatch):
