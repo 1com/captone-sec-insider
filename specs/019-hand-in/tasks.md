@@ -74,10 +74,10 @@ test**: one timed run of `demo.md` on the live app.
   `src/sentinel/web/named_cases.py`; `python -m sentinel.web.named_cases` passes in full;
   `docs/report/app_named_cases.md` regenerated (verdicts only). Done 16 Nov: TCRT, TGL, MSFT, PDSB
   and VIAV added (AAPL, GPUS and CASK were already there); 20 named cases, 11 sections each, 0 failed
-- [ ] T013 [US2] Backup screenshots of each step in `data/handin/backup/` (git-ignored; Chrome on
-  Windows, headless), never committed and never in the slides
-- [ ] T014 [US2] Timed walk-through of `demo.md` on the live app (about 5 minutes), checked on
-  17 Nov and on the morning of 18 Nov; spares used where a company no longer fits
+- [-] T013 [US2] ~~Backup screenshots of each step in `data/handin/backup/`~~ Dropped (the researcher,
+  16 Nov: "just the app running locally on my pc is fine. ill show them around, click a few stocks")
+- [-] T014 [US2] ~~Timed walk-through of `demo.md`~~ Dropped with the fixed path (the researcher, 16 Nov);
+  the app is shown freely, its company page now in tabs (026 User Story 8); slide 10 lists the tabs
 
 ## Phase 5: User Story 3 - Open the repository as a grader (P2)
 

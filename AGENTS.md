@@ -328,6 +328,19 @@ holds and what does not:
   Found on the way, for after the hand-in: when a company changes ticker, our price chain does not
   fill the new ticker's missing days from the old ticker's rows. CASK lacks 9-11 Nov 2026, which
   MGPI has; this affects a few companies.
+
+  **Also found 16 Nov (by the researcher, on Tempus AI): share counts 1,000 times too small.** A
+  company without a cover-page count in the SEC's companyfacts gets the quarterly average count
+  instead (`core/filings.py`, `build_shares`, source `basic_average`; 450 companies). Some companies
+  report that average in thousands without marking it: Tempus AI 181,311 for about 181 million,
+  EchoStar, DraftKings. Some shells report a placeholder of 1,000 shares. Their market value,
+  share-based inputs and dilution forecast are wrong; Tempus AI was third on the top list.
+  Symptom: the value traded per day is more than 10 times the market value (8 served forecasts on
+  16 Nov; 24 above 1 time, some of them maybe real). A decision for the researcher is pending.
+
+  **The researcher, 16 Nov: the company page is now in tabs** (026 User Story 8, FR-025): Price &
+  fundamentals, Dilution risk, Insiders, SEC filings, About & data. **The demo has no fixed path:**
+  the app is shown freely (019 T013 and T014 dropped).
 - **Options (023):** the spot price comes from a table that does not exist (falls back to the
   median strike or 100); the tables now live in schema `live` (a rebuild cannot reproduce them).
 - **Process:** no pull requests since #90; three of the last five CI runs on `main` failed.

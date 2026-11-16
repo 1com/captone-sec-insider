@@ -1,5 +1,8 @@
 # Demo path (about 5 minutes)
 
+> **16 Nov: no fixed path.** The researcher shows the app freely ("ill show them around, click a few
+> stocks"). The companies below stay as checked examples, not a script.
+
 The live part of the presentation (019, User Story 2). Every step names what to point at, never an
 exact chance or price: the data change every weekday. Numbers quoted aloud come from the number
 sheet (`docs/presentation/numbers.md`) by id.
