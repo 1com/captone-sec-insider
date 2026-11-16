@@ -12,7 +12,7 @@ from sentinel.web.forecast import Forecasts
 RULES = config.risk_params(config.paths())["panel"]
 # a latest row that meets every rule every question applies (V2-73)
 IN_RULES = {"as_of": "2026-11-11", "close": 5.0, "addv20": 50_000.0, "sessions_listed": 900,
-            "active_filer": True}  # fmt: skip
+            "active_filer": True, "shares_outstanding": 2_000_000.0}  # fmt: skip
 
 
 def _reason(facts: dict, listed: bool = True, card: dict | None = None, current=()) -> str:
@@ -64,9 +64,24 @@ def test_the_check_expects_the_same_reasons():
         (ok, {**IN_RULES, "active_filer": False}, True, {"1"}),
         (ok, {**IN_RULES, "close": 0.4, "addv20": 900.0}, True, {"1"}),
         (ok, {**IN_RULES, "eligible_dilution": True}, True, {"1"}),
+        (ok, {**IN_RULES, "eligible_dilution": True, "shares_outstanding": None}, True, {"1"}),
+        (
+            ok,
+            {
+                **IN_RULES,
+                "eligible_dilution": True,
+                "shares_outstanding": np.nan,
+                "filer_type": "non_reporting",
+            },
+            True,
+            {"1"},
+        ),  # fmt: skip
         (ok, IN_RULES, True, {"1"}),
     ):
         assert expect(facts, card) in _reason(facts, listed, card, current), card
+    # V2-74: in the question but no share count: the check reads the build database's row
+    missing = {**IN_RULES, "shares_outstanding": np.float64("nan")}
+    assert expect(ok, {**IN_RULES, "eligible_dilution": True}, missing) == "share count"
 
 
 def test_typed_in_dates_are_found_outside_the_chart_library(tmp_path):

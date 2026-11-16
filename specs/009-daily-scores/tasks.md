@@ -75,3 +75,8 @@ description: "Task list for feature 009: Daily scores and live outcomes"
   of them in the app's top 15); a forecast made again unchanged keeps its row and time, so the
   change report counts only real changes (the rerun counted all 4,071); tests in
   `tests/unit/test_serving.py` and `tests/unit/test_daily_scores.py`
+- [X] T015 V2-74 (16 Nov), found while choosing the hand-in's demo companies (019): `sentinel
+  publish` serves a dilution forecast only while the company's latest row has a share count
+  (without one the answer cannot be measured, so the model was never tested on such rows; on
+  12 Nov's data 388 of the 4,071 served forecasts, 288 of them in band 5); `score.daily` keeps
+  them; test in `tests/unit/test_serving.py`

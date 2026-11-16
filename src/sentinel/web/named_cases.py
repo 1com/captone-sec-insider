@@ -43,6 +43,7 @@ CASES = [  # (CIK, ticker searched, what it stands for: SC-002's kinds and earli
     ("1408710", "FN", "a stray filing of another company (V2-63)"),
     ("835011", "CASK", "a ticker change, MGPI to CASK (027)"),
     ("896493", "GPUS", "a stock below $1, left out by the price rule (V2-73)"),
+    ("3124", "AKZOY", "no share count in its SEC filings: no forecast served (V2-74)"),
 ]
 SPLIT_DAYS = {"1411579": "2023-08-24"}  # adjusted prices must be continuous across these days
 OUT = Path("docs/report/app_named_cases.md")
@@ -136,10 +137,12 @@ def expected_reason(facts: dict, card: dict, rules: dict, row: dict | None = Non
         return "no recent price"
     if facts.get("is_fund"):
         return "funds"
-    if card.get("eligible_dilution"):
-        return "No forecast yet"
     r = row if row is not None else card
     num = lambda k: None if r.get(k) is None or pd.isna(r[k]) else float(r[k])  # noqa: E731
+    if card.get("eligible_dilution") and num("shares_outstanding") is None:
+        return "share count"  # V2-74: the answer cannot be measured without one
+    if card.get("eligible_dilution"):
+        return "No forecast yet"
     if num("close") is not None and num("close") < float(rules["min_close"]):
         return f"the share price is below ${float(rules['min_close']):,.2f}"
     if num("addv20") is None:

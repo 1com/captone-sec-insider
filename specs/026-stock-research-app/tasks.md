@@ -85,3 +85,8 @@ The researcher asked for a presentable MVP first (10 Nov); tasks after the MVP a
   cases (GPUS added: a stock below $1), all 154 checks pass; on 13 Nov's data every current
   company has a forecast or a reason naming its rule. Tests in `tests/unit/test_web_app.py` and
   `tests/unit/test_web_named_cases.py`
+- [X] T023 V2-74 (16 Nov): a company in the question without a share count gets no forecast and
+  its page says why (`web/forecast.py`, `no_share_count`: a company that files no reports with a
+  share count, or a US company whose filings give none yet); the named cases check the reason
+  against the build database's row; Akzo Nobel added. Tests in `tests/unit/test_web_app.py` and
+  `tests/unit/test_web_named_cases.py`
