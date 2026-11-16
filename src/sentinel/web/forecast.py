@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import threading
+from datetime import date
 
 from sentinel import config
 from sentinel.scoring.daily import CURRENT_DAYS, QUESTION
@@ -88,6 +89,37 @@ FEATURES = {
 }
 
 
+def _day(value) -> str:
+    """'2026-11-12' as '12 Nov 2026'."""
+    d = date.fromisoformat(str(value)[:10])
+    return f"{d.day} {d:%b %Y}"
+
+
+def rules_failed(card: dict, rules: dict) -> list[str]:
+    """The rules every question applies (`risk_params.yaml` `panel`, fixed before any model was
+    built) that the company's latest row fails, in plain words with its own values (V2-73)."""
+    out = []
+    day = _day(card["as_of"]) if card.get("as_of") else "the latest day"
+    close, floor = card.get("close"), float(rules["min_close"])
+    if close is not None and close < floor:
+        out.append(f"the share price is below ${floor:,.2f} (${close:,.2f} on {day})")
+    trade, least = card.get("addv20"), float(rules["min_addv20_usd"])
+    if trade is None:
+        out.append(f"no trading was recorded over the last 20 trading days (at least "
+                   f"${least:,.0f} a day is needed)")  # fmt: skip
+    elif trade < least:
+        out.append(f"the shares trade less than ${least:,.0f} a day (${trade:,.0f} on average "
+                   f"over the last 20 trading days)")  # fmt: skip
+    days, need = card.get("sessions_listed"), int(rules["min_price_history_sessions"])
+    if days is not None and days < need:
+        out.append(f"the shares have traded for only {int(days):,} days (at least {need} are "
+                   f"needed)")  # fmt: skip
+    if card.get("active_filer") is False:
+        out.append(f"the company has filed nothing with the SEC in the last "
+                   f"{int(rules['active_filer_months'])} months")  # fmt: skip
+    return out
+
+
 class Forecasts:
     """The approved model's newest forecast for every eligible company still trading, with its
     reasons, as the daily update stored them."""
@@ -102,6 +134,13 @@ class Forecasts:
         self.as_of: str | None = None
         self.current: set[str] = set()
         self._version = None
+        self._rules: dict | None = None
+
+    def rules(self) -> dict:
+        """The rules every question applies (`risk_params.yaml` `panel`), read once."""
+        if self._rules is None:
+            self._rules = config.risk_params(self.p)["panel"]
+        return self._rules
 
     def _load(self) -> None:
         from sentinel.scoring import daily  # MLflow is imported only when the app first needs it
@@ -208,6 +247,12 @@ class Forecasts:
             reason = (
                 "No forecast yet: the daily update has not made one for this company (the "
                 "forecasts are made every weekday)."
+            )
+        elif failed := rules_failed(card, self.rules()):
+            rule = "a rule" if len(failed) == 1 else "rules"
+            reason = (
+                f"No forecast: {'; '.join(failed)}. The forecasts leave out such companies "
+                f"({rule} fixed before any model was built)."
             )
         else:
             reason = (

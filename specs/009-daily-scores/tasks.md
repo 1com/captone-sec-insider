@@ -63,5 +63,15 @@ description: "Task list for feature 009: Daily scores and live outcomes"
 - [X] T012 Tests (`tests/unit/test_daily_scores.py`, `test_serving.py`, `test_update.py`,
   `test_web_app.py`); on the data of 11 Nov: 4,095 forecasts in 8 s (1.1 GB), the app's dilution
   panel for all 6,922 current companies identical before and after, the 13 named cases pass
-- [ ] T013 The first scheduled run with forecasts: its log, a same-day rerun `nothing_new`,
-  `sentinel verify` identical
+- [X] T013 The first scheduled run with forecasts: its log, a same-day rerun `nothing_new`,
+  `sentinel verify` identical. Done 13 Nov: the 10:00 run `complete` in 48 min, 4,071 forecasts
+  of the 6,921 companies still trading (the others outside the question); a rerun at 11:31 found
+  one late Tiingo file (2 price rows) and rebuilt (`complete`, 19 min), the next at 11:50
+  `nothing_new` in 31 s with every `app` table unchanged; `sentinel verify` all tables identical
+  (38 min, 3.9 GB anon of the 5 GB cap). The SEC's filings of 12-13 Nov arrive on Monday 16 Nov:
+  11 Nov (Veterans Day) had no index, recorded as a holiday after 4 days as on 12 Oct
+- [X] T014 V2-73 (13 Nov), found by T013: `sentinel publish` serves an older forecast only while
+  the company's latest row is still in the question (on 13 Nov 35 companies had fallen out, two
+  of them in the app's top 15); a forecast made again unchanged keeps its row and time, so the
+  change report counts only real changes (the rerun counted all 4,071); tests in
+  `tests/unit/test_serving.py` and `tests/unit/test_daily_scores.py`

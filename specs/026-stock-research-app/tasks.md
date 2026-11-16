@@ -75,3 +75,13 @@ The researcher asked for a presentable MVP first (10 Nov); tasks after the MVP a
   MVP merged by #101, 10 Nov; the shared password, V2-63 and the docs by a second pull request,
   11 Nov)
 - [ ] T021 Remove the old app (011-017) once the researcher approves the new one (FR-024)
+- [X] T022 V2-73 (13 Nov), found by the first scheduled run with forecasts (009 T013): a page
+  without a forecast names each rule every question applies that the company fails
+  (`risk_params.yaml` `panel`: price, trading value, trading days, a recent filing), with its own
+  value and date (`web/forecast.py`, `rules_failed`), instead of "the data is not complete"
+  (1,536 pages on 13 Nov); no forecast of a day the company was still in the question is shown
+  (the served copy, 009 T014; PDS Biotechnology, #1 on the landing page, had fallen below $1).
+  The named cases check each reason against the build database's own row and the rules file; 14
+  cases (GPUS added: a stock below $1), all 154 checks pass; on 13 Nov's data every current
+  company has a forecast or a reason naming its rule. Tests in `tests/unit/test_web_app.py` and
+  `tests/unit/test_web_named_cases.py`

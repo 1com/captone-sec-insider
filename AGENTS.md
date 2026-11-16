@@ -117,7 +117,7 @@ researcher, 12 Nov: no need to delete merged branches), and close its GitHub iss
 per feature). Keep `docs/plan.md`, `README.md` and this
 file in step.
 
-## 7. Where things stand (12 November 2026; the audit of the work of 30 Oct – 3 Nov was on 4 Nov)
+## 7. Where things stand (13 November 2026; the audit of the work of 30 Oct – 3 Nov was on 4 Nov)
 
 Between 30 October and 3 November another agent (Gemini) added models, daily scores, a report,
 the app, Docker and option chains, pushing straight to `main` without pull requests. On
@@ -214,10 +214,18 @@ holds and what does not:
   never computes one. Gemini's 35,225 rows of 2 and 4 Nov (all three questions, unapproved
   `lightgbm_v1`) stay in the log, never served. On the data of 11 Nov: 4,095 forecasts in 8 s
   (1.1 GB); the app's panel for all 6,922 current companies identical before and after; the 13
-  named cases pass. **To check after the 10:00 run of 13 Nov** (009 T013): the log's forecast line
-  and status, a same-day rerun `nothing_new`, `sentinel verify` identical. Outcomes
-  (`score.outcome`): the first windows close in May 2027; the outcome code reads `label.dilution`,
-  which stops at 2022, so live answers need the label code over current data first.
+  named cases pass. **Checked on 13 Nov (009 T013):** the 10:00 run `complete` in 48 min with
+  4,071 forecasts; a rerun found one late Tiingo file and rebuilt (19 min), the next `nothing_new`
+  in 31 s, every `app` table unchanged; `sentinel verify` identical (38 min, 3.9 GB). It showed
+  two faults, fixed the same day (**V2-73**, the researcher: "fix the issues already"): an older
+  forecast was served for companies that had since left the question (35, among them the landing
+  page's #1, fallen below $1): now only while the latest row is still in the question; and pages
+  of companies left out by a rule said "the data is not complete" (1,536): now they name each
+  rule failed (`risk_params.yaml` `panel`) with the company's value and date. A forecast made
+  again unchanged keeps its row and time (the change report counted all 4,071 as changed).
+  Outcomes (`score.outcome`): the first windows close in May 2027; the outcome code reads
+  `label.dilution`, which stops at 2022, so live answers need the label code over current data
+  first.
 - **App (011–018):** serves Tiingo-derived prices (8.1 M rows, 4,840 companies) without a filter;
   a ticker shared by several companies opens an arbitrary one (`/stock/DIS` can be TWDC
   Enterprises, 2019); the price chart is broken (JSON escaped inside `<script>`); the insider
@@ -246,7 +254,9 @@ holds and what does not:
   (Global Self Storage, Seven Hills Realty, NexPoint Diversified Real Estate; 7 listed in all)
   have no prices or forecast: a pipeline rule, for the researcher to decide. Key financials as
   first filed added (T015, 12 Nov; checked by the named cases). The daily dilution forecasts in
-  the update (T018, 12 Nov, V2-72; see "Daily scores" below). Left
+  the update (T018, 12 Nov, V2-72; see "Daily scores" below). Each rule that leaves a company out
+  named on its page (T022, 13 Nov, V2-73); 14 named cases (GPUS added, a stock below $1), all
+  154 checks pass. Left
   (`specs/026-stock-research-app/tasks.md`): insider clusters (T011), short interest (T014, last),
   the old app removed (T021).
 - **V2-63 (10 Nov):** a stray Form 4 of another company naming a ticker (DoorDash giving FN) no
@@ -384,9 +394,10 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
 ### Step 6 · 008 Model report, 009 Daily scores
 - [X] 008 (#79): `sentinel report` regenerates the report from the notebooks' MLflow records
   (merged by #98, 10 Nov).
-- [ ] 009 (#74): since 12 Nov (V2-72) `sentinel update` makes the dilution forecasts of every
+- [X] 009 (#74): since 12 Nov (V2-72) `sentinel update` makes the dilution forecasts of every
   company still trading with the frozen approved model into `score.daily`, published to the app.
-  Left: T013, the first scheduled run with forecasts checked (13 Nov: log, rerun, verify).
+  T013 (13 Nov): the first scheduled run with forecasts `complete`, a rerun `nothing_new`,
+  `sentinel verify` identical; T014 (V2-73): served only while the company is in the question.
   Outcomes once the first windows close (May 2027).
 
 ### Step 7 · The app: 026 stock research app (V2-61), with the researcher
@@ -394,8 +405,9 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
   filings in plain English, short-sale share, diagnostics; on this computer only (V2-71).
 - [ ] 026 later tasks, in this order: key financials as first filed (T015: done 12 Nov); ten named cases
   checked against the data (T019, SC-002: done 12 Nov, 13 cases); the daily dilution forecasts
-  in the update (T018, with 009: done 12 Nov, V2-72); insider clusters (T011) and short interest
-  (T014) if time allows; the old app removed once the researcher approves 026 (T021).
+  in the update (T018, with 009: done 12 Nov, V2-72); each rule that leaves a company out named
+  on its page (T022: done 13 Nov, V2-73; 14 named cases); insider clusters (T011) and short
+  interest (T014) if time allows; the old app removed once the researcher approves 026 (T021).
 - Gemini's old app, kept until T021 (V2-61 replaces it; its faults are in section 7):
 - [ ] 011–017 (built by Gemini, replaced by 026): on branch `011-app-design`. Design and forecast contract (`specs/011-app-design/contracts/`),
   FastAPI read-only API over `data/serving.duckdb` (`src/sentinel/app/`, on port 8090, refusing a busy port), stock research terminal

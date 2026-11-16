@@ -42,6 +42,7 @@ CASES = [  # (CIK, ticker searched, what it stands for: SC-002's kinds and earli
     ("1859199", "AIRE", "a recent offering: 424B4 of 4 Nov 2026"),
     ("1408710", "FN", "a stray filing of another company (V2-63)"),
     ("835011", "CASK", "a ticker change, MGPI to CASK (027)"),
+    ("896493", "GPUS", "a stock below $1, left out by the price rule (V2-73)"),
 ]
 SPLIT_DAYS = {"1411579": "2023-08-24"}  # adjusted prices must be continuous across these days
 OUT = Path("docs/report/app_named_cases.md")
@@ -119,8 +120,10 @@ def sec_shares(raw: Path, cik: str) -> dict[str, int]:
     return {end: v for end, (_, v) in first.items()}
 
 
-def expected_reason(facts: dict, card: dict) -> str:
-    """The reason a page without a dilution forecast should state (FR-004, V2-27, V2-66)."""
+def expected_reason(facts: dict, card: dict, rules: dict, row: dict | None = None) -> str:
+    """The reason a page without a dilution forecast should state (FR-004, V2-27, V2-66): for a
+    company left out by a rule every question applies (V2-73), the first rule its latest row in
+    the build database (`row`) fails, checked here against `risk_params.yaml` itself."""
     if card.get("foreign_filer") or facts.get("filer_type") == "foreign":
         return "foreign"
     if facts.get("is_blank_check"):
@@ -135,10 +138,25 @@ def expected_reason(facts: dict, card: dict) -> str:
         return "funds"
     if card.get("eligible_dilution"):
         return "No forecast yet"
+    r = row if row is not None else card
+    num = lambda k: None if r.get(k) is None or pd.isna(r[k]) else float(r[k])  # noqa: E731
+    if num("close") is not None and num("close") < float(rules["min_close"]):
+        return f"the share price is below ${float(rules['min_close']):,.2f}"
+    if num("addv20") is None:
+        return "no trading was recorded over the last 20 trading days"
+    if num("addv20") < float(rules["min_addv20_usd"]):
+        return f"trade less than ${float(rules['min_addv20_usd']):,.0f} a day"
+    if num("sessions_listed") is not None and num("sessions_listed") < int(
+        rules["min_price_history_sessions"]
+    ):
+        return f"traded for only {int(num('sessions_listed')):,} days"
+    if r.get("active_filer") is False or r.get("active_filer") == 0:
+        return "filed nothing with the SEC"
     return "not complete"
 
 
-def check(page: dict, b: duckdb.DuckDBPyConnection, raw: Path, model, cik: str) -> dict:
+def check(page: dict, b: duckdb.DuckDBPyConnection, raw: Path, model, cik: str,
+          rules: dict) -> dict:  # fmt: skip
     """Each section's verdict: (passed, note) or (None, note) when it does not apply."""
     c, out = page["company"], {}
     facts, card = c.get("facts") or {}, c.get("card") or {}
@@ -269,10 +287,12 @@ def check(page: dict, b: duckdb.DuckDBPyConnection, raw: Path, model, cik: str) 
         out["dilution"] = (ok, "chance, band, date and every reason (value and contribution) "
                                "against the frozen model on the data's row")  # fmt: skip
     else:
-        want = expected_reason(facts, card)
+        want = expected_reason(facts, card, rules, None if snap.empty else snap.iloc[0].to_dict())
         given = d.get("reason", "")
+        # a price in the reason may be Tiingo-derived: never written to the file (V2-73)
+        said = re.sub(r"\$[\d,]+(?:\.\d+)?", "$…", given)
         out["dilution"] = (want in given, f"no forecast; expected a reason with '{want}', "
-                                          f"the page says: {given}")  # fmt: skip
+                                          f"the page says: {said}")  # fmt: skip
 
     diag = c.get("diagnostics") or {}
     first, last_d, days, glitch = one(
@@ -302,6 +322,7 @@ def main(p: config.Paths | None = None, out: Path = OUT, echo=print) -> Path:
     p = p or config.paths()
     raw = p.raw / "sec"
     model = holdout.frozen_models(p, ("dilution",))["dilution"]["model"]
+    rules = config.risk_params(p)["panel"]
     client = TestClient(web.app)
     if web.PASSWORD is not None:
         client.auth = ("check", web.PASSWORD)
@@ -318,7 +339,7 @@ def main(p: config.Paths | None = None, out: Path = OUT, echo=print) -> Path:
                 "financials": client.get(f"/api/financials/{cik}").json(),
                 "filings": client.get(f"/api/filings/{cik}", params={"limit": 1}).json(),
             }
-            res = check(page, b, raw, model, cik)
+            res = check(page, b, raw, model, cik, rules)
             results[(cik, ticker, kind)] = res
             echo(f"\n{ticker} (CIK {cik}), {kind}")
             for s in SECTIONS:
