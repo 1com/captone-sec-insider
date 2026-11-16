@@ -44,8 +44,10 @@ slides alone; every number found on the sheet.
   bands' forecast against what happened, speaker notes with times; every number by id from
   `docs/presentation/numbers.md`; no value derived from the private price source. All 10 written by
   16 Nov (slide 3's counts from the sheet of 16 Nov); checked by T007, reviewed by T008
-- [ ] T007 [US1] Number check (SC-002): slide, id, number shown and the sheet's value, compared one
-  by one, recorded in `specs/019-hand-in/slides-check.md`
+- [X] T007 [US1] Number check (SC-002): slide, id, number shown and the sheet's value, compared one
+  by one, recorded in `specs/019-hand-in/slides-check.md`. Done 16 Nov on the deck's version 12:
+  39 ids in 44 places, 0 differences; the other numbers checked against their sources; seven
+  slides' wording corrected (none a number); the notes' times 13:40 of 15 minutes
 - [ ] T008 [US1] The researcher's review (the names on the title slide; the lessons slide) and the
   changes; PDF and PowerPoint downloaded the day before the dry run as the offline copy
 
