@@ -79,4 +79,5 @@ description: "Task list for feature 009: Daily scores and live outcomes"
   publish` serves a dilution forecast only while the company's latest row has a share count
   (without one the answer cannot be measured, so the model was never tested on such rows; on
   12 Nov's data 388 of the 4,071 served forecasts, 288 of them in band 5); `score.daily` keeps
-  them; test in `tests/unit/test_serving.py`
+  them; test in `tests/unit/test_serving.py`. Applied on 16 Nov's data (the 10:00 run
+  `complete`, filings to 13 Nov): 3,682 of the 4,065 forecasts served
