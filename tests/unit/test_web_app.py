@@ -267,3 +267,27 @@ def test_a_company_left_out_by_a_rule_is_told_which_rule_with_its_own_values(tmp
     assert "below $1.00" in both and "less than $10,000" in both and "(rules fixed" in both
     assert say(eligible_dilution=True).startswith("No forecast yet")
     assert "not complete" in say()  # in no rule's way yet not in the question: kept as before
+
+
+def test_the_page_gets_the_one_time_test_from_the_model_card_and_types_in_none(client, monkeypatch):
+    """019 FR-009: the dilution panel and the model section show the one-time test's record (2023
+    on), read from the generated model card; the page script holds no result of its own."""
+    import json
+    import re
+    from pathlib import Path
+
+    card = json.loads(
+        (Path(config.paths().root) / "docs" / "report" / "model_card.json").read_text("utf-8")
+    )["dilution"]
+    forecasts = _NoForecasts()
+    forecasts.card = card
+    monkeypatch.setattr(main, "FORECASTS", forecasts)
+    test = client.get("/api/company/1744489").json()["model"]["card"]["holdout"]
+    assert test == card["holdout"]
+    assert {"results", "bands", "rows", "first_row", "last_row", "date"} <= set(test)
+    script = (Path(main.__file__).parent / "static" / "app.js").read_text(encoding="utf-8")
+    assert re.search(r"holdout\??\.results", script) and re.search(r"holdout\??\.bands", script)
+    for row in test["results"]["data"] + test["bands"]["data"]:
+        for value in row:
+            if isinstance(value, float):
+                assert f"{value:.4f}" not in script  # no number of the test typed in

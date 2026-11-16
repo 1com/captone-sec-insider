@@ -20,12 +20,12 @@ README's results table). **Deadline**: the dry run on Wednesday 18 Nov 2026 need
 
 ## Phase 2: Foundational (the numbers every deliverable uses)
 
-- [ ] T003 [P] Tests in `tests/unit/test_presentation.py`: the sheet's values equal the model card's
+- [X] T003 [P] Tests in `tests/unit/test_presentation.py`: the sheet's values equal the model card's
   (`dilution`, `results_move`, `volatility` → `holdout`, and `dilution` → `test_years`) and the
   catching-up and audit reports' tables; `dil.best_years` and `mov.ridge_better_years` computed per
   year; the rounding of [contracts/number-sheet.md](contracts/number-sheet.md); identical inputs give
   an identical file; a missing input or an absent level, year or table is refused and nothing is written
-- [ ] T004 `src/sentinel/presentation.py` (`python -m sentinel.presentation`): writes
+- [X] T004 `src/sentinel/presentation.py` (`python -m sentinel.presentation`): writes
   `docs/presentation/numbers.md` per the contract, with a short "Terms" part (dilution, log loss, AUC,
   band, look-ahead, the one-time test) in plain words for questions (FR-005); the serving copy read
   read-only with `db.MEMORY_LIMIT`
@@ -51,10 +51,10 @@ slides alone; every number found on the sheet.
 **Goal**: a 5-minute demo path on the live app that shows the one-time test's record. **Independent
 test**: one timed run of `demo.md` on the live app.
 
-- [ ] T009 [P] [US2] Tests in `tests/unit/test_web_app.py`: a company page's data carries
+- [X] T009 [P] [US2] Tests in `tests/unit/test_web_app.py`: a company page's data carries
   `model.card.holdout` (`results`, `bands`, `rows`, `first_row`, `last_row`, `date`) from the model
   card; the page script reads them and holds no typed-in result
-- [ ] T010 [US2] `src/sentinel/web/static/app.js` per
+- [X] T010 [US2] `src/sentinel/web/static/app.js` per
   [contracts/app-model-section.md](contracts/app-model-section.md): the dilution panel shows the
   company's band's record on the one-time test beside the test years'; the model section adds the
   one-time test's log loss and AUC per level and year and its calibration table; the limits sentence

@@ -197,6 +197,11 @@ function renderCompany(c) {
   ].join("");
 }
 
+/* a model card table ({columns, data}) as one object per row */
+function tableRows(t) {
+  return t && t.columns ? t.data.map((r) => Object.fromEntries(t.columns.map((k, i) => [k, r[i]]))) : [];
+}
+
 function renderDilution(c) {
   const d = c.dilution, mc = (c.model || {}).card || {};
   const pooled = mc.bands_pooled ? mc.bands_pooled.data.map((r) => Object.fromEntries(mc.bands_pooled.columns.map((k, i) => [k, r[i]]))) : [];
@@ -209,6 +214,9 @@ function renderDilution(c) {
   }
   const yrs = mc.bands ? mc.bands.data.map((r) => Object.fromEntries(mc.bands.columns.map((k, i) => [k, r[i]]))).filter((r) => r.band === d.band) : [];
   const pb = pooled.find((r) => r.band === d.band);
+  // the same band on the one-time test (019): answers from 2023 on, sealed while the model was built
+  const ho = mc.holdout, hb = tableRows(mc.holdout?.bands).filter((r) => r.band === d.band);
+  const hy = hb.filter((r) => r.year !== "all"), ha = hb.find((r) => r.year === "all");
   const up = d.factors.filter((f) => f.effect > 0).slice(0, 3), down = d.factors.filter((f) => f.effect < 0).slice(0, 2);
   const reason = (f) => `<li><span class="arrow ${f.effect > 0 ? "upr" : "downr"}">${f.effect > 0 ? "▲" : "▼"}</span>
       <span>${esc(f.label)}</span><b class="num">${fmt.value(f.kind, f.value)}</b></li>`;
@@ -222,6 +230,11 @@ function renderDilution(c) {
     <table class="record"><tr><th>Test year</th>${yrs.map((r) => `<th>${r.year}</th>`).join("")}<th>All</th></tr>
       <tr><td>Diluted</td>${yrs.map((r) => `<td>${fmt.pct(r.real_rate)}</td>`).join("")}<td><b>${pb ? fmt.pct(pb.real_rate) : "–"}</b></td></tr>
       <tr><td class="muted">Companies</td>${yrs.map((r) => `<td class="muted">${fmt.count(r.rows)}</td>`).join("")}<td class="muted">${pb ? fmt.count(pb.rows) : ""}</td></tr></table>
+    ${hy.length ? `<table class="record" style="margin-top:6px"><tr><th>One-time test</th>${hy.map((r) => `<th>${r.year}</th>`).join("")}<th>All</th></tr>
+      <tr><td>Diluted</td>${hy.map((r) => `<td>${fmt.pct(r.real_rate)}</td>`).join("")}<td><b>${ha ? fmt.pct(ha.real_rate) : "–"}</b></td></tr>
+      <tr><td class="muted">Companies</td>${hy.map((r) => `<td class="muted">${fmt.count(r.rows)}</td>`).join("")}<td class="muted">${ha ? fmt.count(ha.rows) : ""}</td></tr></table>
+    <p class="note">Test years: each year forecast by a model trained only on earlier years. One-time test: forecasts from
+      ${fmt.date(ho.first_row)} to ${fmt.date(ho.last_row)}, scored once on ${fmt.date(ho.date)} against answers kept sealed while the model was built.</p>` : ""}
     <h3>Main reasons</h3>
     <ul class="reasons">${up.map(reason).join("")}${down.map(reason).join("")}</ul>
     <p class="note">▲ raises the chance, ▼ lowers it. Forecast for ${fmt.date(d.as_of)}, made by the daily update with the approved
@@ -402,6 +415,14 @@ function renderDiagnostics(c) {
   const ty = mc.test_years || {};
   const levels = [["base_rate", "Base rate"], ["rule", "Offering rule"], ["logistic", "Logistic regression"], ["boosting", "LightGBM (chosen)"]];
   const dil = c.dilution || {};
+  // the one-time test (019): every number read from the model card's holdout entry
+  const ho = mc.holdout, hr = tableRows(mc.holdout?.results).map((r) => ({ ...r, level: String(r.level).replace(" (chosen)", "") }));
+  const hYears = [...new Set(hr.map((r) => r.year))].sort((a, b) => (a === "all") - (b === "all") || a.localeCompare(b));
+  const hLevels = [["base_rate", "Base rate"], ["rule", "Offering rule"], ["logistic", "Logistic regression"], ["lightgbm", "LightGBM (chosen)"]];
+  const hCell = (k, y, m, n) => {
+    const r = hr.find((x) => x.level === k && x.year === y);
+    return `<td>${r && finite(r[m]) ? r[m].toFixed(n) : "–"}</td>`;
+  };
   $("#diagnostics").innerHTML = `
     <div><h3>The data behind this page</h3>
       <dl class="kv">
@@ -421,15 +442,23 @@ function renderDiagnostics(c) {
       <h3 style="margin-top:12px">Test years: log loss (lower is better)</h3>
       <table class="record"><tr><th>Level</th>${Object.keys(ty).map((y) => `<th>${y}</th>`).join("")}</tr>
         ${levels.map(([k, label]) => `<tr><td>${label}</td>${Object.values(ty).map((r) => `<td>${finite(r[k]) ? r[k].toFixed(3) : "–"}</td>`).join("")}</tr>`).join("")}</table>
+      ${ho && hr.length ? `<h3 style="margin-top:12px">The one-time test, from 2023 on: log loss (lower is better)</h3>
+      <p class="note">${fmt.count(ho.rows)} forecasts made at month-ends from ${fmt.date(ho.first_row)} to ${fmt.date(ho.last_row)},
+        scored once on ${fmt.date(ho.date)} against answers kept sealed while the model was built.</p>
+      <table class="record"><tr><th>Level</th>${hYears.map((y) => `<th>${y === "all" ? "All" : y}</th>`).join("")}<th>AUC, all</th></tr>
+        ${hLevels.map(([k, label]) => `<tr><td>${label}</td>${hYears.map((y) => hCell(k, y, "log_loss", 3)).join("")}${hCell(k, "all", "auc", 2)}</tr>`).join("")}</table>` : ""}
       <h3 style="margin-top:12px">Calibration: forecast against what happened (all test years)</h3>
       <table class="record"><tr><th>Band</th><th>Companies</th><th>Forecast</th><th>Diluted</th></tr>
         ${(mc.bands_pooled?.data || []).map(([b, n, f, r]) => `<tr><td>${b} · ${BAND[b]}</td><td>${fmt.count(n)}</td><td>${fmt.pct(f)}</td><td>${fmt.pct(r)}</td></tr>`).join("")}</table>
+      ${ho ? `<h3 style="margin-top:12px">Calibration on the one-time test (2023 on)</h3>
+      <table class="record"><tr><th>Band</th><th>Companies</th><th>Forecast</th><th>Diluted</th></tr>
+        ${tableRows(mc.holdout?.bands).filter((r) => r.year === "all").map((r) => `<tr><td>${r.band} · ${BAND[r.band]}</td><td>${fmt.count(r.rows)}</td><td>${fmt.pct(r.forecast)}</td><td>${fmt.pct(r.real_rate)}</td></tr>`).join("")}</table>` : ""}
       ${dil.available ? `<h3 style="margin-top:12px">Every factor behind this forecast</h3>
         <div class="factors"><table class="record"><tr><th>Factor</th><th>Value</th><th>Effect</th></tr>
           ${dil.factors.map((f) => `<tr><td>${esc(f.label)}</td><td>${fmt.value(f.kind, f.value)}</td><td class="${f.effect > 0 ? "down" : "up"}">${f.effect > 0 ? "+" : ""}${f.effect.toFixed(3)}</td></tr>`).join("")}</table></div>
         <p class="note">Effect: how much the factor moved this company's forecast up (+) or down (−) from the average, on the model's log-odds scale.</p>` : ""}
       <p class="note">Limits: no forecast for foreign filers or companies no longer trading; learned from 2012–2022.
-        ${mc.holdout ? "The one-time test on 2023+ data has been run (see the model report)." : "The one-time test on data from 2023 on, which the model has never seen, has not been run yet; its result will appear here."}</p>
+        ${mc.holdout ? `The one-time test on data from 2023 on ran once, on ${fmt.date(mc.holdout.date)}; its results are above.` : "The one-time test on data from 2023 on, which the model has never seen, has not been run yet; its result will appear here."}</p>
     </div>`;
 }
 
