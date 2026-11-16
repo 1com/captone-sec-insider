@@ -14,7 +14,7 @@ README's results table). **Deadline**: the dry run on Wednesday 18 Nov 2026 need
 
 - [X] T001 Branch `019-hand-in`; spec, checklist, plan, research, data model, contracts, quickstart and
   tasks in `specs/019-hand-in/`
-- [ ] T002 Record the hand-in as it now is (a presentation, a live demo and the repository; no written
+- [X] T002 Record the hand-in as it now is (a presentation, a live demo and the repository; no written
   report; 15 minutes in all; the dry run on 18 Nov) in `docs/plan.md` (row 019, next steps, the
   timeline row of 16-18 Nov), `AGENTS.md` (section 7 and step 9) and the roadmap of `README.md`
 
