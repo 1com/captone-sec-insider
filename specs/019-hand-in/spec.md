@@ -30,6 +30,8 @@ only (V2-71); the one-time test of the three models on the answers from 2023 on 
   17 Nov): "thats not part of the project. that was for myself to enhance the project later on.
   The whole focus should be the data engineering and the dilution data science part." The slides
   present the data platform and the dilution model only (FR-002, V2-78).
+- Q: Does the README's front page present the two models? → A (the researcher, 17 Nov: "A"):
+  no; one plain line in the map of the repository says what they are (FR-013).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -179,13 +181,14 @@ can name the question and the dilution model's one-time test result.
 
 **Repository (User Story 3)**
 
-- **FR-012**: The front page MUST open, for a newcomer, with what the project answers, the one-time
-  test's results as the model report gives them, the app and how to run it, installation and the
-  main commands, a map of the folders, the rules and the limits; the notes for coding agents and
-  the working history MUST come after these or live in AGENTS.md.
+- **FR-012**: The front page MUST open, for a newcomer, with what the project answers, the dilution
+  model's one-time test results as the model report gives them, the app and how to run it,
+  installation and the main commands, a map of the folders, the rules and the limits; the notes
+  for coding agents and the working history MUST come after these or live in AGENTS.md.
 - **FR-013**: The front page MUST say that the app serves the dilution forecast only (V2-61,
-  V2-72) and that the volatility and results-day models are evaluated in the model report but not
-  served.
+  V2-72). It MUST NOT present the volatility and results-day models, the researcher's later
+  extensions; one plain line in the map of the repository says what they are (amended 17 Nov,
+  V2-78; was "evaluated in the model report but not served").
 - **FR-014**: A fresh copy MUST install with the locked dependencies and pass the unit tests and
   the lint and format checks without the private data.
 - **FR-015**: The old app (011-017) MUST be removed once the researcher approves the new one

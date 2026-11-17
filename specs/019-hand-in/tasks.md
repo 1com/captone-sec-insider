@@ -91,14 +91,19 @@ dilution model's one-time test result.
   card's one-time test numbers, rounded as on the number sheet. Done 17 Nov: three tests (the
   results on the first 40 lines, SC-005; the table cell by cell; the sentences under it, the other
   two models included), all from `presentation.from_card`; each of three numbers changed in a copy
-  of the README was caught
+  of the README was caught. 17 Nov (V2-78, the researcher: "A"): the checks of the other two
+  models' sentences replaced by a test that the front page presents the dilution model only
+  (none of their numbers; named once, in the map); a number or a mention put back is caught
 - [X] T016 [US3] `README.md` front page per [research.md](research.md) R6: what the project answers
   (the app serves the dilution forecast only, V2-61, V2-72), the one-time test's results, the app and
   how to start it, how it works, the rules, installation and commands, a map of the folders, the
   limits; the current sections under "Working notes"; no screenshot of the app. Done 17 Nov: the
   question, the app's single forecast and the results table in the first 37 lines; the former
   sections under "Working notes", stale lines corrected (branches kept, the forecast contract, 11 GB
-  of raw files, 026 approved); `.env.example` no longer describes the tailnet link (V2-71)
+  of raw files, 026 approved); `.env.example` no longer describes the tailnet link (V2-71).
+  17 Nov (V2-78, the researcher: "A"): the volatility and results-day models taken off the front
+  page (the opening, the results, "How it works", the limits); one plain line in the map says
+  they are the researcher's models for later work, not part of the course project and not served
 - [X] T017 [US3] A fresh copy of the public repository in the scratchpad, installed by the README,
   passes ruff, the format check and the unit tests without `data/` (quickstart section 4). Done
   17 Nov on a clone of 52c6bf5 (the README's commit, before it was pushed): `uv sync`, ruff and

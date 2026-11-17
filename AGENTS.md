@@ -65,7 +65,8 @@ results-day models are the researcher's own later extensions and are not present
   17 Nov), although the teammate's commits are signed "Jassin"; do not change it back.
 - **The hand-in's focus is the data engineering and the dilution model** (the researcher, 17 Nov,
   V2-78: the other two models were "for myself to enhance the project later on"). Never present
-  the volatility or results-day models as the project's results in the slides or the demo.
+  the volatility or results-day models as the project's results in the slides, the demo or the
+  README's front page.
 - `data/exports/` is shared with the teammate by the researcher, privately; do not raise it.
 
 ## 4. Rules that must never be broken
@@ -358,8 +359,8 @@ holds and what does not:
   "The dilution question"; the lesson about the results-day model replaced by the daily update's;
   a data-engineering slide, "How the data stays right", added after slide 3 (the researcher:
   "ok"; deck version 23: 10 slides, 13:40 with the demo; `specs/019-hand-in/slides-check.md`). The
-  README's front page still gives the two models' results in one sentence each: the researcher's
-  decision pending.
+  README's front page no longer presents them (the researcher: "A"): one plain line in its map
+  says what they are; `tests/unit/test_readme_numbers.py` keeps it so.
 
   Found on the way, for after the hand-in: four served forecasts whose market value cannot be
   right, the mirror of V2-75 (value traded per day below 0.001% of the market value): Akari
