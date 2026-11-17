@@ -9,9 +9,7 @@ Tiingo prices, and the data updates itself every weekday.
 The **app** shows one page per company: the dilution chance with its band, the band's record and
 the reasons behind it, the price and volume chart, insider buying and selling, key financials as
 first filed, the SEC filings in plain English and short selling. **It serves the dilution forecast
-only.** Two more models, for the size of the next results-day move and for volatility over the
-next three months, were built and tested the same way; they are evaluated in the
-[model report](docs/report/model_report.md) but not served.
+only.**
 
 ## How well it forecasts: the one-time test
 
@@ -31,9 +29,6 @@ been compared, and LightGBM chosen, on the test years 2019–2022.
 Lower log loss is better; an AUC of 0.5 is a coin toss, 1 is perfect. LightGBM was the best level
 in each of the four years 2023–2026; the tenth of companies with the highest chances diluted 5.1
 times as often as all companies, and in the highest band 42% diluted against a forecast of 37%.
-For the **results-day move** the approved LightGBM (mean log loss 0.467) lost to the simpler ridge
-regression (0.452) in every year of the test; for **volatility** LightGBM and the ridge were about
-equal (mean absolute log error 0.252 and 0.253), and 81% of outcomes fell inside its 80% range.
 Nothing was changed after the test.
 
 ## The app
@@ -64,16 +59,16 @@ the app covered 6,915 companies still trading, 3,669 of them with a dilution for
    the first day it may be used; features as of month-ends, results eves and each company's
    latest day; the answers, models and daily forecasts; the serving copy the app reads
    ([architecture](docs/architecture.md)).
-2. **Questions.** Each question's definition (for dilution: a rise of 10% or more in shares
-   outstanding within six months) was fixed before any model was built, in
+2. **The question.** Its definition (a rise of 10% or more in shares outstanding within six
+   months) was fixed before any model was built, in
    `config/risk_params.yaml`, tagged `prereg-risk-v5` in git; the code that computes the answers
    refuses to run if the file changes.
-3. **Models.** Each model was built in a notebook (`notebooks/005-…`, `006-…`, `007-…`) as a
-   ladder of levels: a base rate or the company's own past, a simple rule, a classic model
-   (logistic or ridge regression), LightGBM. Every level was trained only on earlier years and
-   tested on 2019, 2020, 2021 and 2022 in turn; the simplest level within one standard error of
-   the best was chosen. The approved code lives in `src/sentinel/models/`, and the
-   [model report](docs/report/model_report.md) is generated from the notebooks' records.
+3. **The model.** It was built in a notebook (`notebooks/007-dilution-model.ipynb`) as a ladder
+   of levels: a base rate, a simple rule (a share offering filed in the last 12 months), a
+   logistic regression, LightGBM. Every level was trained only on earlier years and tested on
+   2019, 2020, 2021 and 2022 in turn; the simplest level within one standard error of the best
+   was chosen. The approved code lives in `src/sentinel/models/dilution.py`, and the
+   [model report](docs/report/model_report.md) is generated from the notebook's records.
 4. **The one-time test** scored the frozen models once, on the sealed answers from 2023 on
    (above).
 5. **Daily forecasts.** Since 12 Nov 2026 the update makes the dilution forecast of every company
@@ -136,12 +131,12 @@ More commands, and every table, are in [docs/architecture.md](docs/architecture.
 | Where | What |
 |---|---|
 | `src/sentinel/raw/`, `staging/`, `reference/`, `core/`, `features/`, `labels/` | the data layers: downloads, one table per source, companies and facts with `known_at`, features, answers |
-| `src/sentinel/models/` | the three approved models, their simpler levels, the model report, the catching-up check |
+| `src/sentinel/models/` | the approved dilution model (`dilution.py`), its simpler levels, the model report, the catching-up check; `volatility.py` and `results_move.py` are two models of the researcher's own for later work (volatility over three months, the size of the next results-day move), not part of the course project and not served |
 | `src/sentinel/scoring/`, `serving/`, `update/` | the daily forecasts, the serving copy and export, the daily update |
 | `src/sentinel/web/` | the app |
 | `src/sentinel/holdout.py`, `audit.py`, `presentation.py` | the one-time test, the price audit, the number sheet |
 | `config/` | the sources, the insider tracker's rules, the pre-registered definitions (`risk_params.yaml`) |
-| `notebooks/` | the EDA (004) and the three model notebooks (005–007), committed without outputs |
+| `notebooks/` | the EDA (004) and the dilution model's notebook (007); 005 and 006 belong to the two later-work models; all committed without outputs |
 | `docs/` | the spec, the architecture, the plan, the decision log, the lessons from version 1 |
 | `docs/report/` | generated: the model report and model card, the catching-up report, the price audit, the app's named cases |
 | `docs/presentation/` | generated: the hand-in's number sheet |
@@ -166,8 +161,6 @@ More commands, and every table, are in [docs/architecture.md](docs/architecture.
   complete the histories but cannot be published, so the app runs on one computer. 335 companies'
   price histories are still cut short although older prices are stored (1,162 before the repair of
   11 Nov; [the audit](docs/report/data_audit.md)).
-- **The other two models are not served** (decision V2-61), and the results-day model lost to a
-  simpler one in the one-time test.
 - **The live record starts later:** the first daily forecasts' six months end in May 2027.
 - A course project, not investment advice.
 
@@ -212,7 +205,7 @@ three are updated together.
 |---|---|---|---|
 | *done 29 Oct* | steps 0–4: v2 started, every data layer built (#62–#66) | agent | done |
 | 1 Data platform (30 Oct) | 001 daily data refresh (#68) · 002 reference datasets (#73) · 003 team workflow and CI (#75) | agent | done: 001 (#91), 002, 003 (`main` protected: pull requests with CI) |
-| 2 Data science (13 Nov) | 004 EDA (#76) · 005 volatility (#67) · 006 results-day move (#77) · 007 dilution (#78) · 008 model report (#79) · 009 daily scores (#74) | teammate, with the agent (004: agent) | 004–008 done: the three models approved (V2-52, V2-55, V2-58), packaged in `src/sentinel/models/`, the model report generated by `sentinel report`; 009: since 12 Nov the update makes the daily dilution forecasts with the frozen approved model (V2-72) |
+| 2 Data science (13 Nov) | 004 EDA (#76) · 005 volatility (#67) and 006 results-day move (#77), the researcher's later extensions (V2-78) · 007 dilution (#78) · 008 model report (#79) · 009 daily scores (#74) | teammate, with the agent (004: agent) | 004–008 done: the three models approved (V2-52, V2-55, V2-58), packaged in `src/sentinel/models/`, the model report generated by `sentinel report`; 009: since 12 Nov the update makes the daily dilution forecasts with the frozen approved model (V2-72) |
 | 3 App (16 Nov) | **026 stock research app** (V2-61), replacing Gemini's 011–017 (#80–#85, #70) · 018 hosting (#86) | researcher, with the agent | 026 merged (#101, #109–#112), on this computer only (V2-71): key financials as first filed, 14 named cases checked, the daily dilution forecasts (V2-72), each left-out company told its rule (V2-73), the page in tabs (16 Nov), no forecast when the trading rules out the share count (V2-75); approved by the researcher on 17 Nov and the old app removed (V2-76); the first page lists no companies (V2-77); left: insider clusters, short interest |
 | 4 Holdout and hand-in (18 Nov) | 010 holdout test (#69) · 019 hand-in (#71): a presentation with a live demo (15 minutes, dry run 18 Nov) and this repository; no written report | all | 010 run once on 12 Nov (V2-69), the results in the model report; 019: the number sheet, the slides and the demo ready for the dry run (16–17 Nov), this front page (17 Nov), merged by #112 |
 | 5 Before Tiingo ends (25 Nov) | 020 offline rebuild and raw backup (#72) | agent | not started |
@@ -228,7 +221,9 @@ results eves and each company's latest day, and the development answers of the t
 
 **Where things stand** (details in [AGENTS.md](AGENTS.md), section 7, and
 [docs/plan.md](docs/plan.md)): the data updates itself every weekday; the three forecasting models
-are approved, packaged in `src/sentinel/models/` and described by the generated model report; the
+are approved, packaged in `src/sentinel/models/` and described by the generated model report (two
+of them, volatility and the results-day move, are the researcher's later extensions, not part of
+the hand-in: V2-78); the
 holdout test (010) ran once on 12 November (V2-69); the stock research app (026), one page per
 stock with dilution risk as its main feature, was approved by the researcher on 17 November
 (V2-76); the hand-in (019) is a presentation with a live demo, dry run on 18 November.

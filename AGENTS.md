@@ -15,7 +15,9 @@ chance of dilution (shares up 10%+ within six months). The data platform is buil
 every weekday; the three forecasting models are built and were tested once on the answers from
 2023 on (12 Nov), and the app serves the dilution forecasts daily. Hand-in (the researcher,
 16 Nov): a presentation with a live demo, 15 minutes in all, dry run on **18 November 2026**,
-and the GitHub repository; no written report.
+and the GitHub repository; no written report. **For the hand-in the project is the data
+engineering and the dilution forecast** (the researcher, 17 Nov, V2-78): the volatility and
+results-day models are the researcher's own later extensions and are not presented.
 
 ## 2. Read these first, in this order
 
@@ -61,6 +63,10 @@ and the GitHub repository; no written report.
   teammate `sonson033` but the researcher has asked the agent to do it.
 - **The teammate's name is written "Yassin Tourki"**, as on the slides' cover (the researcher,
   17 Nov), although the teammate's commits are signed "Jassin"; do not change it back.
+- **The hand-in's focus is the data engineering and the dilution model** (the researcher, 17 Nov,
+  V2-78: the other two models were "for myself to enhance the project later on"). Never present
+  the volatility or results-day models as the project's results in the slides, the demo or the
+  README's front page.
 - `data/exports/` is shared with the teammate by the researcher, privately; do not raise it.
 
 ## 4. Rules that must never be broken
@@ -345,7 +351,17 @@ holds and what does not:
   outputs); **the app's first page without the list of the highest chances** (V2-77, the
   researcher; 026 T031), slide 10's first demo step with it (deck version 18), the demo page's
   step-2 spare now IonQ (Treasure Global fell below $1); **all of it merged into `main` by #112**
-  (the researcher: "yes"; #71 stays open until after the final presentation).
+  (the researcher: "yes"; #71 stays open until after the final presentation). Ten finished issues
+  closed, each with a comment saying why (the researcher: "yes"): the old app's #70 and #80-#86,
+  002's #73 and 003's #75; still open: #71, #72, #74 (live outcomes from May 2027) and #87.
+  **The talk's focus** (V2-78, the researcher: the volatility and results-day models are not part
+  of the project): slide 8 on the other two models removed; slide 3's "Four questions" became
+  "The dilution question"; the lesson about the results-day model replaced by the daily update's;
+  a data-engineering slide, "How the data stays right", added after slide 3 (the researcher:
+  "ok"; deck version 23: 10 slides, 13:40 with the demo; `specs/019-hand-in/slides-check.md`). The
+  README's front page no longer presents them (the researcher: "A"): one plain line in its map
+  says what they are; `tests/unit/test_readme_numbers.py` keeps it so. Merged into `main` by
+  #113 (17 Nov), with the record of the closed issues.
 
   Found on the way, for after the hand-in: four served forecasts whose market value cannot be
   right, the mirror of V2-75 (value traded per day below 0.001% of the market value): Akari
@@ -455,7 +471,7 @@ rebuild, re-run the EDA. Add 022 to `docs/plan.md` first.
 - [X] 003 (#75): GitHub Actions (ruff, format, unit tests on every pull request), `main`
   protected, pull-request template, a CI check that rejects notebooks with outputs (nbstripout is
   already installed as a filter), README "Working together". `main` protected (checked 10 Nov:
-  the CI check and pull-request reviews required, admins included); issue #75 still open.
+  the CI check and pull-request reviews required, admins included); #73 and #75 closed on 17 Nov.
 
 ### Step 5 · The three models (007 dilution, 006 results-day move, 005 volatility if time)
 For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before the holdout test):

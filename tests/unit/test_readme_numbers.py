@@ -3,9 +3,12 @@
 The results table and the sentences under it are compared with `docs/report/model_card.json`
 (written by `sentinel report`), rounded as the number sheet rounds them
 (`sentinel.presentation.from_card`), so the hand-written page cannot drift from the generated
-report. The model card is in git, so this runs without the data, in CI as well."""
+report. The model card is in git, so this runs without the data, in CI as well. Since 17 Nov the
+front page presents the dilution model only: the volatility and results-day models are the
+researcher's later extensions (V2-78)."""
 
 import json
+import re
 from pathlib import Path
 
 from sentinel import presentation
@@ -71,16 +74,27 @@ def test_the_sentences_under_it_quote_the_model_card():
         "dil.rate",
         "dil.band5.real",
         "dil.band5.forecast",
-        "mov.ll.lightgbm",
-        "mov.ll.ridge",
-        "vol.mae.lightgbm",
-        "vol.mae.ridge",
-        "vol.cov80.lightgbm",
     ):
         assert shown[number_id] in section, number_id
     assert f"{shown['dil.lift10.lightgbm'].removesuffix('×')} times as often" in section
     # "best in each of the four years" and "in every year": true only while all four years hold
     assert shown["dil.best_years"].startswith("4 of 4")
     assert "in each of the four years 2023–2026" in section
-    assert shown["mov.ridge_better_years"].startswith("4 of 4")
-    assert "in every year of the test" in section
+
+
+def test_the_front_page_presents_the_dilution_model_only():
+    """V2-78 (the researcher, 17 Nov): the volatility and results-day models are not part of the
+    course project. The front page gives none of their results and names them once, in the map
+    of the repository, to say what they are."""
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    front = readme[: readme.index("\n## Working notes")]
+    others = {
+        number_id: value
+        for number_id, value in _shown().items()
+        if number_id.startswith(("vol.", "mov.")) and not value.startswith("4 of 4")
+    }
+    assert [number_id for number_id, value in others.items() if value in front] == []
+    pattern = re.compile(r"volatility|results-day", re.IGNORECASE)
+    named = [line for line in front.splitlines() if pattern.search(line)]
+    assert len(named) == 1 and named[0].startswith("| `src/sentinel/models/` |")
+    assert "not part of the course project and not served" in named[0]
