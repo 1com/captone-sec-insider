@@ -15,6 +15,10 @@ private.*
   checked against their sources (section 2).
 - **Wording corrected by this check** (versions 11 and 12; section 3): 7 slides, none of them a
   number.
+- **17 Nov, after V2-75:** the sheet was regenerated on 17 Nov's data (to 16 Nov) and slide 3's
+  three numbers (`app.companies`, `app.forecasts`, `app.date`, on the slide and in its notes) were
+  changed to it (deck version 16); the rows below show them. No other slide holds a number that
+  changed: every other id on the sheet is the same as on 16 Nov.
 - **Times in the notes:** slides 1-9 take 8:30 (0:15, 1:00, 1:00, 1:15, 0:45, 1:30, 0:45, 0:45,
   1:15), the demo 5:00 and the close 0:10. That makes **13:40 of the 15 minutes**.
 
@@ -26,9 +30,9 @@ private.*
 | 2 The problem | `dil.rows` | 148,067 | 148,067 | footer |
 | 2 The problem | `dil.first` | 2023 | 31 Jan 2023 | slide ("from 2023 on"), notes |
 | 2 The problem | `dil.last` | 2026 | 30 Apr 2026 | notes ("2023 to 2026") |
-| 3 What we built | `app.companies` | 6,917 | 6,917 | slide, notes |
-| 3 What we built | `app.forecasts` | 3,682 | 3,682 | slide, notes |
-| 3 What we built | `app.date` | 13 Nov 2026 | 13 Nov 2026 | footer |
+| 3 What we built | `app.companies` | 6,915 | 6,915 | slide, notes |
+| 3 What we built | `app.forecasts` | 3,669 | 3,669 | slide, notes |
+| 3 What we built | `app.date` | 16 Nov 2026 | 16 Nov 2026 | footer |
 | 4 Keeping it honest | `dil.first` | 2023 | 31 Jan 2023 | slide, notes ("from 2023 on") |
 | 5 Choosing the model | `dil.test_ll.base_rate` | 0.343 | 0.343 | table |
 | 5 Choosing the model | `dil.test_ll.rule` | 0.301 | 0.301 | table |

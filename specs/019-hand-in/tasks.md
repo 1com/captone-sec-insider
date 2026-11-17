@@ -33,6 +33,8 @@ README's results table). **Deadline**: the dry run on Wednesday 18 Nov 2026 need
   compare its dilution numbers with the model report's "The holdout test (010)" by eye. Done 16 Nov,
   after V2-74 was applied: data to 13 Nov, 6,917 companies still trading, 3,682 dilution forecasts;
   every dilution number equal to the report's tables (the rate of 12% is the bands' rows-weighted mean)
+  Regenerated 17 Nov after V2-75 (data to 16 Nov): 6,915 companies still trading, 3,669 forecasts;
+  only `app.date`, `app.companies` and `app.forecasts` changed, every model number is the same
 
 ## Phase 3: User Story 1 - Follow the talk and judge the work (P1)
 
