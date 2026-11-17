@@ -355,8 +355,9 @@ holds and what does not:
   002's #73 and 003's #75; still open: #71, #72, #74 (live outcomes from May 2027) and #87.
   **The talk's focus** (V2-78, the researcher: the volatility and results-day models are not part
   of the project): slide 8 on the other two models removed; slide 3's "Four questions" became
-  "The dilution question"; the lesson about the results-day model replaced by the daily update's
-  (deck version 20: 9 slides, 12:55 with the demo; `specs/019-hand-in/slides-check.md`). The
+  "The dilution question"; the lesson about the results-day model replaced by the daily update's;
+  a data-engineering slide, "How the data stays right", added after slide 3 (the researcher:
+  "ok"; deck version 23: 10 slides, 13:40 with the demo; `specs/019-hand-in/slides-check.md`). The
   README's front page still gives the two models' results in one sentence each: the researcher's
   decision pending.
 

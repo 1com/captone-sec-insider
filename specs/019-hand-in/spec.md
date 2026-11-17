@@ -146,12 +146,14 @@ can name the question and the dilution model's one-time test result.
   minutes with a minute spare.
 - **FR-002**: The slides MUST cover, in this order: the problem with an example; what was built
   (the data platform from free public data plus one paid month of prices, updated every weekday;
-  the dilution question; the app); the rules that keep the forecasts honest (no look-ahead;
-  definitions fixed and tagged before any model; the test on 2023 on sealed and run once); how the
-  dilution model was chosen (levels from base rates up, test years 2019-2022, the simplest level
-  within one standard error); its one-time test results; the limits; the lessons; the demo. The
-  focus is the data engineering and the dilution model: the volatility and results-day models are
-  not presented (amended 17 Nov, V2-78; was "the four questions" and "the three questions").
+  the dilution question; the app); how the data stays right (the daily update, identical
+  rebuilds, the named cases, problems searched for); the rules that keep the forecasts honest
+  (no look-ahead; definitions fixed and tagged before any model; the test on 2023 on sealed and
+  run once); how the dilution model was chosen (levels from base rates up, test years 2019-2022,
+  the simplest level within one standard error); its one-time test results; the limits; the
+  lessons; the demo. The focus is the data engineering and the dilution model: the volatility and
+  results-day models are not presented (amended 17 Nov, V2-78; was "the four questions" and "the
+  three questions"; the slide on how the data stays right added the same day).
 - **FR-003**: Every number on the slides MUST come from a generated report in the repository or a
   count the platform computes, be an aggregate over many companies, and have its source named in
   the speaker notes; no price or other value derived from the private price source may appear.

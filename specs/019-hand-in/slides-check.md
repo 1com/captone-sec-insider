@@ -34,6 +34,17 @@ private.*
   notes' times: slides 1-8 take 7:45, with the demo and the close 12:55 of 15 minutes (deck
   version 20; version 19 was a save outside this check that changed no slide). No remaining
   number changed.
+- **17 Nov, a data-engineering slide** (the researcher: "ok"): slide 4, "How the data stays
+  right", after slide 3 (deck version 23; 10 slides; the notes' times: slides 1-9 take 8:30, with
+  the demo and the close 13:40 of 15 minutes). Its numbers and their sources: 10:00 every weekday
+  (the schedule, `sentinel schedule show`; 001 T059); "usually in under an hour" (notes: the
+  update logs, 8 of the 9 scheduled runs since 5 Nov took 43-51 minutes, 16 Nov 191 minutes with
+  the SEC slow); "run again with nothing new, it changes nothing" (the reruns of 5 and 13 Nov:
+  `nothing_new`); 0 tables differ (`sentinel verify` identical on 13 Nov, 009 T013); 231 checks of
+  21 companies, none failed (`docs/report/app_named_cases.md`: 21 named cases, 11 sections each,
+  0 failed); 1,000 times too small (V2-75: Tempus AI's 181,311 for about 181 million shares; the
+  rule withholds a forecast when the value traded per day is more than 10 times the market value,
+  so the slide says the rule checks every company, not that it catches every such count).
 - **Times in the notes:** slides 1-9 take 8:30 (0:15, 1:00, 1:00, 1:15, 0:45, 1:30, 0:45, 0:45,
   1:15), the demo 5:00 and the close 0:10. That makes **13:40 of the 15 minutes**.
 
