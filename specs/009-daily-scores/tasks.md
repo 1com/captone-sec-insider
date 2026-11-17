@@ -81,3 +81,10 @@ description: "Task list for feature 009: Daily scores and live outcomes"
   12 Nov's data 388 of the 4,071 served forecasts, 288 of them in band 5); `score.daily` keeps
   them; test in `tests/unit/test_serving.py`. Applied on 16 Nov's data (the 10:00 run
   `complete`, filings to 13 Nov): 3,682 of the 4,065 forecasts served
+- [X] T016 V2-75 (17 Nov), found by the researcher on Tempus AI's page (026 T030): `sentinel
+  publish` serves a dilution forecast only while the company's value traded per day (`addv20`,
+  the 20-day average) is at most 10 times its market value (`publish.MAX_TURNOVER`): above that
+  the share count is wrong (a quarterly average given in thousands, or a placeholder of 1,000
+  shares), and so are the inputs built on it; `score.daily` keeps them; test in
+  `tests/unit/test_serving.py`. Applied on 17 Nov's data (to 16 Nov): 3,669 of the 4,057
+  forecasts served (7 withdrawn by V2-75, among them Tempus AI, #2 on the landing page)

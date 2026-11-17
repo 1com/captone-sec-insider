@@ -109,3 +109,19 @@ The researcher asked for a presentable MVP first (10 Nov); tasks after the MVP a
   private price source). Done 16 Nov: 339 tests pass; no typed-in date in the page files;
   screenshots of every tab (Apple, Alaunos, MGP, Hyperscale Data without a forecast), the landing
   page, a tablet width and a phone width (390 pixels, in a frame); the fold-outs checked open
+
+## Phase 10: A share count the trading rules out (V2-75, the researcher, 17 Nov)
+
+- [X] T030 V2-75 (17 Nov), found by the researcher on Tempus AI's page (a market value of about
+  $13 million for a company worth about $13 billion): a company whose value traded per day (the
+  20-day average) is more than 10 times its market value gets no forecast, and its page says why
+  (`web/forecast.py`, `implausible_count`: every share would change hands more than ten times a
+  day, so the share count is almost certainly wrong, for example given in thousands); every page
+  whose trading rules out its count marks the market value and the share count as doubtful
+  (`share_count_doubt`, read by `static/app.js`); the named cases check the reason against the
+  build database's row; Tempus AI added. Tests in `tests/unit/test_web_app.py` and
+  `tests/unit/test_web_named_cases.py`. Applied on 17 Nov's data (to 16 Nov), republished after the
+  10:00 update: 7 of the 3,676 served forecasts withdrawn, 3,669 served; Tempus AI (#2 that
+  morning) off the landing page; 21 named cases, 231 checks, 0 failed
+  (`docs/report/app_named_cases.md`); 340 tests pass; screenshots of Tempus AI's tabs and the
+  landing page (scratchpad only)

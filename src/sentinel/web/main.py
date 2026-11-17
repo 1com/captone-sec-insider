@@ -17,7 +17,7 @@ from fastapi.templating import Jinja2Templates
 
 from sentinel import config
 from sentinel.web import data, glossary
-from sentinel.web.forecast import Forecasts
+from sentinel.web.forecast import Forecasts, share_count_doubt
 
 HERE = Path(__file__).parent
 app = FastAPI(title="EDGAR-SENTINEL", docs_url=None, redoc_url=None)
@@ -125,6 +125,8 @@ def api_company(cik: str) -> JSONResponse:
         FORECASTS.refresh(con)
         listed = any(t["listed"] for t in c["tickers"])
         c["dilution"] = FORECASTS.for_company(cik, c["card"], listed, c["facts"])
+        # V2-75: the trading rules out the reported share count; the page marks the values on it
+        c["share_count_doubt"] = share_count_doubt(c["card"])
         c["shares"] = data.shares(con, cik)
         c["freshness"] = _fresh(con)
         c["diagnostics"] = data.diagnostics(con, cik)

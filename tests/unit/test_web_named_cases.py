@@ -76,12 +76,29 @@ def test_the_check_expects_the_same_reasons():
             True,
             {"1"},
         ),  # fmt: skip
+        (
+            ok,
+            {
+                **IN_RULES,
+                "eligible_dilution": True,
+                "market_cap": 1_000_000.0,
+                "addv20": 50_000_000.0,
+            },
+            True,
+            {"1"},
+        ),  # fmt: skip
         (ok, IN_RULES, True, {"1"}),
     ):
         assert expect(facts, card) in _reason(facts, listed, card, current), card
     # V2-74: in the question but no share count: the check reads the build database's row
     missing = {**IN_RULES, "shares_outstanding": np.float64("nan")}
     assert expect(ok, {**IN_RULES, "eligible_dilution": True}, missing) == "share count"
+    # V2-75: the trading rules out the share count, on the build database's row too
+    thousands = {**IN_RULES, "market_cap": np.float64(1e6), "addv20": np.float64(5e7)}
+    assert expect(ok, {**IN_RULES, "eligible_dilution": True}, thousands) == (
+        "more than 10 times the company's market value")  # fmt: skip
+    ten = {**thousands, "addv20": np.float64(1e7)}
+    assert expect(ok, {**IN_RULES, "eligible_dilution": True}, ten) == "No forecast yet"
 
 
 def test_typed_in_dates_are_found_outside_the_chart_library(tmp_path):

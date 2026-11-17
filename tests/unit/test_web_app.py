@@ -133,6 +133,7 @@ def test_the_company_page_has_facts_and_the_dilution_forecast_only(client):
     # both counts come before the 2-for-1 split (the first one before the first price day too):
     # each is doubled into today's shares
     assert [s["adjusted"] for s in c["shares"]] == [3.6e9, 1.8e9]
+    assert c["share_count_doubt"] is None  # 1.5e9 a day against 2e11: a plausible count (V2-75)
     assert client.get("/api/company/999").status_code == 404
 
 
@@ -278,6 +279,46 @@ def test_a_company_left_out_by_a_rule_is_told_which_rule_with_its_own_values(tmp
     assert "files no reports with the SEC that give its share count" in say(
         eligible_dilution=True, shares_outstanding=None, filer_type="non_reporting"
     )
+    # V2-75: in the question, but the trading rules out the share count (one given in thousands)
+    assert say(
+        eligible_dilution=True,
+        shares_outstanding=200_000.0,
+        market_cap=10_000_000.0,
+        addv20=400_000_000.0,
+    ) == (  # fmt: skip
+        "No forecast: the shares traded per day ($400.0 million on average over the last 20 "
+        "trading days) are worth more than 10 times the company's market value ($10.0 million, "
+        "from its reported count of 200,000 shares), as if every share changed hands 40.0 times "
+        "a day. The share count in its SEC data is almost certainly wrong (for example, given in "
+        "thousands), and so are the model's inputs that use it (decision V2-75)."
+    )
+    assert "changed hands 1,500 times a day" in say(
+        eligible_dilution=True, market_cap=1_000_000.0, addv20=1_500_000_000.0
+    )
+    # exactly 10 times, or a value missing: the rule rules out nothing
+    for traded, value in ((10_000_000.0, 1_000_000.0), (1e9, float("nan")), (None, 1e6)):
+        reason = say(eligible_dilution=True, market_cap=value, addv20=traded)
+        assert reason.startswith("No forecast yet"), (traded, value)
+
+
+def test_a_share_count_the_trading_rules_out_is_marked_doubtful():
+    """V2-75: more than 10 times the market value traded a day, in the question or not: the page
+    marks the market value and the share count, and the script reads the mark from the server."""
+    from pathlib import Path
+
+    from sentinel.web import forecast
+
+    assert forecast.turnover({"addv20": 4e8, "market_cap": 1e7}) == 40.0
+    assert forecast.share_count_doubt({"addv20": 4e8, "market_cap": 1e7}) == {
+        "times": 40.0, "limit": 10}  # fmt: skip
+    for card in ({"addv20": 1e8, "market_cap": 1e7}, {"addv20": None, "market_cap": 1e7},
+                 {"addv20": 1e8, "market_cap": float("nan")}, {"addv20": 1e8, "market_cap": 0.0},
+                 {"addv20": 1e8}, {}):  # fmt: skip
+        assert forecast.share_count_doubt(card) is None, card
+    # a company out of the question is marked all the same, but its reason stays its own rule
+    assert forecast.implausible_count({"addv20": 4e8, "market_cap": 1e7}) is None
+    script = (Path(main.__file__).parent / "static" / "app.js").read_text(encoding="utf-8")
+    assert "c.share_count_doubt" in script
 
 
 def test_the_page_gets_the_one_time_test_from_the_model_card_and_types_in_none(client, monkeypatch):

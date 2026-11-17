@@ -45,18 +45,25 @@ def test_publish_serves_each_companys_newest_forecast_of_an_approved_model_only(
     """V2-72: the unapproved models' forecasts of 2 and 4 Nov stay in the log, never served.
     V2-73: a company whose latest row has left the question (a stock that fell below $1) keeps
     no forecast of an earlier day. V2-74: nor one whose latest row has no share count (the
-    answer cannot be measured, so the model was never tested on such rows)."""
+    answer cannot be measured, so the model was never tested on such rows). V2-75: nor one whose
+    trading rules out its share count (more than 10 times its market value traded a day)."""
     with db.connect(built) as con:
         schema.create_tables(con)
         con.execute("insert into model.registry values ('dilution', 'lightgbm-ok', 'LightGBM', "
                     "DATE '2021-06-30', 2, 'approved', TIMESTAMP '2026-11-12 10:00')")  # fmt: skip
         con.execute("update feature.snapshot set eligible_dilution = true, "
-                    "shares_outstanding = 1000000 where cik = '1' and latest")  # fmt: skip
-        # 4: in the question; 5: fell below $1 on its latest day; 6: in it, no share count
-        for cik, inside, shares in (("4", True, "1000000"), ("5", False, "1000000"),
-                                    ("6", True, "null")):  # fmt: skip
+                    "shares_outstanding = 1000000, market_cap = 1e8, addv20 = 1e6 "
+                    "where cik = '1' and latest")  # fmt: skip
+        # 4: in the question; 5: fell below $1 on its latest day; 6: in it, no share count;
+        # 7: 20 times its market value traded a day; 8: exactly 10 times, kept; 9: no market value
+        for cik, inside, shares, traded, value in (
+            ("4", True, "1000000", "1e6", "1e8"), ("5", False, "1000000", "1e6", "1e8"),
+            ("6", True, "null", "1e6", "1e8"), ("7", True, "1000000", "2e9", "1e8"),
+            ("8", True, "1000000", "1e9", "1e8"), ("9", True, "1000000", "1e9", "null"),
+        ):  # fmt: skip
             con.execute(f"insert into feature.snapshot select * replace ('{cik}' as cik, "
-                        f"{inside} as eligible_dilution, {shares} as shares_outstanding) "
+                        f"{inside} as eligible_dilution, {shares} as shares_outstanding, "
+                        f"{traded} as addv20, {value} as market_cap) "
                         "from feature.snapshot where cik = '1' and latest")  # fmt: skip
         con.execute("""insert into score.daily values
             ('1', DATE '2026-11-10', 'dilution', 'lightgbm-ok', 0.2, 3, 'full', '{}',
@@ -71,13 +78,21 @@ def test_publish_serves_each_companys_newest_forecast_of_an_approved_model_only(
              TIMESTAMP '2026-11-10 10:30'),
             ('6', DATE '2026-11-11', 'dilution', 'lightgbm-ok', 0.79, 5, 'full', '{}',
              TIMESTAMP '2026-11-11 10:30'),
+            ('7', DATE '2026-11-11', 'dilution', 'lightgbm-ok', 0.83, 5, 'full', '{}',
+             TIMESTAMP '2026-11-11 10:30'),
+            ('8', DATE '2026-11-11', 'dilution', 'lightgbm-ok', 0.5, 5, 'full', '{}',
+             TIMESTAMP '2026-11-11 10:30'),
+            ('9', DATE '2026-11-11', 'dilution', 'lightgbm-ok', 0.4, 5, 'full', '{}',
+             TIMESTAMP '2026-11-11 10:30'),
             ('3', DATE '2026-11-04', 'dilution', 'lightgbm_v1', 0.5, 5, 'full', '{}',
              TIMESTAMP '2026-11-04 10:30')""")  # 4: more than a week old; 3: unapproved only
     publish.publish(built, **QUIET)
     with duckdb.connect(str(built.serving_db), read_only=True) as con:
         served = con.execute("select cik, as_of, model_version, forecast_val, band "
                              "from app.daily_score").fetchall()  # fmt: skip
-    assert served == [("1", pd.Timestamp("2026-11-11").date(), "lightgbm-ok", 0.3, 4)]
+    day = pd.Timestamp("2026-11-11").date()
+    assert served == [("1", day, "lightgbm-ok", 0.3, 4), ("8", day, "lightgbm-ok", 0.5, 5),
+                      ("9", day, "lightgbm-ok", 0.4, 5)]  # fmt: skip
 
 
 def test_export_writes_the_training_sets_and_a_readme(built):

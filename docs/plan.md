@@ -58,7 +58,10 @@ branch `NNN-name`), so two people specifying at once never collide.
    `nothing_new`, `sentinel verify` identical). **Done on 13 Nov (V2-73):** a company left out by
    a rule is told which rule, with its value, and keeps no forecast of a day it was still in the
    question (14 named cases pass). **Done on 16 Nov (V2-74):** a dilution forecast is shown only
-   while the company's latest row has a share count. Next: insider clusters and short interest if time allows; the old
+   while the company's latest row has a share count. **Done on 17 Nov (V2-75):** nor while its
+   trading rules out that count (more than 10 times the market value traded a day: a count given
+   in thousands, as Tempus AI's); the page marks the market value and the count as doubtful.
+   Next: insider clusters and short interest if time allows; the old
    app removed once the researcher approves the new one.
    **025** (the unusual-volume tracker, V2-51) only if time allows.
 7. **Done on 12 Nov: V2-70**, the dilution answer's catching-up effect measured
@@ -66,7 +69,8 @@ branch `NNN-name`), so two people specifying at once never collide.
 8. **019 hand-in** (the researcher, 16 Nov): a presentation with a live demo, 15 minutes in all,
    and the GitHub repository; no written report; the dry run on Wed 18 Nov
    (`specs/019-hand-in/`). Done 16 Nov: the number sheet, the slides and their number check,
-   the demo path and its 20 named cases. **020** before the Tiingo plan ends (25 Nov).
+   the demo path and its 20 named cases. Done 17 Nov: V2-75 applied; the number sheet and slide 3
+   on 17 Nov's data; 21 named cases. **020** before the Tiingo plan ends (25 Nov).
 
 ## Notebooks and code
 

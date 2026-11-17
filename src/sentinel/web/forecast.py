@@ -11,12 +11,14 @@ average, in the trees' log-odds."""
 from __future__ import annotations
 
 import json
+import math
 import os
 import threading
 from datetime import date
 
 from sentinel import config
 from sentinel.scoring.daily import CURRENT_DAYS, QUESTION
+from sentinel.serving.publish import MAX_TURNOVER
 
 # plain-English names of the model's inputs and how to show their values
 FEATURES = {
@@ -110,6 +112,59 @@ def no_share_count(card: dict, facts: dict) -> str | None:
     return (
         f"No forecast: {whose}, so whether its shares rise by 10% or more cannot be measured, "
         "and the model was never tested on such companies (decision V2-74)."
+    )
+
+
+def _money(value) -> str:
+    """$472.0 million, $13.0 million, $1.2 billion; below a million in dollars."""
+    x = float(value)
+    for size, word in ((1e12, "trillion"), (1e9, "billion"), (1e6, "million")):
+        if abs(x) >= size:
+            return f"${x / size:,.1f} {word}"
+    return f"${x:,.0f}"
+
+
+def turnover(card: dict) -> float | None:
+    """The value traded per day (`addv20`, the average of the last 20 trading days) as a multiple
+    of the market value (the price times the reported share count), when both are known: how
+    many times a day every share would change hands (V2-75)."""
+    try:
+        traded, value = float(card["addv20"]), float(card["market_cap"])
+    except KeyError, TypeError, ValueError:
+        return None
+    if not (math.isfinite(traded) and math.isfinite(value)) or value <= 0:
+        return None
+    return traded / value
+
+
+def share_count_doubt(card: dict) -> dict | None:
+    """When the trading rules out the reported share count (V2-75: more than `MAX_TURNOVER`
+    times the market value traded a day), the multiple, for the page to mark the market value
+    and the share count as doubtful; otherwise None. It applies to every company, in the
+    question or not."""
+    times = turnover(card)
+    if times is None or times <= MAX_TURNOVER:
+        return None
+    return {"times": round(times, 1), "limit": MAX_TURNOVER}
+
+
+def implausible_count(card: dict) -> str | None:
+    """Why a company in the question has no forecast when its trading rules out its share count
+    (V2-75): the count is almost certainly wrong, and so are the model's inputs that use it
+    (`sentinel publish` serves none of these forecasts; the log keeps them)."""
+    doubt = share_count_doubt(card)
+    if not card.get("eligible_dilution") or doubt is None:
+        return None
+    shares = card.get("shares_outstanding")
+    count = f" of {float(shares):,.0f} shares" if shares is not None and shares == shares else ""
+    times = f"{doubt['times']:,.0f}" if doubt["times"] >= 100 else f"{doubt['times']:.1f}"
+    return (
+        f"No forecast: the shares traded per day ({_money(card['addv20'])} on average over the "
+        f"last 20 trading days) are worth more than {MAX_TURNOVER} times the company's market "
+        f"value ({_money(card['market_cap'])}, from its reported count{count}), as if every "
+        f"share changed hands {times} times a day. The share count in its SEC data is almost "
+        "certainly wrong (for example, given in thousands), and so are the model's inputs that "
+        "use it (decision V2-75)."
     )
 
 
@@ -263,6 +318,8 @@ class Forecasts:
             reason = "No forecast: funds, trusts and similar vehicles are outside this question."
         elif uncounted := no_share_count(card, facts):
             reason = uncounted
+        elif implausible := implausible_count(card):
+            reason = implausible
         elif card.get("eligible_dilution"):
             reason = (
                 "No forecast yet: the daily update has not made one for this company (the "

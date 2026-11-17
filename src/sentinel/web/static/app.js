@@ -226,9 +226,13 @@ function renderCompany(c) {
   $("#n-filings").textContent = finite(c.diagnostics?.filings) ? fmt.count(c.diagnostics.filings) : "";
   const stat = (label, value, tipText) => `<dt>${label}${tipText ? tip(tipText) : ""}</dt><dd>${value}</dd>`;
   const growth = card.share_growth_12m;
+  // V2-75: the trading rules out the reported share count, so the values built on it are marked
+  const doubt = c.share_count_doubt;
+  const times = doubt ? Number(doubt.times).toLocaleString("en-US", { maximumFractionDigits: 1 }) : "";
+  const doubtful = doubt ? ` <span class="flag doubt" tabindex="0" data-tip="${esc(`The shares traded per day are worth ${times} times the market value, as if every share changed hands ${times} times a day. The reported share count is almost certainly wrong (for example, given in thousands), and so is the market value computed from it (decision V2-75).`)}">doubtful</span>` : "";
   $("#stats").innerHTML = [
-    stat("Market value", fmt.money(card.market_cap), "Share price × shares outstanding: what the whole company is worth on the market."),
-    stat("Shares outstanding", fmt.count(card.shares_outstanding), "The number of shares that exist, as last reported to the SEC."),
+    stat("Market value", fmt.money(card.market_cap) + doubtful, "Share price × shares outstanding: what the whole company is worth on the market."),
+    stat("Shares outstanding", fmt.count(card.shares_outstanding) + doubtful, "The number of shares that exist, as last reported to the SEC."),
     stat("Share count, 12 months", finite(growth) ? `<span class="${growth > 0.1 ? "down" : ""}">${growth >= 0 ? "+" : ""}${fmt.pct(growth)}</span>` : "–",
       "How much the number of shares changed over the last year: a rise means past dilution."),
     stat("52-week range", qt.low_52w ? `${fmt.price(qt.low_52w)} – ${fmt.price(qt.high_52w)}` : "–"),

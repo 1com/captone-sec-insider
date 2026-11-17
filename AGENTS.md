@@ -119,7 +119,7 @@ researcher, 12 Nov: no need to delete merged branches), and close its GitHub iss
 per feature). Keep `docs/plan.md`, `README.md` and this
 file in step.
 
-## 7. Where things stand (16 November 2026; the audit of the work of 30 Oct – 3 Nov was on 4 Nov)
+## 7. Where things stand (17 November 2026; the audit of the work of 30 Oct – 3 Nov was on 4 Nov)
 
 Between 30 October and 3 November another agent (Gemini) added models, daily scores, a report,
 the app, Docker and option chains, pushing straight to `main` without pull requests. On
@@ -322,8 +322,12 @@ holds and what does not:
     company's chart comes from Yahoo;
   - the demo companies added to the named cases (T012): 20 cases, 0 failed.
 
-  Left for the dry run: the backup screenshots (T013), timed walk-throughs on 17 and 18 Nov (T014),
-  and the researcher's review with the PDF and PowerPoint (T008).
+  **Done 17 Nov:** V2-75 (below); the number sheet regenerated on 17 Nov's data (to 16 Nov:
+  6,915 companies still trading, 3,669 forecasts; every model number unchanged) and slide 3
+  updated to it (deck version 16; `specs/019-hand-in/slides-check.md`); 21 named cases, 0 failed.
+
+  Left for the dry run: the researcher's review with the PDF and PowerPoint (T008). The backup
+  screenshots (T013) and the timed walk-throughs (T014) were dropped with the fixed path.
 
   Found on the way, for after the hand-in: when a company changes ticker, our price chain does not
   fill the new ticker's missing days from the old ticker's rows. CASK lacks 9-11 Nov 2026, which
@@ -331,12 +335,20 @@ holds and what does not:
 
   **Also found 16 Nov (by the researcher, on Tempus AI): share counts 1,000 times too small.** A
   company without a cover-page count in the SEC's companyfacts gets the quarterly average count
-  instead (`core/filings.py`, `build_shares`, source `basic_average`; 450 companies). Some companies
+  instead (`core/filings.py`, `build_shares`, source `basic_average`; 757 companies, 366 of them still trading on 17 Nov). Some companies
   report that average in thousands without marking it: Tempus AI 181,311 for about 181 million,
   EchoStar, DraftKings. Some shells report a placeholder of 1,000 shares. Their market value,
   share-based inputs and dilution forecast are wrong; Tempus AI was third on the top list.
   Symptom: the value traded per day is more than 10 times the market value (8 served forecasts on
-  16 Nov; 24 above 1 time, some of them maybe real). A decision for the researcher is pending.
+  16 Nov; 24 above 1 time, some of them maybe real). **Decided 17 Nov (V2-75, the researcher:
+  "A"):** `sentinel publish` serves a dilution forecast only while the value traded per day is at
+  most 10 times the market value; such a page says why, and every page whose trading rules out its
+  count marks the market value and the share count as doubtful. Applied on
+  17 Nov's data (to 16 Nov): 7 of the 3,676 forecasts withdrawn (Tempus AI, #2 that morning;
+  EchoStar; Suja Life; Suncrete; Avalanche Treasury; SCWorx; Cheetah Net), 3,669 served; 21
+  named cases pass (Tempus AI added); the number sheet and slide 3 updated (deck version 16). The repair at the
+  source (each class's count from the filings' own XBRL, averages given in thousands rescaled,
+  placeholders dropped, a rebuild) is proposed for after the hand-in.
 
   **The researcher, 16 Nov: the company page is now in tabs** (026 User Story 8, FR-025): Price &
   fundamentals, Dilution risk, Insiders, SEC filings, About & data. **The demo has no fixed path:**

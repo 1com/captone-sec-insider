@@ -19,7 +19,9 @@ sees a half-written file; the app and anyone exploring open it read-only.
 - `app.freshness`: each dataset's latest date, for "data as of" on every page.
 
 - `app.daily_score`: each company's newest dilution forecast of the last week, from approved
-  models only, with its band and reasons (009, 026 FR-005, V2-72); empty when the build has none.
+  models only, with its band and reasons (009, 026 FR-005, V2-72), while the company is in the
+  question (V2-73) with a share count (V2-74) that its trading does not rule out (V2-75); empty
+  when the build has none.
 - `app.live_outcomes`: those forecasts' outcomes once their windows close (none before May 2027).
 """
 
@@ -36,6 +38,12 @@ NEEDED = ["ref.company", "ref.security", "ref.sector", "core.price_daily", "core
           "core.insider_activity", "core.insider_cluster", "core.short_volume",
           "core.macro_observation", "feature.snapshot"]  # fmt: skip
 GROUP_KIND = {"A": "cluster", "B1": "ceo_cfo_buy", "B2": "officer_director_buy"}
+# V2-75: a dilution forecast is served only while the value traded per day (`addv20`, the average
+# of the last 20 trading days) is at most this many times the market value (the price times the
+# reported share count). Above it every share would change hands more than ten times a day: the
+# share count is wrong (reported in thousands without saying so, or a placeholder of 1,000
+# shares), and so are the model's inputs that use it.
+MAX_TURNOVER = 10
 
 
 def _link(cik: str, accession: str) -> str:
@@ -177,9 +185,11 @@ def publish(p: Paths, echo=print) -> dict:
         # keeps no forecast of the day before; an older one is served only when the latest
         # update made none, e.g. its scoring step failed); a dilution forecast only while that
         # row has a share count (V2-74: without one the answer cannot be measured, so the model
-        # was never trained or tested on such rows; the log keeps their forecasts)
+        # was never trained or tested on such rows; the log keeps their forecasts) that its
+        # trading does not rule out (V2-75: more than `MAX_TURNOVER` times the market value
+        # traded a day means the count is wrong; a value that is missing rules out nothing)
         if {"score.daily", "model.registry", "feature.snapshot"} <= existing_b:
-            all_tables["daily_score"] = """
+            all_tables["daily_score"] = f"""
                 with approved as (
                     select d.* from b.score.daily d join b.model.registry r
                         using (question, model_version)
@@ -190,6 +200,11 @@ def publish(p: Paths, echo=print) -> dict:
                     where case a.question
                         when 'dilution' then s.eligible_dilution
                                              and s.shares_outstanding is not null
+                                             and not coalesce(
+                                                 isfinite(s.addv20) and isfinite(s.market_cap)
+                                                 and s.market_cap > 0
+                                                 and s.addv20 > {MAX_TURNOVER} * s.market_cap,
+                                                 false)
                         when 'volatility' then s.eligible_volatility
                         else s.eligible end)
                 select * from still_in
