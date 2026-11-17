@@ -431,7 +431,6 @@ def score(
         typer.echo(f"Saved predictions to {output_file}")
 
 
-SERVE_PORT = 8090  # checked free in WSL and on Windows (10 Nov); 8000 and 8080 are taken
 RESERVED_PORTS = {8000: "another application", 8080: "another project"}  # never stop them
 NETSTAT = "/mnt/c/Windows/System32/netstat.exe"  # Windows, seen from WSL
 
@@ -471,26 +470,6 @@ def port_problem(host: str, port: int) -> str | None:
         if port in _listening(out.decode(errors="replace")):
             return f"Port {port} is in use on Windows (another program listens on it)"
     return None
-
-
-@app.command()
-def serve(
-    host: str = typer.Option(
-        "127.0.0.1", "--host", help="Interface to bind (default: this machine only)."
-    ),
-    port: int = typer.Option(
-        SERVE_PORT, "--port", help="Port (default 8090; 8000 and 8080 belong to other projects)."
-    ),
-    reload: bool = typer.Option(False, "--reload", help="Enable auto-reload for development."),
-) -> None:
-    """Launch the EDGAR-SENTINEL web application and API, on a port checked to be free."""
-    import uvicorn
-
-    problem = port_problem(host, port)
-    if problem is not None:
-        _fail(f"{problem}. Choose a free port with --port (nothing was stopped).", USAGE)
-    typer.echo(f"Starting EDGAR-SENTINEL on http://localhost:{port} (binding to {host}:{port}) ...")
-    uvicorn.run("sentinel.app.main:app", host=host, port=port, reload=reload)
 
 
 WEB_PORT = 8100  # the stock research app (026); checked free in WSL and on Windows (10 Nov)

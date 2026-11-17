@@ -1,23 +1,18 @@
-"""Unit tests for Feature 023: Options benchmark and on-demand option chains."""
+"""Unit tests for Feature 023: Options benchmark and on-demand option chains.
+
+The API route `/api/options/{ticker}` was part of the old app and was removed with it (17 Nov 2026,
+V2-76); the command `sentinel options` and the tables stay."""
 
 from datetime import date
 from unittest.mock import MagicMock, patch
 
 import duckdb
 import pandas as pd
-import pytest
-from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
-from sentinel.app.main import app
 from sentinel.cli import app as cli_app
 from sentinel.core import options as core_options
 from sentinel.raw.options import fetch_option_chain_data
-
-
-@pytest.fixture
-def client():
-    return TestClient(app)
 
 
 def test_fetch_option_chain_data_mock():
@@ -153,18 +148,6 @@ def test_save_option_chain_and_summary():
     assert round(summary["put_call_ratio"], 2) == 0.28
     assert summary["atm_iv_30d"] is not None
     assert summary["atm_iv_90d"] is not None
-
-
-def test_api_options_endpoint(client):
-    """Test the /api/options/{ticker} endpoint."""
-    res = client.get("/api/options/AAPL")
-    assert res.status_code == 200
-    data = res.json()
-    assert data["ticker"] == "AAPL"
-    assert "summary" in data
-    assert "expirations" in data
-    assert "contracts" in data
-    assert isinstance(data["contracts"], list)
 
 
 def test_cli_options_mock():

@@ -94,7 +94,8 @@ and the GitHub repository; no written report.
 - **Ports 8000 and 8080 belong to other projects; never stop them.** Before giving any project a
   port, check it is free in WSL (`ss -ltn`) and on Windows (`/mnt/c/Windows/System32/netstat.exe
   -ano`, German output) (the researcher, 10 Nov). The stock research app (026, `sentinel web`)
-  serves on 8100, Gemini's old app (`sentinel serve`) on 8090; both refuse a busy or reserved port.
+  serves on 8100 and refuses a busy or reserved port (Gemini's old app, `sentinel serve` on 8090,
+  was removed on 17 Nov, V2-76).
 - The daily update runs by itself on weekdays at 10:00 (Windows Task Scheduler, `sentinel
   schedule show`); its log is `data/logs/update-<date>.log`. It runs the code of whatever branch
   is checked out, so do not leave a broken branch checked out at 10:00.
@@ -200,8 +201,8 @@ holds and what does not:
   over all; the rows left out counted; three records in experiment `010-holdout` and one line in
   `data/holdout/log.jsonl`, written only after all three are scored; a second run is refused),
   then `sentinel report` adds the results unedited (`specs/010-holdout-test/quickstart.md`). The
-  app now serves on port 8090 (8000 and 8080 belong to other projects; `sentinel serve` refuses a
-  busy port, the researcher, 10 Nov). 010 merged by #100 (10 Nov); run once on 12 Nov (V2-69), its report merged by the
+  old app then served on port 8090 (8000 and 8080 belong to other projects; `sentinel serve` refused
+  a busy port, the researcher, 10 Nov; the old app was removed on 17 Nov, V2-76). 010 merged by #100 (10 Nov); run once on 12 Nov (V2-69), its report merged by the
   pull request of 12 Nov, which closes #69. The daily update makes the dilution forecasts with the
   frozen approved model since 12 Nov (V2-72, below); it never reads `data/models/`, which still
   holds Gemini's unapproved files of 2 Nov (only the by-hand `sentinel score` command reads that
@@ -243,7 +244,10 @@ holds and what does not:
   feed reads columns that do not exist; the sector filter never matches (Fama-French codes);
   the model card is typed in; a missing `serving.duckdb` silently serves invented data (with an
   insider trade credited to a real person). Spec-kit documents exist only for 011. **Replaced by
-  026** (V2-61, below); removed once the researcher approves 026 (FR-024, T021).
+  026** (V2-61, below). **Removed on 17 Nov** when the researcher approved 026 (V2-76; 026 T021,
+  019 T018): the package, its tests, `sentinel serve` and the Docker files (018); the port-check
+  tests moved to `tests/unit/test_cli_ports.py` (`sentinel web`); `specs/011-app-design/` kept as
+  history.
 - **Stock research app (026, V2-61), 10–11 Nov:** a new, separate app (`src/sentinel/web/`,
   `sentinel web`, port 8100), one page per stock with dilution risk as its main feature and no
   volatility or results-day forecast: search (tickers, names, former names; a reused ticker lists
@@ -267,9 +271,9 @@ holds and what does not:
   first filed added (T015, 12 Nov; checked by the named cases). The daily dilution forecasts in
   the update (T018, 12 Nov, V2-72; see "Daily scores" below). Each rule that leaves a company out
   named on its page (T022, 13 Nov, V2-73); 14 named cases (GPUS added, a stock below $1), all
-  154 checks pass. Left
-  (`specs/026-stock-research-app/tasks.md`): insider clusters (T011), short interest (T014, last),
-  the old app removed (T021).
+  154 checks pass. **Approved by the researcher on 17 Nov (V2-76)**; the old app removed (T021).
+  Left (`specs/026-stock-research-app/tasks.md`): insider clusters (T011) and short interest
+  (T014), if time allows.
 - **V2-63 (10 Nov):** a stray Form 4 of another company naming a ticker (DoorDash giving FN) no
   longer cuts a company's price history; rebuilt on 10 Nov with the researcher's agreement (121
   listed companies' histories restored).
@@ -328,8 +332,9 @@ holds and what does not:
   6,915 companies still trading, 3,669 forecasts; every model number unchanged) and slide 3
   updated to it (deck version 16; `specs/019-hand-in/slides-check.md`); 21 named cases, 0 failed;
   the branch pushed; the teammate's name written "Yassin Tourki" throughout, as on the slides (the
-  researcher, 17 Nov: "A"; eight mentions in five files, two of them text cells of the dilution
-  notebook, which was not re-run).
+  researcher, 17 Nov: "A"; eight mentions in four files, two of them text cells of the dilution
+  notebook, which was not re-run); **026 approved by the researcher and the old app removed**
+  (V2-76; 026 T021, 019 T018).
 
   Left for the dry run: the researcher's review with the PDF and PowerPoint (T008). The backup
   screenshots (T013) and the timed walk-throughs (T014) were dropped with the fixed path.
@@ -470,15 +475,15 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
 - [ ] 026 later tasks, in this order: key financials as first filed (T015: done 12 Nov); ten named cases
   checked against the data (T019, SC-002: done 12 Nov, 13 cases); the daily dilution forecasts
   in the update (T018, with 009: done 12 Nov, V2-72); each rule that leaves a company out named
-  on its page (T022: done 13 Nov, V2-73; 14 named cases); insider clusters (T011) and short
-  interest (T014) if time allows; the old app removed once the researcher approves 026 (T021).
-- Gemini's old app, kept until T021 (V2-61 replaces it; its faults are in section 7):
-- [ ] 011–017 (built by Gemini, replaced by 026): on branch `011-app-design`. Design and forecast contract (`specs/011-app-design/contracts/`),
-  FastAPI read-only API over `data/serving.duckdb` (`src/sentinel/app/`, on port 8090, refusing a busy port), stock research terminal
-  with the four Sentinel intelligence panels, live interactive price chart, reported financials, Form 4 insider activity,
-  and SEC filings. Multi-factor screener, market insider feed, and model card view. Tested with 8 unit tests in
-  `tests/unit/test_app_api.py`. CLI entrypoint: `sentinel serve` (port 8090, this machine only by default).
-- [ ] 018 (026 runs on this computer only, V2-71; Gemini's Docker files are the old app's): Hosting / production deployment configuration with no Tiingo-derived value on a public page. Dockerfile and docker-compose.yml serving read-only over port 8090, audited by test_public_data.py.
+  on its page (T022: done 13 Nov, V2-73; 14 named cases); the page in tabs (User Story 8:
+  done 16 Nov); no forecast when the trading rules out the share count (T030: done 17 Nov,
+  V2-75); the researcher's approval and the old app removed (T021: done 17 Nov, V2-76); insider
+  clusters (T011) and short interest (T014) if time allows.
+- [X] 011–018, Gemini's old app (replaced by 026, V2-61; its faults are in section 7): removed on
+  17 Nov when the researcher approved 026 (V2-76): `src/sentinel/app/`, its tests, `sentinel
+  serve` (port 8090) and the Docker files (018); its spec-kit documents stay in
+  `specs/011-app-design/` as history. Where the app runs (018) is V2-71's answer: on this computer
+  only.
 
 ### Step 7b · 027 Price history repair, then retrain and test (V2-65, V2-66)
 - [X] Spec, plan, tasks; the audit and its baseline; the repair with tests; the old tickers'
@@ -527,6 +532,8 @@ and a fresh-copy check. The slides' limits include the dilution answer's catchin
   stores raw Parquet snapshots in `data/raw/options/` with manifest lines; relational tables `live.option_chain`
   and `live.option_summary` in DuckDB (`src/sentinel/core/options.py`); 30d/60d/90d ATM implied volatility benchmarks;
   CLI command `sentinel options <ticker>` and API route `/api/options/{ticker}`. Tested with 4 unit tests (172 total tests pass).
+  The API route belonged to the old app and was removed with it (17 Nov, V2-76); the command and the
+  tables stay.
 
 ### Later, if the researcher asks · 024 Offering-event question
 A second dilution question, "will the company file a share offering in the next 6 months?",

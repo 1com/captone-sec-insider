@@ -95,10 +95,12 @@ dilution model's one-time test result.
   limits; the current sections under "Working notes"; no screenshot of the app
 - [ ] T017 [US3] A fresh copy of the public repository in the scratchpad, installed by the README,
   passes ruff, the format check and the unit tests without `data/` (quickstart section 4)
-- [ ] T018 [US3] Only once the researcher approves the new app (026 T021, FR-015): remove
+- [X] T018 [US3] Only once the researcher approves the new app (026 T021, FR-015): remove
   `src/sentinel/app/`, `tests/unit/test_app_api.py`, the old app's other tests, `Dockerfile`,
   `docker-compose.yml` and the `sentinel serve` command in `src/sentinel/cli.py`; docs updated;
-  `specs/011-app-design/` kept as history
+  `specs/011-app-design/` kept as history. Done 17 Nov (V2-76, see 026 T021): the port-check
+  tests moved to `tests/unit/test_cli_ports.py`; `README.md`, `docs/architecture.md`,
+  `docs/plan.md`, AGENTS.md and the 011 and 023 documents updated; 329 tests pass
 
 ## Phase 6: Polish
 
@@ -114,7 +116,7 @@ dilution model's one-time test result.
 - T004 (the numbers) before T006, T007 and T016; T003 with T004.
 - T010 (the app shows the test) before T011, T013 and T014; T009 with T010.
 - T011 before T012, T013 and T014.
-- T018 waits for the researcher's approval of 026.
+- T018 waited for the researcher's approval of 026 (given 17 Nov, V2-76).
 - User Stories 1 and 2 are independent of each other once Phase 2 is done; User Story 3 needs only
   Phase 2.
 

@@ -345,8 +345,8 @@ visible without scrolling.
   and every value computed from them hidden; Yahoo's terms do not allow redistributing its prices
   either.
 - **FR-021**: The app MUST run on a port checked to be free in WSL and on Windows, and refuse a busy
-  or reserved port (8000, 8080, 8090 belong to other programs); by default it is reachable from
-  this machine only.
+  or reserved port (8000 and 8080 belong to other projects; 8090 was the old app's until it was
+  removed on 17 Nov, V2-76); by default it is reachable from this machine only.
 - **FR-022**: The page MUST look like a professional research tool: a company header above tabs
   that show one section at a time (FR-025; amended 16 Nov, was "one page with its sections in a
   fixed order"), a consistent layout and typography, numbers with units and sensible rounding

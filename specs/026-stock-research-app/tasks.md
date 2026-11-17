@@ -74,7 +74,13 @@ The researcher asked for a presentable MVP first (10 Nov); tasks after the MVP a
 - [X] T020 Docs (README, `docs/plan.md`, AGENTS.md); pull request after the researcher agrees (the
   MVP merged by #101, 10 Nov; the shared password, V2-63 and the docs by a second pull request,
   11 Nov)
-- [ ] T021 Remove the old app (011-017) once the researcher approves the new one (FR-024)
+- [X] T021 Remove the old app (011-017) once the researcher approves the new one (FR-024). Done
+  17 Nov (V2-76; the researcher: "i approve the new app"): `src/sentinel/app/`, its tests
+  (`test_app_api.py`, `test_public_data.py`, the options route's test), `sentinel serve`,
+  `Dockerfile` and `docker-compose.yml` (018) removed; the port-check tests moved to
+  `tests/unit/test_cli_ports.py` and run `sentinel web`; `specs/011-app-design/` kept as history;
+  nothing in the daily update used the old app; 329 tests pass (340 before: 14 went with the old
+  app, 3 moved)
 - [X] T022 V2-73 (13 Nov), found by the first scheduled run with forecasts (009 T013): a page
   without a forecast names each rule every question applies that the company fails
   (`risk_params.yaml` `panel`: price, trading value, trading days, a recent filing), with its own
