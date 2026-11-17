@@ -26,6 +26,7 @@ import pandas as pd
 from sentinel import config, db
 from sentinel.models import dilution
 from sentinel.scoring import daily
+from sentinel.serving.publish import MAX_TURNOVER
 from sentinel.web.data import FINANCIALS
 
 CASES = [  # (CIK, ticker searched, what it stands for: SC-002's kinds and earlier fixes)
@@ -44,6 +45,12 @@ CASES = [  # (CIK, ticker searched, what it stands for: SC-002's kinds and earli
     ("835011", "CASK", "a ticker change, MGPI to CASK (027)"),
     ("896493", "GPUS", "a stock below $1, left out by the price rule (V2-73)"),
     ("3124", "AKZOY", "no share count in its SEC filings: no forecast served (V2-74)"),
+    ("1107421", "TCRT", "the demo's high-risk company (019, step 2)"),
+    ("1905956", "TGL", "the demo's spare high-risk company (019, step 2)"),
+    ("789019", "MSFT", "the demo's spare large company (019, step 3)"),
+    ("1472091", "PDSB", "the demo's spare stock below $1 (019, step 4)"),
+    ("912093", "VIAV", "the demo's spare ticker change, JDSU to VIAV (019, step 5)"),
+    ("1717115", "TEM", "a share count given in thousands: no forecast served (V2-75)"),
 ]
 SPLIT_DAYS = {"1411579": "2023-08-24"}  # adjusted prices must be continuous across these days
 OUT = Path("docs/report/app_named_cases.md")
@@ -141,6 +148,11 @@ def expected_reason(facts: dict, card: dict, rules: dict, row: dict | None = Non
     num = lambda k: None if r.get(k) is None or pd.isna(r[k]) else float(r[k])  # noqa: E731
     if card.get("eligible_dilution") and num("shares_outstanding") is None:
         return "share count"  # V2-74: the answer cannot be measured without one
+    traded, value = num("addv20"), num("market_cap")
+    if (card.get("eligible_dilution") and traded is not None and value is not None
+            and np.isfinite(traded) and np.isfinite(value) and value > 0
+            and traded > MAX_TURNOVER * value):  # fmt: skip
+        return f"more than {MAX_TURNOVER} times the company's market value"  # V2-75
     if card.get("eligible_dilution"):
         return "No forecast yet"
     if num("close") is not None and num("close") < float(rules["min_close"]):

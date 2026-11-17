@@ -63,3 +63,30 @@ The daily forecasts moved into the daily update (009, dilution only, FR-005; T01
 highlighted (FR-008); key financials (User Story 6); short interest as a new source (researcher,
 10 Nov: built last); a page-number test against the data for ten named cases (SC-002, SC-005);
 removing the old app (FR-024, with the researcher's agreement).
+
+## The page in tabs (16 Nov, User Story 8, FR-025)
+
+Patterns taken from established research sites, which hold as much data as this page:
+
+- **A header above a tab bar, one section per tab** (Yahoo Finance, Stock Analysis, TradingView's
+  symbol pages). The header keeps the company, its price and its dilution band in view; the tab bar
+  stays in view while scrolling.
+- **The summary before the detail.** The key statistics sit as a short list beside the chart, as on
+  Stock Analysis and Yahoo Finance; the insiders' 12-month totals come as tiles before their chart
+  and table, as on Koyfin.
+- **Progressive disclosure.** Long tables show their first rows and a button for all. Method notes,
+  every factor and the model's tests sit behind fold-outs, like the "learn more" panels of Simply
+  Wall St and Morningstar.
+- **Segmented controls** for the chart's period, quarters or years, and filing kinds.
+- **Colour only for meaning** (buy and sell, up and down, the five bands); secondary facts in muted
+  text.
+
+Technically:
+
+- **What changes.** Only `templates/index.html`, `static/app.css` and `static/app.js`, plus a
+  version on the static files' addresses (`main.py`), so that a browser fetches the new files.
+- **Tabs.** Buttons with ARIA roles; the open tab is in the address (`#price`, `#dilution`,
+  `#insiders`, `#filings`, `#about`).
+- **Charts** are drawn when their tab first opens, because a chart drawn while hidden has no size.
+- **What does not change.** No endpoint, data or number changes, so the named cases and the tests
+  still apply.

@@ -17,7 +17,7 @@ from fastapi.templating import Jinja2Templates
 
 from sentinel import config
 from sentinel.web import data, glossary
-from sentinel.web.forecast import Forecasts
+from sentinel.web.forecast import Forecasts, share_count_doubt
 
 HERE = Path(__file__).parent
 app = FastAPI(title="EDGAR-SENTINEL", docs_url=None, redoc_url=None)
@@ -60,6 +60,12 @@ def _fresh(con) -> dict:
     return data.freshness(con)
 
 
+def _asset_version() -> str:
+    """Changes whenever the page's script or style changes, so a browser fetches the new files."""
+    stamp = max((HERE / "static" / name).stat().st_mtime_ns for name in ("app.css", "app.js"))
+    return format(stamp // 1_000_000, "x")
+
+
 @app.get("/", response_class=HTMLResponse)
 def page(request: Request) -> HTMLResponse:
     error, fresh = None, {}
@@ -71,7 +77,12 @@ def page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
         "index.html",
-        {"fresh": fresh, "error": error, "kinds": list(glossary.KINDS.items())},
+        {
+            "fresh": fresh,
+            "error": error,
+            "kinds": list(glossary.KINDS.items()),
+            "v": _asset_version(),
+        },
     )
 
 
@@ -81,28 +92,13 @@ def api_search(q: str = Query("", max_length=80)) -> list[dict]:
         return data.search(con, q)
 
 
-@app.get("/api/top")
-def api_top() -> dict:
-    """The companies with the highest dilution chance today (the landing page)."""
+@app.get("/api/summary")
+def api_summary() -> dict:
+    """The first page's figures: how many companies have a forecast, and the forecasts' date. The
+    first page lists no companies (the researcher, 17 Nov: no list of the highest risks, V2-77)."""
     with data.connect(PATHS.serving_db) as con:
         FORECASTS.refresh(con)
-        top = FORECASTS.top(15)
-        names = {
-            r["cik"]: r
-            for r in data._rows(
-                con,
-                "select cik, ticker, name, exchange from app.stock where listed and "
-                "cik in (select unnest(?::varchar[])) "
-                "qualify row_number() over (partition by cik order by last_session desc) = 1",
-                [[t["cik"] for t in top]],
-            )
-        }
-        return {
-            "as_of": FORECASTS.as_of,
-            "companies": [{**t, **names.get(t["cik"], {})} for t in top],
-            "covered": len(FORECASTS.by_cik),
-            "freshness": _fresh(con),
-        }
+        return {"as_of": FORECASTS.as_of, "covered": len(FORECASTS.by_cik)}
 
 
 @app.get("/api/company/{cik}")
@@ -114,6 +110,8 @@ def api_company(cik: str) -> JSONResponse:
         FORECASTS.refresh(con)
         listed = any(t["listed"] for t in c["tickers"])
         c["dilution"] = FORECASTS.for_company(cik, c["card"], listed, c["facts"])
+        # V2-75: the trading rules out the reported share count; the page marks the values on it
+        c["share_count_doubt"] = share_count_doubt(c["card"])
         c["shares"] = data.shares(con, cik)
         c["freshness"] = _fresh(con)
         c["diagnostics"] = data.diagnostics(con, cik)

@@ -12,8 +12,10 @@ EDGAR-SENTINEL v2 is a market research platform for any US-traded stock, built f
 four independent questions for any stock: insider activity (a tracker, no forecast), expected
 volatility over the next three months, the expected size of the next results-day move, and the
 chance of dilution (shares up 10%+ within six months). The data platform is built and updates
-every weekday; the three forecasting models and the app are next. Hand-in: product v1 on
-**17 November 2026**, report on **18 November 2026**.
+every weekday; the three forecasting models are built and were tested once on the answers from
+2023 on (12 Nov), and the app serves the dilution forecasts daily. Hand-in (the researcher,
+16 Nov): a presentation with a live demo, 15 minutes in all, dry run on **18 November 2026**,
+and the GitHub repository; no written report.
 
 ## 2. Read these first, in this order
 
@@ -57,6 +59,8 @@ every weekday; the three forecasting models and the app are next. Hand-in: produ
   data and `.env` keys.
 - **The app is built by the researcher with the agent**; the data-science track was meant for the
   teammate `sonson033` but the researcher has asked the agent to do it.
+- **The teammate's name is written "Yassin Tourki"**, as on the slides' cover (the researcher,
+  17 Nov), although the teammate's commits are signed "Jassin"; do not change it back.
 - `data/exports/` is shared with the teammate by the researcher, privately; do not raise it.
 
 ## 4. Rules that must never be broken
@@ -90,7 +94,8 @@ every weekday; the three forecasting models and the app are next. Hand-in: produ
 - **Ports 8000 and 8080 belong to other projects; never stop them.** Before giving any project a
   port, check it is free in WSL (`ss -ltn`) and on Windows (`/mnt/c/Windows/System32/netstat.exe
   -ano`, German output) (the researcher, 10 Nov). The stock research app (026, `sentinel web`)
-  serves on 8100, Gemini's old app (`sentinel serve`) on 8090; both refuse a busy or reserved port.
+  serves on 8100 and refuses a busy or reserved port (Gemini's old app, `sentinel serve` on 8090,
+  was removed on 17 Nov, V2-76).
 - The daily update runs by itself on weekdays at 10:00 (Windows Task Scheduler, `sentinel
   schedule show`); its log is `data/logs/update-<date>.log`. It runs the code of whatever branch
   is checked out, so do not leave a broken branch checked out at 10:00.
@@ -117,7 +122,7 @@ researcher, 12 Nov: no need to delete merged branches), and close its GitHub iss
 per feature). Keep `docs/plan.md`, `README.md` and this
 file in step.
 
-## 7. Where things stand (13 November 2026; the audit of the work of 30 Oct – 3 Nov was on 4 Nov)
+## 7. Where things stand (17 November 2026; the audit of the work of 30 Oct – 3 Nov was on 4 Nov)
 
 Between 30 October and 3 November another agent (Gemini) added models, daily scores, a report,
 the app, Docker and option chains, pushing straight to `main` without pull requests. On
@@ -149,9 +154,9 @@ holds and what does not:
   volatility range was scaled in-sample (65–67% coverage); bands are fixed cut-offs without test-
   year hit rates (risk_params `reporting`, D47); the packaged models differ from the evaluated
   ones and carry `git_commit="frozen"`; the teammate's 007 notebook (`origin/007-dilution-model`,
-  Jassin, 2 Nov) was never merged and `main` holds another 007 notebook. The numbers formerly
+  Yassin Tourki, 2 Nov) was never merged and `main` holds another 007 notebook. The numbers formerly
   quoted here are in MLflow (`data/mlflow.db`) for reference only. **Decided 4 Nov:** 007 is
-  Jassin's notebook (V2-40); 006 is chosen by the mean log loss of its 5%/10%/20% chances
+  Yassin Tourki's notebook (V2-40); 006 is chosen by the mean log loss of its 5%/10%/20% chances
   (V2-41). **Decided 5 Nov:** 007 first, then 006, 005 only if time allows before the holdout
   test (V2-48); every model, calibration, band edge and range is a `sentinel.models.dated.Dated`,
   which learns only from answers known before its cutoff and forecasts only rows dated after it
@@ -196,8 +201,8 @@ holds and what does not:
   over all; the rows left out counted; three records in experiment `010-holdout` and one line in
   `data/holdout/log.jsonl`, written only after all three are scored; a second run is refused),
   then `sentinel report` adds the results unedited (`specs/010-holdout-test/quickstart.md`). The
-  app now serves on port 8090 (8000 and 8080 belong to other projects; `sentinel serve` refuses a
-  busy port, the researcher, 10 Nov). 010 merged by #100 (10 Nov); run once on 12 Nov (V2-69), its report merged by the
+  old app then served on port 8090 (8000 and 8080 belong to other projects; `sentinel serve` refused
+  a busy port, the researcher, 10 Nov; the old app was removed on 17 Nov, V2-76). 010 merged by #100 (10 Nov); run once on 12 Nov (V2-69), its report merged by the
   pull request of 12 Nov, which closes #69. The daily update makes the dilution forecasts with the
   frozen approved model since 12 Nov (V2-72, below); it never reads `data/models/`, which still
   holds Gemini's unapproved files of 2 Nov (only the by-hand `sentinel score` command reads that
@@ -223,20 +228,26 @@ holds and what does not:
   of companies left out by a rule said "the data is not complete" (1,536): now they name each
   rule failed (`risk_params.yaml` `panel`) with the company's value and date. A forecast made
   again unchanged keeps its row and time (the change report counted all 4,071 as changed).
+  Merged by #110 (16 Nov).
   Outcomes (`score.outcome`): the first windows close in May 2027; the outcome code reads
   `label.dilution`, which stops at 2022, so live answers need the label code over current data
   first.
   **V2-74 (16 Nov, the researcher: "A"):** a dilution forecast is served only while the company's
   latest row has a share count; without one the answer cannot be measured, so the model was
   never tested on such rows (388 of 4,071 served forecasts on 12 Nov, 288 in band 5; Akzo Nobel
-  was #10 on the landing page); such a page says why.
+  was #10 on the landing page); such a page says why. Merged by #111 (16 Nov); applied on 16 Nov's
+  data (the 10:00 run `complete` after three hours, the SEC slow after a US holiday): 3,682 of
+  4,065 forecasts served; the 15 named cases pass.
 - **App (011–018):** serves Tiingo-derived prices (8.1 M rows, 4,840 companies) without a filter;
   a ticker shared by several companies opens an arbitrary one (`/stock/DIS` can be TWDC
   Enterprises, 2019); the price chart is broken (JSON escaped inside `<script>`); the insider
   feed reads columns that do not exist; the sector filter never matches (Fama-French codes);
   the model card is typed in; a missing `serving.duckdb` silently serves invented data (with an
   insider trade credited to a real person). Spec-kit documents exist only for 011. **Replaced by
-  026** (V2-61, below); removed once the researcher approves 026 (FR-024, T021).
+  026** (V2-61, below). **Removed on 17 Nov** when the researcher approved 026 (V2-76; 026 T021,
+  019 T018): the package, its tests, `sentinel serve` and the Docker files (018); the port-check
+  tests moved to `tests/unit/test_cli_ports.py` (`sentinel web`); `specs/011-app-design/` kept as
+  history.
 - **Stock research app (026, V2-61), 10–11 Nov:** a new, separate app (`src/sentinel/web/`,
   `sentinel web`, port 8100), one page per stock with dilution risk as its main feature and no
   volatility or results-day forecast: search (tickers, names, former names; a reused ticker lists
@@ -260,9 +271,11 @@ holds and what does not:
   first filed added (T015, 12 Nov; checked by the named cases). The daily dilution forecasts in
   the update (T018, 12 Nov, V2-72; see "Daily scores" below). Each rule that leaves a company out
   named on its page (T022, 13 Nov, V2-73); 14 named cases (GPUS added, a stock below $1), all
-  154 checks pass. Left
-  (`specs/026-stock-research-app/tasks.md`): insider clusters (T011), short interest (T014, last),
-  the old app removed (T021).
+  154 checks pass. **Approved by the researcher on 17 Nov (V2-76)**; the old app removed (T021).
+  The first page lists no companies since 17 Nov (V2-77, the researcher; T031): the list of the
+  15 highest chances and its route `/api/top` removed; companies are opened by search.
+  Left (`specs/026-stock-research-app/tasks.md`): insider clusters (T011) and short interest
+  (T014), if time allows.
 - **V2-63 (10 Nov):** a stray Form 4 of another company naming a ticker (DoorDash giving FN) no
   longer cuts a company's price history; rebuilt on 10 Nov with the researcher's agreement (121
   listed companies' histories restored).
@@ -298,6 +311,76 @@ holds and what does not:
   count); with nothing announced the model's AUC is 0.87 against 0.89 and its band 5 diluted 33%
   against 41% (2019–2022); `python -m sentinel.models.catching_up` writes
   `docs/report/dilution_catching_up.md`, for the report's limitations (019).
+- **Hand-in (019), from 16 Nov:** the researcher: the course requires a presentation, a live
+  demo and the GitHub repository, no written report; 15 minutes for presentation and demo
+  together; the dry run on Wednesday 18 Nov (the final date to come). Spec, plan and tasks in
+  `specs/019-hand-in/` (branch `019-hand-in`). Every number on the slides, the demo path and the
+  README comes from the generated number sheet (`python -m sentinel.presentation` writes
+  `docs/presentation/numbers.md` from the model card, the catching-up report, the data audit and
+  the serving copy); the app's dilution panel and model section show the one-time test's record
+  (2023 on) from the model card. The slides are a claude.ai Slides artifact (private), downloaded
+  as PDF and PowerPoint; the demo's backup screenshots stay in `data/handin/backup/` (the app's
+  price charts are Tiingo-derived). **Done 16 Nov:**
+  - the number sheet on 16 Nov's data (T005: 3,682 forecasts);
+  - the ten slides (T006), whose cover reads "Hashim Bin Shahbaz & Yassin Tourki · AI / ML
+    Project Management";
+  - their number check (T007, `specs/019-hand-in/slides-check.md`): 39 ids in 44 places,
+    0 differences, seven slides' wording corrected;
+  - the demo path checked on the live app (T011, `specs/019-hand-in/demo.md`): every demo
+    company's chart comes from Yahoo;
+  - the demo companies added to the named cases (T012): 20 cases, 0 failed.
+
+  **Done 17 Nov:** V2-75 (below); the number sheet regenerated on 17 Nov's data (to 16 Nov:
+  6,915 companies still trading, 3,669 forecasts; every model number unchanged) and slide 3
+  updated to it (deck version 16; `specs/019-hand-in/slides-check.md`); 21 named cases, 0 failed;
+  the branch pushed; the teammate's name written "Yassin Tourki" throughout, as on the slides (the
+  researcher, 17 Nov: "A"; eight mentions in four files, two of them text cells of the dilution
+  notebook, which was not re-run); **026 approved by the researcher and the old app removed**
+  (V2-76; 026 T021, 019 T018); **the README's front page for graders** (T016: the question, the
+  app's single forecast and the one-time test's table in its first 37 lines; the former sections
+  under "Working notes"), its numbers tested against the model card
+  (`tests/unit/test_readme_numbers.py`, T015); a fresh copy without `data/` installs by the
+  README and passes ruff, the format check and the tests (300 passed, 33 skipped for want of the
+  data; T017); the quickstart's notebook scan now reads the commits (the files on disk keep their
+  outputs); **the app's first page without the list of the highest chances** (V2-77, the
+  researcher; 026 T031), slide 10's first demo step with it (deck version 18), the demo page's
+  step-2 spare now IonQ (Treasure Global fell below $1); **all of it merged into `main` by #112**
+  (the researcher: "yes"; #71 stays open until after the final presentation).
+
+  Found on the way, for after the hand-in: four served forecasts whose market value cannot be
+  right, the mirror of V2-75 (value traded per day below 0.001% of the market value): Akari
+  Therapeutics, about $1.2 trillion (a share count of 186 billion times the price of its US-traded
+  ADS, one of which stands for many ordinary shares), and three utility subsidiaries priced from
+  their preferred shares (Pacific Gas & Electric, PCG-PE; Consumers Energy, CMS-PB; Wisconsin
+  Electric, WELPP).
+
+  Left for the dry run: the researcher's review with the PDF and PowerPoint (T008). The backup
+  screenshots (T013) and the timed walk-throughs (T014) were dropped with the fixed path.
+
+  Found on the way, for after the hand-in: when a company changes ticker, our price chain does not
+  fill the new ticker's missing days from the old ticker's rows. CASK lacks 9-11 Nov 2026, which
+  MGPI has; this affects a few companies.
+
+  **Also found 16 Nov (by the researcher, on Tempus AI): share counts 1,000 times too small.** A
+  company without a cover-page count in the SEC's companyfacts gets the quarterly average count
+  instead (`core/filings.py`, `build_shares`, source `basic_average`; 757 companies, 366 of them still trading on 17 Nov). Some companies
+  report that average in thousands without marking it: Tempus AI 181,311 for about 181 million,
+  EchoStar, DraftKings. Some shells report a placeholder of 1,000 shares. Their market value,
+  share-based inputs and dilution forecast are wrong; Tempus AI was third on the top list.
+  Symptom: the value traded per day is more than 10 times the market value (8 served forecasts on
+  16 Nov; 24 above 1 time, some of them maybe real). **Decided 17 Nov (V2-75, the researcher:
+  "A"):** `sentinel publish` serves a dilution forecast only while the value traded per day is at
+  most 10 times the market value; such a page says why, and every page whose trading rules out its
+  count marks the market value and the share count as doubtful. Applied on
+  17 Nov's data (to 16 Nov): 7 of the 3,676 forecasts withdrawn (Tempus AI, #2 that morning;
+  EchoStar; Suja Life; Suncrete; Avalanche Treasury; SCWorx; Cheetah Net), 3,669 served; 21
+  named cases pass (Tempus AI added); the number sheet and slide 3 updated (deck version 16). The repair at the
+  source (each class's count from the filings' own XBRL, averages given in thousands rescaled,
+  placeholders dropped, a rebuild) is proposed for after the hand-in.
+
+  **The researcher, 16 Nov: the company page is now in tabs** (026 User Story 8, FR-025): Price &
+  fundamentals, Dilution risk, Insiders, SEC filings, About & data. **The demo has no fixed path:**
+  the app is shown freely (019 T013 and T014 dropped).
 - **Options (023):** the spot price comes from a table that does not exist (falls back to the
   median strike or 100); the tables now live in schema `live` (a rebuild cannot reproduce them).
 - **Process:** no pull requests since #90; three of the last five CI runs on `main` failed.
@@ -410,15 +493,16 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
 - [ ] 026 later tasks, in this order: key financials as first filed (T015: done 12 Nov); ten named cases
   checked against the data (T019, SC-002: done 12 Nov, 13 cases); the daily dilution forecasts
   in the update (T018, with 009: done 12 Nov, V2-72); each rule that leaves a company out named
-  on its page (T022: done 13 Nov, V2-73; 14 named cases); insider clusters (T011) and short
-  interest (T014) if time allows; the old app removed once the researcher approves 026 (T021).
-- Gemini's old app, kept until T021 (V2-61 replaces it; its faults are in section 7):
-- [ ] 011–017 (built by Gemini, replaced by 026): on branch `011-app-design`. Design and forecast contract (`specs/011-app-design/contracts/`),
-  FastAPI read-only API over `data/serving.duckdb` (`src/sentinel/app/`, on port 8090, refusing a busy port), stock research terminal
-  with the four Sentinel intelligence panels, live interactive price chart, reported financials, Form 4 insider activity,
-  and SEC filings. Multi-factor screener, market insider feed, and model card view. Tested with 8 unit tests in
-  `tests/unit/test_app_api.py`. CLI entrypoint: `sentinel serve` (port 8090, this machine only by default).
-- [ ] 018 (026 runs on this computer only, V2-71; Gemini's Docker files are the old app's): Hosting / production deployment configuration with no Tiingo-derived value on a public page. Dockerfile and docker-compose.yml serving read-only over port 8090, audited by test_public_data.py.
+  on its page (T022: done 13 Nov, V2-73; 14 named cases); the page in tabs (User Story 8:
+  done 16 Nov); no forecast when the trading rules out the share count (T030: done 17 Nov,
+  V2-75); the researcher's approval and the old app removed (T021: done 17 Nov, V2-76); the first
+  page without the list of highest risks (T031: done 17 Nov, V2-77); insider clusters (T011) and
+  short interest (T014) if time allows.
+- [X] 011–018, Gemini's old app (replaced by 026, V2-61; its faults are in section 7): removed on
+  17 Nov when the researcher approved 026 (V2-76): `src/sentinel/app/`, its tests, `sentinel
+  serve` (port 8090) and the Docker files (018); its spec-kit documents stay in
+  `specs/011-app-design/` as history. Where the app runs (018) is V2-71's answer: on this computer
+  only.
 
 ### Step 7b · 027 Price history repair, then retrain and test (V2-65, V2-66)
 - [X] Spec, plan, tasks; the audit and its baseline; the repair with tests; the old tickers'
@@ -453,16 +537,22 @@ run exists; it computes the 2023+ answers, scores the frozen models, writes the 
 log entry; a second run is refused. The researcher triggers it. Results go into the report as
 they came out; no model change afterwards.
 
-### Step 9 · 019 Hand-in (17–18 November)
-Product v1 on 17 November, report on 18 November, both regenerated by commands from a clone plus
-the data. The report's limitations include the dilution answer's catching-up effect (V2-70,
-`docs/report/dilution_catching_up.md`).
+### Step 9 · 019 Hand-in: presentation, live demo, repository (dry run 18 November)
+The researcher, 16 Nov: a presentation with a live demo, 15 minutes in all, and the GitHub
+repository; no written report; the dry run on Wednesday 18 November. Follow
+`specs/019-hand-in/tasks.md`: the number sheet (`python -m sentinel.presentation`), the app's
+one-time test record, the demo path (`specs/019-hand-in/demo.md`), the slides (every number by id
+from the sheet), the backup and a timed walk-through, then the README's front page for graders
+and a fresh-copy check. The slides' limits include the dilution answer's catching-up effect
+(V2-70, `docs/report/dilution_catching_up.md`).
 
 ### Feature 023 · Options benchmark and on-demand option chains (3 Nov)
 - [~] 023 (spot price wrong; tables moved to schema `live` on 4 Nov): On-demand option chain fetcher (`src/sentinel/raw/options.py`) downloading all expirations up to 365 days;
   stores raw Parquet snapshots in `data/raw/options/` with manifest lines; relational tables `live.option_chain`
   and `live.option_summary` in DuckDB (`src/sentinel/core/options.py`); 30d/60d/90d ATM implied volatility benchmarks;
   CLI command `sentinel options <ticker>` and API route `/api/options/{ticker}`. Tested with 4 unit tests (172 total tests pass).
+  The API route belonged to the old app and was removed with it (17 Nov, V2-76); the command and the
+  tables stay.
 
 ### Later, if the researcher asks · 024 Offering-event question
 A second dilution question, "will the company file a share offering in the next 6 months?",

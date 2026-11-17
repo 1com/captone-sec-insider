@@ -189,7 +189,7 @@ applied, so an update re-stages only sources with new files). Each run also writ
 | `sentinel models` | evaluate and fit the risk models (D60 rules), write the report |
 | `sentinel publish` | write `serving.duckdb` |
 | `sentinel export` | Parquet snapshot for sharing |
-| `sentinel serve` | the web app |
+| `sentinel web [--port P]` | the stock research app (026), on this computer only (V2-71): port 8100 by default; a busy or reserved port is refused |
 
 ## Conventions
 

@@ -113,7 +113,7 @@ a named choice.
 
 ## Phase 7c: The rules of 4–5 Nov (V2-40, V2-46, V2-49, V2-50)
 
-- [X] T032 Merge `main` into this branch; Jassin's notebook and spec kept, decision references renumbered to main's (his V2-34..V2-38 are V2-35..V2-39)
+- [X] T032 Merge `main` into this branch; Yassin Tourki's notebook and spec kept, decision references renumbered to main's (the branch's V2-34..V2-38 are V2-35..V2-39)
 - [X] T033 Section 2: the folds from `eda.folds`, checked by `eda.check_folds`; `train` = inner, gap and valid (FR-004)
 - [X] T034 Section 1: drop the split-like "yes" answers found by `validation.split_dilution` on a read-only database connection (FR-018)
 - [X] T035 Every fitted step a `Dated` (FR-017): the levels, the Platt calibrators (cutoff: the test year), the band edges (fitted on the validation year's model chances: calibration keeps their order); LightGBM without early stopping, its number of trees chosen by predicting the validation year (FR-009)

@@ -4,7 +4,10 @@
 
 **Created**: 2026-11-02
 
-**Status**: Draft
+**Status**: Replaced by the stock research app (026, decision V2-61). The app built from this
+spec (011–017, `src/sentinel/app/`, `sentinel serve`) and its Docker files (018) were removed on
+17 Nov 2026, when the researcher approved 026 (V2-76). Kept as history; the code is in the git
+history.
 
 **Input**: User description: "Step 7: implement webapp - modern equity research terminal showing all ingestions, details, and predictions for any stock."
 
