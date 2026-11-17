@@ -116,7 +116,7 @@ def no_share_count(card: dict, facts: dict) -> str | None:
 
 
 def _money(value) -> str:
-    """$472.0 million, $13.0 million, $1.2 billion; below a million in dollars."""
+    """$400.0 million, $10.0 million, $1.2 billion; below a million in dollars."""
     x = float(value)
     for size, word in ((1e12, "trillion"), (1e9, "billion"), (1e6, "million")):
         if abs(x) >= size:
