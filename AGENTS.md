@@ -344,7 +344,8 @@ holds and what does not:
   data; T017); the quickstart's notebook scan now reads the commits (the files on disk keep their
   outputs); **the app's first page without the list of the highest chances** (V2-77, the
   researcher; 026 T031), slide 10's first demo step with it (deck version 18), the demo page's
-  step-2 spare now IonQ (Treasure Global fell below $1).
+  step-2 spare now IonQ (Treasure Global fell below $1); **all of it merged into `main` by #112**
+  (the researcher: "yes"; #71 stays open until after the final presentation).
 
   Found on the way, for after the hand-in: four served forecasts whose market value cannot be
   right, the mirror of V2-75 (value traded per day below 0.001% of the market value): Akari

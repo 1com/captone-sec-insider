@@ -116,7 +116,10 @@ dilution model's one-time test result.
 - [ ] T019 Privacy scan (quickstart section 5) of the repository, the number sheet and the slides;
   `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run pytest -q`
 - [ ] T020 Docs in step (`docs/plan.md`, `AGENTS.md`, `README.md`); pull request after the researcher
-  agrees; #71 closed with the researcher's agreement after the final presentation
+  agrees; #71 closed with the researcher's agreement after the final presentation. 17 Nov: docs in
+  step; pull request #112 into `main` (the researcher: "yes"), with everything up to 026 T031;
+  #71 stays open until after the final presentation; the dry run's changes (T021) go in a second
+  pull request
 - [ ] T021 After the dry run: its feedback applied to the slides and the demo; the final slides' PDF
   committed to `docs/presentation/` if the researcher wishes (aggregates only)
 
