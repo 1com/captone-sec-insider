@@ -40,6 +40,12 @@ diagnostics, form types (8-K, 10-K, 10-Q, Form 4) without explanations.
   interest in one section, insiders in another, SEC filings in another, and the rest each in its
   own section. The fixed demo path of 019 is dropped: the app is shown freely at the hand-in.
 
+### Session 2026-11-17
+
+- Q: Does the first page list the companies with the highest dilution chance? → A (the researcher,
+  17 Nov): "i also dont need the front page of the app where you show the top 15 highest risk
+  stocks". The first page lists no companies (FR-026, V2-77); a company is opened by search.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Look up a stock and judge its dilution risk (Priority: P1)
@@ -250,9 +256,10 @@ visible without scrolling.
 1. **Given** a company opened from search, **When** the page appears, **Then** the Price &
    fundamentals tab shows the price chart beside the key statistics, then the key financials, the
    share count over time and short selling.
-2. **Given** a company opened from the list of highest risks, **When** the page appears, **Then**
-   the Dilution risk tab shows the chance, its band, the band's record and the main reasons, with
-   every factor and the model's tests folded away.
+2. **Given** a company's Dilution risk tab (opened from the header's risk band or by its address;
+   amended 17 Nov, V2-77: no list of highest risks opens it), **When** the tab appears, **Then**
+   it shows the chance, its band, the band's record and the main reasons, with every factor and
+   the model's tests folded away.
 3. **Given** the Insiders tab, **Then** the last 12 months' totals come first, then the monthly
    chart, then the first trades with a button for all of them.
 4. **Given** any tab, **When** its address is opened again or the browser goes back, **Then** the
@@ -367,6 +374,9 @@ visible without scrolling.
   tab has its own address; long lists show their first rows with a button for the rest;
   explanations fold away, and the market terms keep their tooltips (FR-016). No data, endpoint or
   number changes.
+- **FR-026**: The first page MUST show the search, what the app answers, how many companies have a
+  forecast and the forecasts' date, and how to read the risk bands; it MUST NOT list or rank
+  companies by their chance (the researcher, 17 Nov, V2-77).
 
 ### Key Entities *(include if feature involves data)*
 

@@ -92,28 +92,13 @@ def api_search(q: str = Query("", max_length=80)) -> list[dict]:
         return data.search(con, q)
 
 
-@app.get("/api/top")
-def api_top() -> dict:
-    """The companies with the highest dilution chance today (the landing page)."""
+@app.get("/api/summary")
+def api_summary() -> dict:
+    """The first page's figures: how many companies have a forecast, and the forecasts' date. The
+    first page lists no companies (the researcher, 17 Nov: no list of the highest risks, V2-77)."""
     with data.connect(PATHS.serving_db) as con:
         FORECASTS.refresh(con)
-        top = FORECASTS.top(15)
-        names = {
-            r["cik"]: r
-            for r in data._rows(
-                con,
-                "select cik, ticker, name, exchange from app.stock where listed and "
-                "cik in (select unnest(?::varchar[])) "
-                "qualify row_number() over (partition by cik order by last_session desc) = 1",
-                [[t["cik"] for t in top]],
-            )
-        }
-        return {
-            "as_of": FORECASTS.as_of,
-            "companies": [{**t, **names.get(t["cik"], {})} for t in top],
-            "covered": len(FORECASTS.by_cik),
-            "freshness": _fresh(con),
-        }
+        return {"as_of": FORECASTS.as_of, "covered": len(FORECASTS.by_cik)}
 
 
 @app.get("/api/company/{cik}")

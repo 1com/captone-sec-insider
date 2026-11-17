@@ -109,29 +109,19 @@ function drawSuggest() {
 }
 function pick(r) { sug.hidden = true; q.value = `${r.ticker} · ${r.name}`; q.blur(); show(r.cik, true); }
 
-/* ---------- landing ---------- */
+/* ---------- landing: the search, what the app answers and the forecasts' date; no list of
+   companies (the researcher, 17 Nov: no list of the highest risks, V2-77) ---------- */
 async function landing() {
   current = null;
   $("#landing").hidden = false; $("#stock").hidden = true;
   document.title = "EDGAR-SENTINEL · Stock research";
   $("#band-guide").innerHTML = [1, 2, 3, 4, 5].map((b) => `<div style="background:var(--b${b})">${b} · ${BAND[b]}</div>`).join("");
-  const top = await getJSON("/api/top");
+  const s = await getJSON("/api/summary");
   $("#landing-tiles").innerHTML = [
-    tile("Companies with a forecast", fmt.int(top.covered), "US companies still trading that the model covers"),
-    tile("Forecasts made on", fmt.date(top.as_of), "with the newest prices and SEC filings"),
+    tile("Companies with a forecast", fmt.int(s.covered), "US companies still trading that the model covers"),
+    tile("Forecasts made on", fmt.date(s.as_of), "with the newest prices and SEC filings"),
     tile("Updated", "Every weekday", "new filings, prices and forecasts each weekday morning"),
   ].join("");
-  $("#top-meta").textContent = `Chance of a 10%+ rise in shares within 6 months · ${fmt.date(top.as_of)}`;
-  $("#top-table").innerHTML = `<thead><tr><th class="num">#</th><th>Company</th><th>Exchange</th>
-      <th class="num">Chance</th><th>Risk band</th></tr></thead><tbody>` +
-    top.companies.map((c, i) => `<tr class="click" data-cik="${esc(c.cik)}" tabindex="0"><td class="num muted">${i + 1}</td>
-      <td><b>${esc(c.ticker)}</b> <span class="muted">${esc(c.name)}</span></td><td class="muted">${esc(c.exchange || "")}</td>
-      <td class="num"><b>${chancePct(c.chance)}</b></td><td>${bandChip(c.band)}</td></tr>`).join("") + "</tbody>";
-  $$("#top-table tr.click").forEach((tr) => {
-    const go = () => show(tr.dataset.cik, true, "dilution");
-    tr.addEventListener("click", go);
-    tr.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
-  });
 }
 
 /* ---------- tabs ---------- */

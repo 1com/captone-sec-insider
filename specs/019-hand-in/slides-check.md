@@ -19,6 +19,11 @@ private.*
   three numbers (`app.companies`, `app.forecasts`, `app.date`, on the slide and in its notes) were
   changed to it (deck version 16); the rows below show them. No other slide holds a number that
   changed: every other id on the sheet is the same as on 16 Nov.
+- **17 Nov, after V2-77:** the app's first page lists no companies, so slide 10's first step
+  ("Today's highest dilution chances, and a search for any US stock") became "Search any US stock
+  by its ticker or name, even a former one", and its notes now open a company by search
+  (Alaunos Therapeutics, as in `demo.md`) instead of from the list (deck version 18; version 17
+  was a save outside this check that changed no slide). No number changed.
 - **Times in the notes:** slides 1-9 take 8:30 (0:15, 1:00, 1:00, 1:15, 0:45, 1:30, 0:45, 0:45,
   1:15), the demo 5:00 and the close 0:10. That makes **13:40 of the 15 minutes**.
 
@@ -103,7 +108,7 @@ Sheet ids not on the slides, kept for questions: `mov.rows`, `mov.ll.base_rate`,
 | 9 | the AUCs on 2019-2022 | `docs/report/dilution_catching_up.md`, section 2: the test years 2019-2022 (the 0.91 of slide 6 is the one-time test, 2023-2026) |
 | 9 | "many of them … a SPAC, left out on purpose" (notes) | decision V2-67: of the 11,973 company-months, "about half now SPAC months cut on purpose" (11 Nov) |
 | 9 | "an audit found one model scored with information from the future" | `AGENTS.md`, the audit of 4 Nov: 006 was evaluated with `cum_split_after`; rebuilt and approved 9 Nov (V2-55) |
-| 10 | 5 minutes, the app's sections, port 8100 | the company page's tabs (026 User Story 8; slide changed 16 Nov from a fixed path, version 14); the app on this computer only (V2-71); it asks for the password (HTTP 401 without it) |
+| 10 | 5 minutes, the app's sections, port 8100 | the company page's tabs (026 User Story 8; slide changed 16 Nov from a fixed path, version 14; its first step opens by search since 17 Nov, V2-77, version 18); the app on this computer only (V2-71); it asks for the password (HTTP 401 without it) |
 
 ## 3. Wording corrected by this check
 

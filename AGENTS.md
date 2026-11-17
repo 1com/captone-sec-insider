@@ -272,6 +272,8 @@ holds and what does not:
   the update (T018, 12 Nov, V2-72; see "Daily scores" below). Each rule that leaves a company out
   named on its page (T022, 13 Nov, V2-73); 14 named cases (GPUS added, a stock below $1), all
   154 checks pass. **Approved by the researcher on 17 Nov (V2-76)**; the old app removed (T021).
+  The first page lists no companies since 17 Nov (V2-77, the researcher; T031): the list of the
+  15 highest chances and its route `/api/top` removed; companies are opened by search.
   Left (`specs/026-stock-research-app/tasks.md`): insider clusters (T011) and short interest
   (T014), if time allows.
 - **V2-63 (10 Nov):** a stray Form 4 of another company naming a ticker (DoorDash giving FN) no
@@ -340,7 +342,16 @@ holds and what does not:
   (`tests/unit/test_readme_numbers.py`, T015); a fresh copy without `data/` installs by the
   README and passes ruff, the format check and the tests (300 passed, 33 skipped for want of the
   data; T017); the quickstart's notebook scan now reads the commits (the files on disk keep their
-  outputs).
+  outputs); **the app's first page without the list of the highest chances** (V2-77, the
+  researcher; 026 T031), slide 10's first demo step with it (deck version 18), the demo page's
+  step-2 spare now IonQ (Treasure Global fell below $1).
+
+  Found on the way, for after the hand-in: four served forecasts whose market value cannot be
+  right, the mirror of V2-75 (value traded per day below 0.001% of the market value): Akari
+  Therapeutics, about $1.2 trillion (a share count of 186 billion times the price of its US-traded
+  ADS, one of which stands for many ordinary shares), and three utility subsidiaries priced from
+  their preferred shares (Pacific Gas & Electric, PCG-PE; Consumers Energy, CMS-PB; Wisconsin
+  Electric, WELPP).
 
   Left for the dry run: the researcher's review with the PDF and PowerPoint (T008). The backup
   screenshots (T013) and the timed walk-throughs (T014) were dropped with the fixed path.
@@ -483,8 +494,9 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
   in the update (T018, with 009: done 12 Nov, V2-72); each rule that leaves a company out named
   on its page (T022: done 13 Nov, V2-73; 14 named cases); the page in tabs (User Story 8:
   done 16 Nov); no forecast when the trading rules out the share count (T030: done 17 Nov,
-  V2-75); the researcher's approval and the old app removed (T021: done 17 Nov, V2-76); insider
-  clusters (T011) and short interest (T014) if time allows.
+  V2-75); the researcher's approval and the old app removed (T021: done 17 Nov, V2-76); the first
+  page without the list of highest risks (T031: done 17 Nov, V2-77); insider clusters (T011) and
+  short interest (T014) if time allows.
 - [X] 011–018, Gemini's old app (replaced by 026, V2-61; its faults are in section 7): removed on
   17 Nov when the researcher approved 026 (V2-76): `src/sentinel/app/`, its tests, `sentinel
   serve` (port 8090) and the Docker files (018); its spec-kit documents stay in

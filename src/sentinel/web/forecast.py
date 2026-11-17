@@ -337,8 +337,3 @@ class Forecasts:
                 "complete for this company."
             )
         return {"available": False, "reason": reason}
-
-    def top(self, n: int = 15) -> list[dict]:
-        """The companies with the highest chance today (the landing page)."""
-        best = sorted(self.by_cik.items(), key=lambda kv: -kv[1]["chance"])[:n]
-        return [{"cik": c, "chance": f["chance"], "band": f["band"]} for c, f in best]

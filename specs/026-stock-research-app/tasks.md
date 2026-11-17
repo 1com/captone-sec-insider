@@ -109,7 +109,7 @@ The researcher asked for a presentable MVP first (10 Nov); tasks after the MVP a
 - [X] T027 [US8] `static/app.js`: tabs with their addresses; each section drawn into its tab; charts
   drawn when their tab opens; the reasons as bars; first rows with a button for the rest
 - [X] T028 [US8] The landing page in the same style: the list of highest risks with a short guide to
-  the bands
+  the bands (the list removed on 17 Nov: T031, V2-77)
 - [X] T029 [US8] Checks: ruff, the tests, the named cases; screenshots of each tab for three
   companies on a 1440 × 900 screen (scratchpad only, never committed: the charts can use the
   private price source). Done 16 Nov: 339 tests pass; no typed-in date in the page files;
@@ -131,3 +131,16 @@ The researcher asked for a presentable MVP first (10 Nov); tasks after the MVP a
   morning) off the landing page; 21 named cases, 231 checks, 0 failed
   (`docs/report/app_named_cases.md`); 340 tests pass; screenshots of Tempus AI's tabs and the
   landing page (scratchpad only)
+
+## Phase 11: The first page lists no companies (V2-77, the researcher, 17 Nov)
+
+- [X] T031 V2-77 (17 Nov, the researcher: "i also dont need the front page of the app where you show
+  the top 15 highest risk stocks"), FR-026: the first page keeps the search, what the app answers,
+  the companies with a forecast and the forecasts' date, and the guide to the bands; the list of
+  the 15 highest chances removed (`templates/index.html`, `static/app.js`, the clickable-row style
+  in `static/app.css`); the route `/api/top` replaced by `/api/summary`, the two figures only
+  (`main.py`); `Forecasts.top` removed (`forecast.py`). Test in `tests/unit/test_web_app.py`: the
+  first page has the search and no list, `/api/summary` gives the two figures, `/api/top` is gone
+  and the page script never asks for it. 333 tests pass; the app restarted on port 8100: its first
+  page shows the search and the two figures (3,669 companies with a forecast, made on 16 Nov 2026)
+  and no list, `/api/top` answers 404, the company pages are unchanged

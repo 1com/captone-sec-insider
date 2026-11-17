@@ -100,9 +100,6 @@ class _NoForecasts:
         return {"available": True, "chance": 0.05, "band": 2, "band_name": "2 · Low risk",
                 "as_of": "2026-11-09", "factors": []}  # fmt: skip
 
-    def top(self, n=15):
-        return [{"cik": "1744489", "chance": 0.05, "band": 2}]
-
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
@@ -118,6 +115,21 @@ def test_a_reused_ticker_lists_each_company_the_listed_one_first(client):
     hits = client.get("/api/search?q=dis").json()
     assert [h["name"] for h in hits] == ["Walt Disney Co", "TWDC Enterprises 18 Corp."]
     assert client.get("/api/search?q=walt").json()[0]["cik"] == "1744489"
+
+
+def test_the_first_page_has_the_search_and_lists_no_companies(client):
+    """V2-77 (the researcher, 17 Nov): no list of the highest risks. The first page keeps the
+    search, what the app answers, how many companies have a forecast and the forecasts' date."""
+    from pathlib import Path
+
+    main.FORECASTS.by_cik = {"1744489": {"chance": 0.05, "band": 2}, "2": {"chance": 0.4}}
+    page = client.get("/").text
+    assert 'id="q"' in page and 'id="landing-tiles"' in page and 'id="band-guide"' in page
+    assert "top-table" not in page and "Highest dilution risk" not in page
+    assert client.get("/api/summary").json() == {"as_of": "2026-11-09", "covered": 2}
+    assert client.get("/api/top").status_code == 404
+    script = (Path(main.__file__).parent / "static" / "app.js").read_text(encoding="utf-8")
+    assert "/api/summary" in script and "/api/top" not in script
 
 
 def test_the_company_page_has_facts_and_the_dilution_forecast_only(client):
@@ -240,7 +252,6 @@ def test_the_page_shows_the_daily_updates_forecasts_of_the_approved_model_only(t
                                  "shares_outstanding": 1_000_000.0}, True,
                            {"has_prices": True})  # fmt: skip
     assert not three["available"] and three["reason"].startswith("No forecast yet")
-    assert fc.top(1) == [{"cik": "1", "chance": 0.31, "band": 4}]
 
 
 def test_a_company_left_out_by_a_rule_is_told_which_rule_with_its_own_values(tmp_path):
