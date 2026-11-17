@@ -48,7 +48,8 @@ Expected: installs by the README's instructions; every check passes without `dat
 
 ```bash
 git ls-files | grep -E '\.(duckdb|parquet|env)$'     # expect nothing
-git ls-files '*.ipynb' | xargs -r grep -l '"output_type"'   # expect nothing
+# expect nothing; reads the commits, as the files on disk keep their outputs for the researcher
+git ls-files '*.ipynb' | while read -r f; do git show "HEAD:$f" | grep -q '"output_type"' && echo "$f"; done
 ```
 
 The number sheet, the README and the slides hold aggregates only; the slides are checked against

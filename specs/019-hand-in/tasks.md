@@ -87,14 +87,23 @@ test**: one timed run of `demo.md` on the live app.
 **Independent test**: quickstart sections 4 and 5; the first screen names the question and the
 dilution model's one-time test result.
 
-- [ ] T015 [P] [US3] `tests/unit/test_readme_numbers.py`: the README's results table equals the model
-  card's one-time test numbers, rounded as on the number sheet
-- [ ] T016 [US3] `README.md` front page per [research.md](research.md) R6: what the project answers
+- [X] T015 [P] [US3] `tests/unit/test_readme_numbers.py`: the README's results table equals the model
+  card's one-time test numbers, rounded as on the number sheet. Done 17 Nov: three tests (the
+  results on the first 40 lines, SC-005; the table cell by cell; the sentences under it, the other
+  two models included), all from `presentation.from_card`; each of three numbers changed in a copy
+  of the README was caught
+- [X] T016 [US3] `README.md` front page per [research.md](research.md) R6: what the project answers
   (the app serves the dilution forecast only, V2-61, V2-72), the one-time test's results, the app and
   how to start it, how it works, the rules, installation and commands, a map of the folders, the
-  limits; the current sections under "Working notes"; no screenshot of the app
-- [ ] T017 [US3] A fresh copy of the public repository in the scratchpad, installed by the README,
-  passes ruff, the format check and the unit tests without `data/` (quickstart section 4)
+  limits; the current sections under "Working notes"; no screenshot of the app. Done 17 Nov: the
+  question, the app's single forecast and the results table in the first 37 lines; the former
+  sections under "Working notes", stale lines corrected (branches kept, the forecast contract, 11 GB
+  of raw files, 026 approved); `.env.example` no longer describes the tailnet link (V2-71)
+- [X] T017 [US3] A fresh copy of the public repository in the scratchpad, installed by the README,
+  passes ruff, the format check and the unit tests without `data/` (quickstart section 4). Done
+  17 Nov on a clone of 52c6bf5 (the README's commit, before it was pushed): `uv sync`, ruff and
+  the format check pass; `uv run pytest -q`: 300 passed, 33 skipped for want of the data (here,
+  with the data: 332 passed, 1 skipped)
 - [X] T018 [US3] Only once the researcher approves the new app (026 T021, FR-015): remove
   `src/sentinel/app/`, `tests/unit/test_app_api.py`, the old app's other tests, `Dockerfile`,
   `docker-compose.yml` and the `sentinel serve` command in `src/sentinel/cli.py`; docs updated;

@@ -71,7 +71,9 @@ branch `NNN-name`), so two people specifying at once never collide.
    (`specs/019-hand-in/`). Done 16 Nov: the number sheet, the slides and their number check,
    the demo path and its 20 named cases. Done 17 Nov: V2-75 applied; the number sheet and slide 3
    on 17 Nov's data; 21 named cases; 026 approved by the researcher and the old app (011-018)
-   removed (V2-76). **020** before the Tiingo plan ends (25 Nov).
+   removed (V2-76); the README's front page for graders, its results table tested against the
+   model card, and a fresh copy that installs and passes its tests without the data (T015-T017).
+   **020** before the Tiingo plan ends (25 Nov).
 
 ## Notebooks and code
 

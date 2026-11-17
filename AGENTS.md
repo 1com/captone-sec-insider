@@ -334,7 +334,13 @@ holds and what does not:
   the branch pushed; the teammate's name written "Yassin Tourki" throughout, as on the slides (the
   researcher, 17 Nov: "A"; eight mentions in four files, two of them text cells of the dilution
   notebook, which was not re-run); **026 approved by the researcher and the old app removed**
-  (V2-76; 026 T021, 019 T018).
+  (V2-76; 026 T021, 019 T018); **the README's front page for graders** (T016: the question, the
+  app's single forecast and the one-time test's table in its first 37 lines; the former sections
+  under "Working notes"), its numbers tested against the model card
+  (`tests/unit/test_readme_numbers.py`, T015); a fresh copy without `data/` installs by the
+  README and passes ruff, the format check and the tests (300 passed, 33 skipped for want of the
+  data; T017); the quickstart's notebook scan now reads the commits (the files on disk keep their
+  outputs).
 
   Left for the dry run: the researcher's review with the PDF and PowerPoint (T008). The backup
   screenshots (T013) and the timed walk-throughs (T014) were dropped with the fixed path.
