@@ -360,7 +360,8 @@ holds and what does not:
   a data-engineering slide, "How the data stays right", added after slide 3 (the researcher:
   "ok"; deck version 23: 10 slides, 13:40 with the demo; `specs/019-hand-in/slides-check.md`). The
   README's front page no longer presents them (the researcher: "A"): one plain line in its map
-  says what they are; `tests/unit/test_readme_numbers.py` keeps it so.
+  says what they are; `tests/unit/test_readme_numbers.py` keeps it so. Merged into `main` by
+  #113 (17 Nov), with the record of the closed issues.
 
   Found on the way, for after the hand-in: four served forecasts whose market value cannot be
   right, the mirror of V2-75 (value traded per day below 0.001% of the market value): Akari

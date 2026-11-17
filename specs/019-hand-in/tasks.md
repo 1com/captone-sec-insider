@@ -124,7 +124,8 @@ dilution model's one-time test result.
   agrees; #71 closed with the researcher's agreement after the final presentation. 17 Nov: docs in
   step; pull request #112 into `main` (the researcher: "yes"), with everything up to 026 T031;
   #71 stays open until after the final presentation; the dry run's changes (T021) go in a second
-  pull request
+  pull request. The same evening V2-78 (the talk's focus and the README's front page) went in
+  #113, so the dry run's changes go in the next one
 - [ ] T021 After the dry run: its feedback applied to the slides and the demo; the final slides' PDF
   committed to `docs/presentation/` if the researcher wishes (aggregates only)
 

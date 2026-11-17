@@ -76,7 +76,7 @@ branch `NNN-name`), so two people specifying at once never collide.
    the app's first page without the list of the highest chances (V2-77); all of it merged into
    `main` by #112. The talk presents the data platform and the dilution model only (V2-78: the
    slide on the other two models removed, a data-engineering slide added, deck version 23; the
-   README's front page without them). Left: the researcher's review of the
+   README's front page without them; merged by #113). Left: the researcher's review of the
    deck (T008), the dry run's feedback (T021), #71 after the final presentation.
    **020** before the Tiingo plan ends (25 Nov).
 
