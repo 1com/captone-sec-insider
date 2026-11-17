@@ -24,6 +24,16 @@ private.*
   by its ticker or name, even a former one", and its notes now open a company by search
   (Alaunos Therapeutics, as in `demo.md`) instead of from the list (deck version 18; version 17
   was a save outside this check that changed no slide). No number changed.
+- **17 Nov, after V2-78:** the talk presents the data platform and the dilution model only (the
+  researcher: the volatility and results-day models are not part of the project). Slide 8, "The
+  other two models", removed: its six ids (`vol.*`, `mov.*`, the rows marked below) are no longer
+  on the deck, which now shows 33 ids in 38 slide-and-id pairs. Slide 3's third box, "Four
+  questions", became "The dilution question", with its notes. Slide 9's second lesson (now slide
+  8) was about the results-day model; it is now the daily update reported as fixed and verified
+  that had stopped on three mornings in a row (source in section 2). The deck has 9 slides; the
+  notes' times: slides 1-8 take 7:45, with the demo and the close 12:55 of 15 minutes (deck
+  version 20; version 19 was a save outside this check that changed no slide). No remaining
+  number changed.
 - **Times in the notes:** slides 1-9 take 8:30 (0:15, 1:00, 1:00, 1:15, 0:45, 1:30, 0:45, 0:45,
   1:15), the demo 5:00 and the close 0:10. That makes **13:40 of the 15 minutes**.
 
@@ -64,12 +74,12 @@ private.*
 | 7 The five bands | `dil.band4.real` | 11% | 11% | chart, notes |
 | 7 The five bands | `dil.band5.forecast` | 37% | 37% | chart, text, notes |
 | 7 The five bands | `dil.band5.real` | 42% | 42% | chart, text, notes (twice) |
-| 8 The other two | `vol.mae.lightgbm` | 0.252 | 0.252 | card, notes |
-| 8 The other two | `vol.mae.ridge` | 0.253 | 0.253 | card, notes |
-| 8 The other two | `vol.cov80.lightgbm` | 81% | 81% | card, notes |
-| 8 The other two | `mov.ll.lightgbm` | 0.467 | 0.467 | card |
-| 8 The other two | `mov.ll.ridge` | 0.452 | 0.452 | card |
-| 8 The other two | `mov.ridge_better_years` | 4 of 4 | 4 of 4 (2023, 2024, 2025, 2026) | card; notes "every one of the four years" |
+| 8 The other two (removed 17 Nov, V2-78) | `vol.mae.lightgbm` | 0.252 | 0.252 | card, notes |
+| 8 The other two (removed 17 Nov, V2-78) | `vol.mae.ridge` | 0.253 | 0.253 | card, notes |
+| 8 The other two (removed 17 Nov, V2-78) | `vol.cov80.lightgbm` | 81% | 81% | card, notes |
+| 8 The other two (removed 17 Nov, V2-78) | `mov.ll.lightgbm` | 0.467 | 0.467 | card |
+| 8 The other two (removed 17 Nov, V2-78) | `mov.ll.ridge` | 0.452 | 0.452 | card |
+| 8 The other two (removed 17 Nov, V2-78) | `mov.ridge_better_years` | 4 of 4 | 4 of 4 (2023, 2024, 2025, 2026) | card; notes "every one of the four years" |
 | 9 Limits and lessons | `cu.announced` | 41% | 41% | slide, notes |
 | 9 Limits and lessons | `cu.auc_none` | 0.87 | 0.87 | slide, notes |
 | 9 Limits and lessons | `cu.auc_all` | 0.89 | 0.89 | slide, notes |
@@ -90,7 +100,7 @@ Sheet ids not on the slides, kept for questions: `mov.rows`, `mov.ll.base_rate`,
 | 1 | "in the next eight minutes … then a live demo" | the notes' times: 8:15 after the cover |
 | 2 | 100 M, 25 M new, 125 M, "a fifth less" | a worked example, not data: 100 / 125 = 0.8 |
 | 3 | six layers, in order | `docs/architecture.md`: raw; staging (files read into tables); reference and core (clean facts with the day each became public); features; labels, models, scores (answers and forecasts); serving (the app's copy) |
-| 3 | four questions; volatility over three months | `docs/spec.md` |
+| 3 | the dilution question (until 17 Nov: four questions, volatility over three months; V2-78) | the question in `config/risk_params.yaml` (tag `prereg-risk-v5`); `docs/spec.md` |
 | 3 | one paid month of Tiingo | 26 Oct - 26 Nov 2026; prices of stocks that have disappeared and a second source for listed stocks (`docs/spec.md`) |
 | 3 | every weekday at 10:00 | the schedule (`sentinel schedule show`; 001 T059) |
 | 4 | "tagged before any model was built" | tag `prereg-risk-v5`: 29 Oct 2026, 18:20; the first model notebook: 30 Oct 2026, 11:59 (commit 35d1c8d) |
@@ -103,11 +113,11 @@ Sheet ids not on the slides, kept for questions: `mov.rows`, `mov.ll.base_rate`,
 | 7 | bar lengths | 1,080 px per unit, at least 4 px (band 1's 0.31% drawn at 4 px, not 3) |
 | 7 | blue the forecast, orange what happened | `deck.css`: `.fc` blue, `.real` orange, as the notes say |
 | 7 | "each band diluted more often than the one below" | `dil.band1.real` … `dil.band5.real`: 0.31%, 0.89%, 2.96%, 10.5%, 42.3% |
-| 8 | volatility over the next 3 months; the 80% range | `docs/spec.md`; the sheet's Terms |
-| 8 | "the app serves the dilution forecast only" | decisions V2-61 (10 Nov, before the test) and V2-72 |
+| 8 (removed 17 Nov, V2-78) | volatility over the next 3 months; the 80% range | `docs/spec.md`; the sheet's Terms |
+| 8 (removed 17 Nov, V2-78) | "the app serves the dilution forecast only" | decisions V2-61 (10 Nov, before the test) and V2-72 |
 | 9 | the AUCs on 2019-2022 | `docs/report/dilution_catching_up.md`, section 2: the test years 2019-2022 (the 0.91 of slide 6 is the one-time test, 2023-2026) |
 | 9 | "many of them … a SPAC, left out on purpose" (notes) | decision V2-67: of the 11,973 company-months, "about half now SPAC months cut on purpose" (11 Nov) |
-| 9 | "an audit found one model scored with information from the future" | `AGENTS.md`, the audit of 4 Nov: 006 was evaluated with `cum_split_after`; rebuilt and approved 9 Nov (V2-55) |
+| 9 (8 since 17 Nov) | "a daily update it reported as fixed and verified had stopped on three mornings in a row" (since 17 Nov, V2-78; until then "an audit found one model scored with information from the future": 006, evaluated with `cum_split_after`, rebuilt and approved 9 Nov, V2-55) | `AGENTS.md`, the audit of 4 Nov: the 10:00 runs of 2, 3 and 4 Nov stopped at the 5 GB memory cap while the note said "fixed & verified" (measured without the download); fixed and checked on 4-5 Nov (001 T046) |
 | 10 | 5 minutes, the app's sections, port 8100 | the company page's tabs (026 User Story 8; slide changed 16 Nov from a fixed path, version 14; its first step opens by search since 17 Nov, V2-77, version 18); the app on this computer only (V2-71); it asks for the password (HTTP 401 without it) |
 
 ## 3. Wording corrected by this check

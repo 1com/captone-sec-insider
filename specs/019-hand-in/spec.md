@@ -24,6 +24,13 @@ only (V2-71); the one-time test of the three models on the answers from 2023 on 
   demo together; the dry run is on Wednesday 18 November 2026 (the final presentation's date is
   not yet known).
 
+### Session 2026-11-17
+
+- Q: Do the volatility and results-day models belong in the presentation? → A (the researcher,
+  17 Nov): "thats not part of the project. that was for myself to enhance the project later on.
+  The whole focus should be the data engineering and the dilution data science part." The slides
+  present the data platform and the dilution model only (FR-002, V2-78).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Follow the talk and judge the work (Priority: P1)
@@ -47,9 +54,9 @@ the project, who can then state the question, the main result of the one-time te
 2. **Given** a number on a slide, **When** it is looked up in the repository, **Then** the same
    number is found in a generated report (the model report, the catching-up report, the data
    audit) and it is an aggregate over many companies.
-3. **Given** the one-time test's results, **When** the slides show them, **Then** all three
-   questions are shown as they came out, including the one where the chosen model did worse than
-   a simpler one (the results-day move).
+3. **Given** the one-time test's results, **When** the slides show them, **Then** the dilution
+   model's results are shown as they came out, beside every simpler level (amended 17 Nov, V2-78:
+   the volatility and results-day models are the researcher's later extensions, not presented).
 4. **Given** a market or statistics term (dilution, log loss, AUC, band, look-ahead, the sealed
    test), **When** it first appears, **Then** it is explained in plain words on the slide or in
    the speaker notes.
@@ -139,11 +146,12 @@ can name the question and the dilution model's one-time test result.
   minutes with a minute spare.
 - **FR-002**: The slides MUST cover, in this order: the problem with an example; what was built
   (the data platform from free public data plus one paid month of prices, updated every weekday;
-  the four questions; the app); the rules that keep the forecasts honest (no look-ahead;
+  the dilution question; the app); the rules that keep the forecasts honest (no look-ahead;
   definitions fixed and tagged before any model; the test on 2023 on sealed and run once); how the
-  models were chosen (levels from base rates up, test years 2019-2022, the simplest level within
-  one standard error); the one-time test's results for the three questions; the limits; the
-  lessons; the demo.
+  dilution model was chosen (levels from base rates up, test years 2019-2022, the simplest level
+  within one standard error); its one-time test results; the limits; the lessons; the demo. The
+  focus is the data engineering and the dilution model: the volatility and results-day models are
+  not presented (amended 17 Nov, V2-78; was "the four questions" and "the three questions").
 - **FR-003**: Every number on the slides MUST come from a generated report in the repository or a
   count the platform computes, be an aggregate over many companies, and have its source named in
   the speaker notes; no price or other value derived from the private price source may appear.
