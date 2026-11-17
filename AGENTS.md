@@ -59,6 +59,8 @@ and the GitHub repository; no written report.
   data and `.env` keys.
 - **The app is built by the researcher with the agent**; the data-science track was meant for the
   teammate `sonson033` but the researcher has asked the agent to do it.
+- **The teammate's name is written "Yassin Tourki"**, as on the slides' cover (the researcher,
+  17 Nov), although the teammate's commits are signed "Jassin"; do not change it back.
 - `data/exports/` is shared with the teammate by the researcher, privately; do not raise it.
 
 ## 4. Rules that must never be broken
@@ -151,9 +153,9 @@ holds and what does not:
   volatility range was scaled in-sample (65–67% coverage); bands are fixed cut-offs without test-
   year hit rates (risk_params `reporting`, D47); the packaged models differ from the evaluated
   ones and carry `git_commit="frozen"`; the teammate's 007 notebook (`origin/007-dilution-model`,
-  Jassin, 2 Nov) was never merged and `main` holds another 007 notebook. The numbers formerly
+  Yassin Tourki, 2 Nov) was never merged and `main` holds another 007 notebook. The numbers formerly
   quoted here are in MLflow (`data/mlflow.db`) for reference only. **Decided 4 Nov:** 007 is
-  Jassin's notebook (V2-40); 006 is chosen by the mean log loss of its 5%/10%/20% chances
+  Yassin Tourki's notebook (V2-40); 006 is chosen by the mean log loss of its 5%/10%/20% chances
   (V2-41). **Decided 5 Nov:** 007 first, then 006, 005 only if time allows before the holdout
   test (V2-48); every model, calibration, band edge and range is a `sentinel.models.dated.Dated`,
   which learns only from answers known before its cutoff and forecasts only rows dated after it
@@ -324,7 +326,10 @@ holds and what does not:
 
   **Done 17 Nov:** V2-75 (below); the number sheet regenerated on 17 Nov's data (to 16 Nov:
   6,915 companies still trading, 3,669 forecasts; every model number unchanged) and slide 3
-  updated to it (deck version 16; `specs/019-hand-in/slides-check.md`); 21 named cases, 0 failed.
+  updated to it (deck version 16; `specs/019-hand-in/slides-check.md`); 21 named cases, 0 failed;
+  the branch pushed; the teammate's name written "Yassin Tourki" throughout, as on the slides (the
+  researcher, 17 Nov: "A"; eight mentions in five files, two of them text cells of the dilution
+  notebook, which was not re-run).
 
   Left for the dry run: the researcher's review with the PDF and PowerPoint (T008). The backup
   screenshots (T013) and the timed walk-throughs (T014) were dropped with the fixed path.
