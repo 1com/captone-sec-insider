@@ -345,7 +345,9 @@ holds and what does not:
   outputs); **the app's first page without the list of the highest chances** (V2-77, the
   researcher; 026 T031), slide 10's first demo step with it (deck version 18), the demo page's
   step-2 spare now IonQ (Treasure Global fell below $1); **all of it merged into `main` by #112**
-  (the researcher: "yes"; #71 stays open until after the final presentation).
+  (the researcher: "yes"; #71 stays open until after the final presentation). Ten finished issues
+  closed, each with a comment saying why (the researcher: "yes"): the old app's #70 and #80-#86,
+  002's #73 and 003's #75; still open: #71, #72, #74 (live outcomes from May 2027) and #87.
 
   Found on the way, for after the hand-in: four served forecasts whose market value cannot be
   right, the mirror of V2-75 (value traded per day below 0.001% of the market value): Akari
@@ -455,7 +457,7 @@ rebuild, re-run the EDA. Add 022 to `docs/plan.md` first.
 - [X] 003 (#75): GitHub Actions (ruff, format, unit tests on every pull request), `main`
   protected, pull-request template, a CI check that rejects notebooks with outputs (nbstripout is
   already installed as a filter), README "Working together". `main` protected (checked 10 Nov:
-  the CI check and pull-request reviews required, admins included); issue #75 still open.
+  the CI check and pull-request reviews required, admins included); #73 and #75 closed on 17 Nov.
 
 ### Step 5 · The three models (007 dilution, 006 results-day move, 005 volatility if time)
 For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before the holdout test):
