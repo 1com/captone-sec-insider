@@ -187,6 +187,13 @@ model" (slide 8: `dil.test_ll.base_rate` 0.343, `dil.test_ll.rule` 0.301,
 (slide 9) and the bands (slide 10) as in version 23; slide 6 without its note on the rules.
 0 differences.
 
+**Version 31 (18 Nov, the researcher: "remove the footer notes from the presentation"):** the
+source line at the foot of slides 2-10 removed; each slide keeps its page number. No number
+changed. No longer on the slides: `app.date` ("counts of 17 Nov 2026", slides 2 and 3),
+`dil.rows` on slide 6 (still on slide 9 and in its notes) and the key "M: million" (slide 4; its
+notes say "million"). The sources of every number stay in this file (FR-003, amended). 0
+differences.
+
 ## How this was checked
 
 The table in section 1 was compared with the sheet and the slides by a short script, run on

@@ -145,7 +145,10 @@ dilution model's one-time test result.
   PowerPoint drawn again and replaced; merged by #116. Version 28: slide 3 without the "About &
   data" card (the researcher); the PDF and PowerPoint drawn again. Version 30: "Limits and
   lessons" taken off (kept in `docs/plan.md`, "To improve the product"); the three rules and
-  the model levels their own slides again; 11 slides, about 13:40 with the demo; merged by #117
+  the model levels their own slides again; 11 slides, about 13:40 with the demo; merged by #117.
+  Version 31 (the researcher: "remove the footer notes from the presentation"): the source line
+  at the foot of slides 2-10 removed, the page numbers kept; the PDF and PowerPoint drawn again
+  from the live deck and replaced; `slides-check.md` section 4
 
 ## Dependencies
 
