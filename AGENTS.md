@@ -14,7 +14,7 @@ volatility over the next three months, the expected size of the next results-day
 chance of dilution (shares up 10%+ within six months). The data platform is built and updates
 every weekday; the three forecasting models are built and were tested once on the answers from
 2023 on (12 Nov), and the app serves the dilution forecasts daily. Hand-in (the researcher,
-16 Nov): a presentation with a live demo, 15 minutes in all, dry run on **18 November 2026**,
+16 Nov): a presentation with a live demo, 15 minutes in all, dry run on **18 November 2026**, final presentation on **Friday 20 November 2026** (the researcher, 18 Nov),
 and the GitHub repository; no written report. **For the hand-in the project is the data
 engineering and the dilution forecast** (the researcher, 17 Nov, V2-78): the volatility and
 results-day models are the researcher's own later extensions and are not presented.
@@ -322,7 +322,8 @@ holds and what does not:
   `docs/report/dilution_catching_up.md`, for the report's limitations (019).
 - **Hand-in (019), from 16 Nov:** the researcher: the course requires a presentation, a live
   demo and the GitHub repository, no written report; 15 minutes for presentation and demo
-  together; the dry run on Wednesday 18 Nov (the final date to come). Spec, plan and tasks in
+  together; the dry run on Wednesday 18 Nov, the final presentation on Friday 20 Nov (the
+  researcher, 18 Nov). Spec, plan and tasks in
   `specs/019-hand-in/` (branch `019-hand-in`). Every number on the slides, the demo path and the
   README comes from the generated number sheet (`python -m sentinel.presentation` writes
   `docs/presentation/numbers.md` from the model card, the catching-up report, the data audit and
@@ -378,6 +379,11 @@ holds and what does not:
   no prices, dollar amounts or file paths; copies in the researcher's Downloads folder as the
   offline copy; linked from the README's front page. For the final version (T021), draw them
   again the same way from the deck's live files. Merged into `main` by #114 (18 Nov).
+  Proposed by the researcher the same day, for after the hand-in (V2-79, `docs/decisions.md`,
+  "Proposed, not decided yet"): answer the dilution question at the announcement, a 10%+ sale of
+  new shares filed in the six months after the forecast date, since investors react to the
+  filing, not to the later share count; an offering announcement is the prediction, not an input
+  that explains it. 007 stays as approved and tested.
 
   Found on the way, for after the hand-in: four served forecasts whose market value cannot be
   right, the mirror of V2-75 (value traded per day below 0.001% of the market value): Akari

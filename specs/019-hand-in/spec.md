@@ -21,8 +21,8 @@ only (V2-71); the one-time test of the three models on the answers from 2023 on 
 - Q: What does the course require for the hand-in (report, product, presentation, demo app)? →
   A: A presentation, a demo and the GitHub repository; no written report.
 - Q: When is the presentation and how long is it? → A: 15 minutes for the presentation and the
-  demo together; the dry run is on Wednesday 18 November 2026 (the final presentation's date is
-  not yet known).
+  demo together; the dry run is on Wednesday 18 November 2026 (the final presentation: Friday
+  20 November 2026, the researcher, 18 Nov).
 
 ### Session 2026-11-17
 
@@ -237,8 +237,8 @@ can name the question and the dilution model's one-time test result.
   theirs to give.
 - The presentation is given from this computer, in the room or by screen sharing, so the app can
   be shown live without being published (V2-71).
-- The dry run's feedback may change the slides before the final presentation, whose date is not
-  yet known.
+- The dry run's feedback may change the slides before the final presentation on Friday
+  20 November 2026.
 - The generated model report stays in the repository as the evidence behind the slides; it is not
   a hand-in document.
 - The slides are made in a form that can be shown in a browser and exported to PDF or PowerPoint.
