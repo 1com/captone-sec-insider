@@ -79,7 +79,7 @@ branch `NNN-name`), so two people specifying at once never collide.
    README's front page without them; merged by #113). The slides as PDF and PowerPoint (with the
    speaker notes) in `docs/presentation/` (18 Nov, #114). Left: the researcher's review of the
    deck (T008), the dry run's feedback (T021), #71 after the final presentation (Fri 20 Nov). The talk's limits
-   and lessons slide was taken off on 18 Nov; its content is in "To improve the product" below.
+   and lessons slide was taken off on 18 Nov; its content is in "To improve the product" below (#117).
    **020** before the Tiingo plan ends (25 Nov).
 
 ## To improve the product (internal notes)

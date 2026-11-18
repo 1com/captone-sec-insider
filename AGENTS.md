@@ -390,7 +390,8 @@ holds and what does not:
   data predicts dilution, the three rules that keep it honest, choosing the model, the one-time
   test, the bands, the demo with the research features first. The limits and lessons slide was
   taken off (the researcher); its content, with what would lift each limit, is in
-  `docs/plan.md`, "To improve the product". The number sheet regenerated on
+  `docs/plan.md`, "To improve the product". With the README's product-first front page, merged
+  by #117 (18 Nov). The number sheet regenerated on
   17 Nov's data (3,663 forecasts); the PDF and PowerPoint drawn again and replaced in
   `docs/presentation/` and the Downloads folder; `specs/019-hand-in/slides-check.md` section 4.
   Merged into `main` by #116 (18 Nov), with V2-79 and the final presentation's date. The README's
