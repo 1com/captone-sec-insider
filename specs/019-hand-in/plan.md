@@ -82,6 +82,8 @@ tests/unit/
 ├── test_readme_numbers.py  # new: the README's results table equals the model card
 └── test_web_app.py      # the model card reaches the page with its holdout entry
 docs/presentation/numbers.md  # generated
+docs/presentation/slides.pdf  # the slides, drawn from the deck's own files (18 Nov)
+docs/presentation/slides.pptx # the same slides as pictures, with the speaker notes
 README.md                # front page for a newcomer; working notes below
 # only after the researcher approves 026 (FR-015): removed
 src/sentinel/app/, tests/unit/test_app_api.py, Dockerfile, docker-compose.yml, `sentinel serve`

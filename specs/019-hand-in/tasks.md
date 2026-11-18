@@ -51,7 +51,10 @@ slides alone; every number found on the sheet.
   39 ids in 44 places, 0 differences; the other numbers checked against their sources; seven
   slides' wording corrected (none a number); the notes' times 13:40 of 15 minutes
 - [ ] T008 [US1] The researcher's review (the names on the title slide; the lessons slide) and the
-  changes; PDF and PowerPoint downloaded the day before the dry run as the offline copy
+  changes; PDF and PowerPoint downloaded the day before the dry run as the offline copy. 18 Nov:
+  the PDF and the PowerPoint drawn by the agent from the deck's own files at the researcher's
+  request, copies in the researcher's Downloads folder and in `docs/presentation/`; the review
+  stays the researcher's
 
 ## Phase 4: User Story 2 - See the app answer for real companies (P1)
 
@@ -119,7 +122,10 @@ dilution model's one-time test result.
 ## Phase 6: Polish
 
 - [ ] T019 Privacy scan (quickstart section 5) of the repository, the number sheet and the slides;
-  `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run pytest -q`
+  `uv run ruff check src tests`, `uv run ruff format --check src tests`, `uv run pytest -q`.
+  18 Nov: the slides' PDF and PowerPoint scanned (their text and notes: no prices, dollar amounts,
+  links or file paths; Tiingo named only as a source) with the repository; run again on the
+  final slides
 - [ ] T020 Docs in step (`docs/plan.md`, `AGENTS.md`, `README.md`); pull request after the researcher
   agrees; #71 closed with the researcher's agreement after the final presentation. 17 Nov: docs in
   step; pull request #112 into `main` (the researcher: "yes"), with everything up to 026 T031;
@@ -127,7 +133,10 @@ dilution model's one-time test result.
   pull request. The same evening V2-78 (the talk's focus and the README's front page) went in
   #113, so the dry run's changes go in the next one
 - [ ] T021 After the dry run: its feedback applied to the slides and the demo; the final slides' PDF
-  committed to `docs/presentation/` if the researcher wishes (aggregates only)
+  committed to `docs/presentation/` if the researcher wishes (aggregates only). 18 Nov, before the
+  dry run: the researcher wants the presentation in the repository, so the dry run's version
+  (deck version 23) is in `docs/presentation/` (`slides.pdf`, `slides.pptx`); after the feedback
+  the final version replaces it
 
 ## Dependencies
 

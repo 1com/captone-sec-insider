@@ -363,6 +363,19 @@ holds and what does not:
   says what they are; `tests/unit/test_readme_numbers.py` keeps it so. Merged into `main` by
   #113 (17 Nov), with the record of the closed issues.
 
+  **Done 18 Nov (the dry run's day):** the 10:00 update `complete` in 51 min (data to 17 Nov,
+  3,663 forecasts; every demo company as the demo notes need: Alaunos and IonQ band 5, Apple and
+  Microsoft band 1, Hyperscale Data and PDS Biotechnology without a forecast, MGP band 2, Viavi
+  band 3). The presentation in the repository (the researcher: "make sure that the presentation
+  is in there as well"): `docs/presentation/slides.pdf`, and `slides.pptx` with the slides as
+  pictures and the speaker notes, drawn by the agent from the deck's own files (identical to
+  version 23) the way the Slides type draws them (its `artifact-type/reference/viewer.md`: the
+  deck's stylesheet and fonts at 1920×1080, printed by Chrome on this computer; the arrows, which
+  the type draws by script, drawn as right arrows in the same colours); their text and notes hold
+  no prices, dollar amounts or file paths; copies in the researcher's Downloads folder as the
+  offline copy; linked from the README's front page. For the final version (T021), draw them
+  again the same way from the deck's live files.
+
   Found on the way, for after the hand-in: four served forecasts whose market value cannot be
   right, the mirror of V2-75 (value traded per day below 0.001% of the market value): Akari
   Therapeutics, about $1.2 trillion (a share count of 186 billion times the price of its US-traded
@@ -370,7 +383,8 @@ holds and what does not:
   their preferred shares (Pacific Gas & Electric, PCG-PE; Consumers Energy, CMS-PB; Wisconsin
   Electric, WELPP).
 
-  Left for the dry run: the researcher's review with the PDF and PowerPoint (T008). The backup
+  Left for the dry run: the researcher's review of the deck (T008; the PDF and PowerPoint were
+  made on 18 Nov, above). The backup
   screenshots (T013) and the timed walk-throughs (T014) were dropped with the fixed path.
 
   Found on the way, for after the hand-in: when a company changes ticker, our price chain does not
