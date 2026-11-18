@@ -29,14 +29,14 @@ FEATURES = {
     "vol_21": ("Price swings, last month (yearly rate)", "pct"),
     "vol_63": ("Price swings, last 3 months (yearly rate)", "pct"),
     "vol_252": ("Price swings, last year", "pct"),
-    "range_vol_21": ("Daily high-low range, last month", "pct"),
+    "range_vol_21": ("Price swings from daily highs and lows, last month (yearly rate)", "pct"),
     "max_drawdown_252": ("Largest fall from a peak, last year", "pct"),
     "near_high_252": ("Price compared with its 1-year high", "pct"),
     "beta_252": ("Moves with the market (beta)", "num"),
     "idio_vol_252": ("Company-specific price swings", "pct"),
     "log_close": ("Share price", "logprice"),
     "log_addv20": ("Average value traded per day", "logmoney"),
-    "zero_volume_63": ("Days without trading, last 3 months", "num"),
+    "zero_volume_63": ("Share of days without trading, last 3 months", "pct"),
     "sessions_listed": ("Trading days since listing", "count"),
     "close": ("Share price", "price"),
     "addv20": ("Average value traded per day", "money"),
@@ -88,6 +88,137 @@ FEATURES = {
     "short_ratio_1m": ("Short-sale share of volume, last month", "pct"),
     "short_ratio_3m": ("Short-sale share of volume, last 3 months", "pct"),
     "short_ratio_chg": ("Change in the short-sale share", "pctpt"),
+}
+
+# What each input measures, in plain words, behind the "?" beside each factor (026 FR-027; the
+# researcher, 18 Nov). Written from the code that computes it (`sentinel.features`): price,
+# trading and size from the daily prices and the SEC share counts; financials from the latest SEC
+# reports known on the day; events from the SEC filings of the last 3 or 12 months; short sales
+# from FINRA. A test keeps one for every input.
+_TWICE = (
+    " The model reads it as it is and on a log scale, so it is listed twice under Every factor."
+)
+_EVENTS = {
+    "agreement": "Event reports (form 8-K, item 1.01) announcing a material agreement, such as a "
+    "loan, a merger or a deal to sell shares.",
+    "acquisition": "Event reports (8-K, item 2.01) saying the company completed the purchase or "
+    "sale of a business or of major assets.",
+    "bankruptcy": "Event reports (8-K, item 1.03) of a bankruptcy or receivership.",
+    "delisting_notice": "Event reports (8-K, item 3.01) that the exchange warned the company it "
+    "breaks a listing rule, such as a share price below $1, or will delist it.",
+    "unregistered_sale": "Event reports (8-K, item 3.02) of shares sold privately, without an "
+    "offering registered with the SEC, often to a few large investors.",
+    "auditor_change": "Event reports (8-K, item 4.01) that the company changed its auditor.",
+    "restatement": "Event reports (8-K, item 4.02) that earlier financial statements can no "
+    "longer be relied on and will be corrected.",
+    "exec_change": "Event reports (8-K, item 5.02) of directors or senior officers leaving or "
+    "joining.",
+    "late_filing": "Notices that a quarterly or annual report will be late (forms NT 10-Q and "
+    "NT 10-K).",
+    "offering": "Filings to sell new shares: registration statements (S-1, S-3, F-1, F-3 and "
+    "their amendments) and final prospectuses (424B1, 424B3, 424B4 and 424B5, leaving out bond "
+    "sales).",
+    "shelf_effective": "Notices that the SEC declared one of the company's registration "
+    "statements effective (form EFFECT): from then on the company may sell what it registered, "
+    "with a shelf registration in several sales over the years.",
+    "activist": "Filings by an investor who holds more than 5% of the shares and may seek to "
+    "influence the company (Schedule 13D and its amendments).",
+}
+ABOUT = {
+    "ret_1m": "How much the share price rose or fell over the last 21 trading days (about a "
+    "month), adjusted for splits and dividends.",
+    "ret_3m": "How much the share price rose or fell over the last 63 trading days (about three "
+    "months), adjusted for splits and dividends.",
+    "ret_6m": "How much the share price rose or fell over the last 126 trading days (about six "
+    "months), adjusted for splits and dividends.",
+    "ret_12_1": "The price change from a year ago to a month ago (252 to 21 trading days back), "
+    "adjusted for splits and dividends: the stock's longer trend, leaving out the latest month.",
+    "vol_21": "How much the price swings from day to day over the last 21 trading days: the "
+    "spread (standard deviation) of the daily price changes, scaled to a yearly rate. Large, "
+    "steady companies are often near 20-30%; small, risky ones far above.",
+    "vol_63": "The day-to-day price swings over the last 63 trading days (about three months): "
+    "the spread of the daily price changes, scaled to a yearly rate.",
+    "vol_252": "The day-to-day price swings over the last 252 trading days (about a year): the "
+    "spread of the daily price changes, as a yearly rate.",
+    "range_vol_21": "The price swings measured from each day's high and low rather than from the "
+    "closing prices (Parkinson's estimate), over the last 21 trading days, as a yearly rate.",
+    "max_drawdown_252": "The deepest fall from an earlier high within the last year: -60% means "
+    "that at some point the price stood 60% below a peak reached earlier in the year.",
+    "near_high_252": "Today's price as a share of the highest price of the last year: 100% means "
+    "at its 1-year high, 30% means 70% below it (adjusted for splits and dividends).",
+    "beta_252": "How strongly the price moves with the whole market (SPY, a fund holding the "
+    "S&P 500) over the last year: 1 means as much as the market, 2 twice as much, 0 not at all.",
+    "idio_vol_252": "The part of the price swings that the market's moves do not explain: the "
+    "company's own ups and downs over the last year, as a yearly rate. It is high for small "
+    "companies whose own news moves the price.",
+    "log_close": "The latest closing share price." + _TWICE,
+    "close": "The latest closing share price." + _TWICE,
+    "log_addv20": "The average value of the shares traded per day over the last 20 trading days, "
+    "in dollars: how easily the stock can be bought and sold." + _TWICE,
+    "addv20": "The average value of the shares traded per day over the last 20 trading days, in "
+    "dollars: how easily the stock can be bought and sold." + _TWICE,
+    "zero_volume_63": "The share of the last 63 trading days (about three months) on which no "
+    "shares traded at all; high for thinly traded stocks.",
+    "sessions_listed": "How many trading days the stock has had a price in our data, counted up "
+    "to 1,260 (about five years), so every older listing shows 1,260; low for new listings.",
+    "market_cap": "The market value of the company: the share price times the shares "
+    "outstanding." + _TWICE,
+    "log_market_cap": "The market value of the company: the share price times the shares "
+    "outstanding." + _TWICE,
+    "shares_outstanding": "The number of shares the company has issued, from its latest SEC "
+    "filing known on the day, adjusted for any stock split since.",
+    "book_to_market": "The company's book value (its assets minus its liabilities, from its "
+    "latest report) divided by its market value; above 1, the market values it below its own "
+    "accounts.",
+    "leverage": "Total liabilities divided by total assets, from the latest report: 0.6 means it "
+    "owes 60 cents for each dollar of assets; above 1, it owes more than it owns.",
+    "cash_to_assets": "Cash and cash equivalents as a share of total assets, from the latest "
+    "report.",
+    "cash_runway_years": "How many years the company's cash would last at its current burn: its "
+    "cash divided by the cash its operations used over the last 12 months, counted up to 10 "
+    "years. Only for companies whose operations use cash; those near the end of their cash "
+    "often sell shares.",
+    "loss_making": "Yes if the latest net income the company reported, usually for its latest "
+    "quarter, was a loss.",
+    "revenue_growth": "Revenue over the latest 12-month period against the 12 months before.",
+    "gross_margin": "Gross profit (revenue minus the direct cost of what was sold) as a share of "
+    "revenue, over the latest 12 months.",
+    "rd_intensity": "Research and development spending as a share of revenue, over the latest 12 "
+    "months; high for young biotech and technology companies.",
+    "interest_coverage": "Operating profit divided by interest paid, over the latest 12 months: "
+    "how many times the business earns its interest; below 1, it does not earn it.",
+    "current_ratio": "Current assets (cash and what turns into cash within a year) divided by "
+    "current liabilities (what is due within a year); below 1, more is due this year than the "
+    "company has at hand.",
+    "receivables_to_assets": "Money that customers owe the company (receivables) as a share of "
+    "its total assets, from the latest report.",
+    "sbc_to_revenue": "Pay given to staff in shares or options (stock-based compensation) as a "
+    "share of revenue, over the latest 12 months; such pay adds shares over time.",
+    "share_growth_12m": "How much the number of shares changed over the last year: today's count "
+    "against the count known a year earlier, both adjusted for splits.",
+    "issue_proceeds_to_assets": "Cash raised by selling new shares over the latest 12 months "
+    "(from the cash-flow statement) as a share of total assets.",
+    "months_since_report": "Months since the company filed its latest quarterly or annual report "
+    "(10-Q, 10-K, 20-F or 40-F).",
+    **{
+        f"n_{event}_{window}m": f"{text} The number filed in the last {window} months."
+        for event, text in _EVENTS.items()
+        for window in (3, 12)
+    },
+    "n_8k_12m": "All event reports (form 8-K) the company filed in the last 12 months, whatever "
+    "the event.",
+    "days_since_results": "Days since the company last released its quarterly or annual results.",
+    "days_to_next_results": "Days until the next results are expected: the last release plus the "
+    "company's usual gap between releases (the median of its last four gaps); negative when they "
+    "are overdue.",
+    "short_ratio_1m": "Of the shares traded away from the exchanges and reported to FINRA over "
+    "the last month, the share that were sold short (by sellers who borrowed them). Much of it is "
+    "routine trading by market makers, so it is not the same as the bets held against a stock "
+    "(short interest).",
+    "short_ratio_3m": "The same short-sale share of the volume reported to FINRA, over the last "
+    "three months.",
+    "short_ratio_chg": "The last month's short-sale share minus that of the three months before "
+    "it, in percentage points: positive when short selling rose.",
 }
 
 
@@ -275,12 +406,12 @@ class Forecasts:
     @staticmethod
     def factors(extra: str) -> list[dict]:
         """Every input of a forecast (its `extra_json`) in plain words, the largest contribution
-        first."""
+        first, each with what it measures (`about`, FR-027)."""
         out = []
         for f, value, effect in json.loads(extra)["factors"]:
             label, kind = FEATURES.get(f, (f, "num"))
             out.append({"feature": f, "label": label, "kind": kind, "value": value,
-                        "effect": effect})  # fmt: skip
+                        "effect": effect, "about": ABOUT.get(f)})  # fmt: skip
         return out
 
     def for_company(self, cik: str, card: dict, listed: bool, facts: dict | None = None) -> dict:

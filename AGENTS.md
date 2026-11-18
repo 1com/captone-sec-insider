@@ -280,6 +280,9 @@ holds and what does not:
   154 checks pass. **Approved by the researcher on 17 Nov (V2-76)**; the old app removed (T021).
   The first page lists no companies since 17 Nov (V2-77, the researcher; T031): the list of the
   15 highest chances and its route `/api/top` removed; companies are opened by search.
+  Each factor explained since 18 Nov (FR-027, the researcher; T032): a "?" beside every factor
+  of the dilution panel opens what the input measures (`ABOUT` in `web/forecast.py`, written from
+  `sentinel.features`; a test keeps one for each of the 66 inputs).
   Left (`specs/026-stock-research-app/tasks.md`): insider clusters (T011) and short interest
   (T014), if time allows.
 - **V2-63 (10 Nov):** a stray Form 4 of another company naming a ticker (DoorDash giving FN) no
@@ -526,8 +529,9 @@ For each, in order 007 → 006 → 005 (V2-48: 005 only if time allows before th
   on its page (T022: done 13 Nov, V2-73; 14 named cases); the page in tabs (User Story 8:
   done 16 Nov); no forecast when the trading rules out the share count (T030: done 17 Nov,
   V2-75); the researcher's approval and the old app removed (T021: done 17 Nov, V2-76); the first
-  page without the list of highest risks (T031: done 17 Nov, V2-77); insider clusters (T011) and
-  short interest (T014) if time allows.
+  page without the list of highest risks (T031: done 17 Nov, V2-77); each factor explained by a
+  "?" (T032: done 18 Nov, FR-027); insider clusters (T011) and short interest (T014) if time
+  allows.
 - [X] 011–018, Gemini's old app (replaced by 026, V2-61; its faults are in section 7): removed on
   17 Nov when the researcher approved 026 (V2-76): `src/sentinel/app/`, its tests, `sentinel
   serve` (port 8090) and the Docker files (018); its spec-kit documents stay in

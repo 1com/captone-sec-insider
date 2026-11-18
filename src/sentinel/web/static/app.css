@@ -233,6 +233,10 @@ details.inline-fold .note { margin-top: 6px; }
   transform: translateX(-50%); width: 270px; background: var(--ink); color: #f8fafc; padding: 9px 11px;
   border-radius: 8px; font-size: 12px; font-weight: 400; line-height: 1.45; white-space: normal; text-align: left;
   box-shadow: 0 10px 24px rgba(15, 23, 42, .25); }
+/* each factor's "?" (FR-027): beside its name; in the scrolling table of every factor its text
+   opens to the right, so the table's box cuts off less of it */
+.rbars .tip, .factors .tip { margin-left: 6px; vertical-align: middle; }
+.factors .tip:hover::after, .factors .tip:focus::after { left: 24px; top: 50%; transform: translateY(-50%); }
 .form[data-tip] { position: relative; cursor: help; }
 .form[data-tip]:hover::after { left: 0; transform: none; }
 .flag.doubt:hover::after, .flag.doubt:focus::after { left: auto; right: 0; transform: none; }

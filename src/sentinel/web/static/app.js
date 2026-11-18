@@ -289,10 +289,10 @@ function renderReasons(d) {
   const down = d.factors.filter((f) => f.effect < 0).sort((a, b) => a.effect - b.effect).slice(0, 3);
   const max = Math.max(1e-9, ...up.concat(down).map((f) => Math.abs(f.effect)));
   const row = (f) => `<span class="arrow ${f.effect > 0 ? "upr" : "downr"}">${f.effect > 0 ? "▲" : "▼"}</span>
-    <span>${esc(f.label)}</span><span class="val">${fmt.value(f.kind, f.value)}</span>
+    <span>${esc(f.label)}${f.about ? tip(f.about) : ""}</span><span class="val">${fmt.value(f.kind, f.value)}</span>
     <span class="track"><span class="bar ${f.effect > 0 ? "" : "low"}" style="width:${((Math.abs(f.effect) / max) * 100).toFixed(1)}%"></span></span>`;
   $("#reasons").innerHTML = `<div class="card-head"><h2>What drives this forecast</h2>
-      ${tip("The model's own account of this forecast: how much each input pushed this company's chance up or down from the average. The longest push fills the bar.")}</div>
+      ${tip("The model's own account of this forecast: how much each input pushed this company's chance up or down from the average. The longest push fills the bar. The ? beside each factor says what it measures.")}</div>
     <div class="rbars">${up.length ? `<div class="group">Raise the chance</div>${up.map(row).join("")}` : ""}
       ${down.length ? `<div class="group">Lower the chance</div>${down.map(row).join("")}` : ""}</div>
     <p class="note">The strongest pushes of the ${fmt.int(d.factors.length)} inputs; all of them are listed under "Every factor" below.</p>`;
@@ -327,7 +327,7 @@ function renderRecord(d, mc, base) {
 function renderFactors(d) {
   $("#n-factors").textContent = fmt.int(d.factors.length);
   $("#factors").innerHTML = `<div class="factors"><table class="record"><tr><th>Factor</th><th>Value</th><th>Effect</th></tr>
-      ${d.factors.map((f) => `<tr><td>${esc(f.label)}</td><td>${fmt.value(f.kind, f.value)}</td>
+      ${d.factors.map((f) => `<tr><td>${esc(f.label)}${f.about ? tip(f.about) : ""}</td><td>${fmt.value(f.kind, f.value)}</td>
         <td class="${f.effect > 0 ? "down" : "up"}">${f.effect > 0 ? "+" : ""}${f.effect.toFixed(3)}</td></tr>`).join("")}</table></div>
     <p class="note">Effect: how much the factor moved this company's forecast up (+) or down (−) from the average, on the model's
       log-odds scale. Forecast made by the daily update with the approved model (decision V2-52), the same frozen model the

@@ -244,14 +244,40 @@ def test_the_page_shows_the_daily_updates_forecasts_of_the_approved_model_only(t
     assert "stale" not in one and "extra" not in one
     assert one["factors"] == [
         {"feature": "n_offering_12m", "label": "Share offering filings, 12 months",
-         "kind": "count", "value": 2.0, "effect": 0.8},
+         "kind": "count", "value": 2.0, "effect": 0.8,
+         "about": forecast.ABOUT["n_offering_12m"]},
         {"feature": "log_market_cap", "label": "Market value of the company",
-         "kind": "logmoney", "value": None, "effect": -0.2}]  # fmt: skip
+         "kind": "logmoney", "value": None, "effect": -0.2,
+         "about": forecast.ABOUT["log_market_cap"]}]  # fmt: skip
     assert fc.for_company("2", {"as_of": "2026-11-10"}, True, {})["stale"] is True
     three = fc.for_company("3", {"as_of": "2026-11-10", "eligible_dilution": True,
                                  "shares_outstanding": 1_000_000.0}, True,
                            {"has_prices": True})  # fmt: skip
     assert not three["available"] and three["reason"].startswith("No forecast yet")
+
+
+def test_every_input_of_the_dilution_model_has_a_label_and_an_explanation():
+    """FR-027 (the researcher, 18 Nov): a "?" beside each factor says what it measures. Every input
+    the dilution model reads (its own rule over the feature families' columns) has a plain label
+    and an explanation short enough for the tooltip, and the page shows the "?" in both lists."""
+    from pathlib import Path
+
+    import pandas as pd
+
+    from sentinel.features import events, fundamentals, market, price
+    from sentinel.models import dilution
+    from sentinel.web import forecast
+
+    columns = [*price.PRICE_FEATURES, *price.PRICE_EXTRAS, *fundamentals.FUND_FEATURES,
+               "market_cap", "shares_outstanding", *events.EVENT_FEATURES,
+               *market.SHORT_FEATURES]  # fmt: skip
+    inputs = dilution.features(pd.DataFrame(columns=columns))
+    assert len(inputs) == 66
+    assert set(forecast.FEATURES) == set(inputs) == set(forecast.ABOUT)
+    assert all(40 <= len(text) <= 330 for text in forecast.ABOUT.values())
+    assert forecast.FEATURES["zero_volume_63"][1] == "pct"  # a share of days, not a count
+    script = (Path(forecast.__file__).parent / "static" / "app.js").read_text(encoding="utf-8")
+    assert script.count("f.about ? tip(f.about)") == 2  # what drives it, and every factor
 
 
 def test_a_company_left_out_by_a_rule_is_told_which_rule_with_its_own_values(tmp_path):

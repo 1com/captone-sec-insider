@@ -46,6 +46,14 @@ diagnostics, form types (8-K, 10-K, 10-Q, Form 4) without explanations.
   17 Nov): "i also dont need the front page of the app where you show the top 15 highest risk
   stocks". The first page lists no companies (FR-026, V2-77); a company is opened by search.
 
+### Session 2026-11-18
+
+- Q: How does a reader learn what each factor behind a forecast is? → A (the researcher, 18 Nov):
+  "can you also add an explanation of all the features and factors used in dilution model ...
+  maybe a question mark that open a lil pop up explaining what these are?" A "?" beside each
+  factor, in "What drives this forecast" and in "Every factor", opens a short plain-English note
+  on what the input measures (FR-027).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Look up a stock and judge its dilution risk (Priority: P1)
@@ -377,6 +385,11 @@ visible without scrolling.
 - **FR-026**: The first page MUST show the search, what the app answers, how many companies have a
   forecast and the forecasts' date, and how to read the risk bands; it MUST NOT list or rank
   companies by their chance (the researcher, 17 Nov, V2-77).
+- **FR-027**: Every factor shown with a dilution forecast ("What drives this forecast" and "Every
+  factor") MUST have a "?" beside its name that opens, on hover, tap or keyboard focus, a short
+  plain-English note on what the input measures: what it counts or compares, from which source
+  and over which window, as the code that computes it does. Every input of the approved model
+  MUST have such a note and a label that matches its value's unit (the researcher, 18 Nov).
 
 ### Key Entities *(include if feature involves data)*
 
