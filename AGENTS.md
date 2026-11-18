@@ -282,7 +282,7 @@ holds and what does not:
   15 highest chances and its route `/api/top` removed; companies are opened by search.
   Each factor explained since 18 Nov (FR-027, the researcher; T032): a "?" beside every factor
   of the dilution panel opens what the input measures (`ABOUT` in `web/forecast.py`, written from
-  `sentinel.features`; a test keeps one for each of the 66 inputs).
+  `sentinel.features`; a test keeps one for each of the 66 inputs). Merged by #115.
   Left (`specs/026-stock-research-app/tasks.md`): insider clusters (T011) and short interest
   (T014), if time allows.
 - **V2-63 (10 Nov):** a stray Form 4 of another company naming a ticker (DoorDash giving FN) no

@@ -158,4 +158,5 @@ The researcher asked for a presentable MVP first (10 Nov); tasks after the MVP a
   range" is a yearly rate of price swings from each day's high and low. Tests in
   `tests/unit/test_web_app.py`: the model's own input rule over the feature modules' columns
   gives 66 inputs, each with a label and a note of 40-330 characters, and the page script draws
-  the "?" in both lists. The app restarted on port 8100: Alaunos's 66 factors each carry a note
+  the "?" in both lists. The app restarted on port 8100: Alaunos's 66 factors each carry a note.
+  Merged by #115
