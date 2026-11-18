@@ -374,7 +374,7 @@ holds and what does not:
   the type draws by script, drawn as right arrows in the same colours); their text and notes hold
   no prices, dollar amounts or file paths; copies in the researcher's Downloads folder as the
   offline copy; linked from the README's front page. For the final version (T021), draw them
-  again the same way from the deck's live files.
+  again the same way from the deck's live files. Merged into `main` by #114 (18 Nov).
 
   Found on the way, for after the hand-in: four served forecasts whose market value cannot be
   right, the mirror of V2-75 (value traded per day below 0.001% of the market value): Akari
