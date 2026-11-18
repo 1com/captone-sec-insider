@@ -177,8 +177,15 @@ numbers that are not on the sheet (10:00, 0, 231, 21, 1,000×, the worked exampl
 | 8 The bands | `dil.band1`–`dil.band5` | unchanged | unchanged |
 | 9 Limits and lessons | `cu.announced`, `cu.auc_none`, `cu.auc_all`, `audit.months_before`, `audit.months_after` | 41%, 0.87, 0.89, 51,441, 11,973 | the same; the first limit reworded ("part of a yes had already happened") |
 
-No longer on the deck: `dil.test_ll.base_rate`, `dil.test_ll.rule`, `dil.test_ll.logistic` (the
-merged slide's table). 0 differences.
+Version 28 (18 Nov, the researcher): slide 3 without the "About & data" card; no number
+changed. **Version 30 (18 Nov, the researcher), 11 slides:** "Limits and lessons" taken off
+(its ids `cu.announced`, `cu.auc_none`, `cu.auc_all`, `audit.months_before`,
+`audit.months_after` are no longer on the deck; its content is in `docs/plan.md`, "To improve
+the product"); "Keeping it honest" (slide 7, no number from the sheet) and "Choosing the
+model" (slide 8: `dil.test_ll.base_rate` 0.343, `dil.test_ll.rule` 0.301,
+`dil.test_ll.logistic` 0.249, `dil.test_ll.lightgbm` 0.226) back as in version 23; the result
+(slide 9) and the bands (slide 10) as in version 23; slide 6 without its note on the rules.
+0 differences.
 
 ## How this was checked
 

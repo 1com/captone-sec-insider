@@ -106,7 +106,10 @@ dilution model's one-time test result.
   of raw files, 026 approved); `.env.example` no longer describes the tailnet link (V2-71).
   17 Nov (V2-78, the researcher: "A"): the volatility and results-day models taken off the front
   page (the opening, the results, "How it works", the limits); one plain line in the map says
-  they are the researcher's models for later work, not part of the course project and not served
+  they are the researcher's models for later work, not part of the course project and not served.
+  18 Nov (V2-80, the researcher: "yes"): the opening tells the product first (the research app,
+  the data it gathers with the number sheet's counts, then dilution from part of that data); "The
+  app" quotes the sheet of 17 Nov; a test keeps both equal to the sheet
 - [X] T017 [US3] A fresh copy of the public repository in the scratchpad, installed by the README,
   passes ruff, the format check and the unit tests without `data/` (quickstart section 4). Done
   17 Nov on a clone of 52c6bf5 (the README's commit, before it was pushed): `uv sync`, ruff and
@@ -139,7 +142,10 @@ dilution model's one-time test result.
   (deck version 23) is in `docs/presentation/` (`slides.pdf`, `slides.pptx`); after the feedback
   the final version replaces it. 18 Nov, V2-80: the deck restructured to tell the whole product
   (version 26; the number sheet's data section; `slides-check.md` section 4); the PDF and the
-  PowerPoint drawn again and replaced; merged by #116
+  PowerPoint drawn again and replaced; merged by #116. Version 28: slide 3 without the "About &
+  data" card (the researcher); the PDF and PowerPoint drawn again. Version 30: "Limits and
+  lessons" taken off (kept in `docs/plan.md`, "To improve the product"); the three rules and
+  the model levels their own slides again; 11 slides, about 13:40 with the demo; merged by #117
 
 ## Dependencies
 

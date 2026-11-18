@@ -383,15 +383,20 @@ holds and what does not:
   again the same way from the deck's live files. Merged into `main` by #114 (18 Nov).
   **The talk tells the whole product (V2-80, the researcher, 18 Nov: "why doesnt it show that
   this product helps research stocks, all the data it gathers to show it, and then some of that
-  data is used to predict dilution"):** deck version 26, still 10 slides (about 8 minutes, then
-  the 5-minute demo): the problem (scattered sources), the product (one page per stock, five
-  tabs), the data it gathers (sizes from the number sheet's new data section,
+  data is used to predict dilution"):** deck version 30, 11 slides (about 8½ minutes, then
+  the 5-minute demo): the problem (scattered sources), the product (one page per stock, four of
+  its tabs), the data it gathers (sizes from the number sheet's new data section,
   `sentinel.presentation.from_data`), six layers rebuilt and checked every weekday, part of the
-  data predicts dilution, the result, the bands, limits and lessons ("part of a yes had already
-  happened"), the demo with the research features first. The number sheet regenerated on
+  data predicts dilution, the three rules that keep it honest, choosing the model, the one-time
+  test, the bands, the demo with the research features first. The limits and lessons slide was
+  taken off (the researcher); its content, with what would lift each limit, is in
+  `docs/plan.md`, "To improve the product". With the README's product-first front page, merged
+  by #117 (18 Nov). The number sheet regenerated on
   17 Nov's data (3,663 forecasts); the PDF and PowerPoint drawn again and replaced in
   `docs/presentation/` and the Downloads folder; `specs/019-hand-in/slides-check.md` section 4.
-  Merged into `main` by #116 (18 Nov), with V2-79 and the final presentation's date.
+  Merged into `main` by #116 (18 Nov), with V2-79 and the final presentation's date. The README's
+  front page told the same way (the researcher: "yes"; FR-012): the research app and the data it
+  gathers first, its counts from the number sheet (a test keeps them equal), then dilution.
   Proposed by the researcher the same day, for after the hand-in (V2-79, `docs/decisions.md`,
   "Proposed, not decided yet"): answer the dilution question at the announcement, a 10%+ sale of
   new shares filed in the six months after the forecast date, since investors react to the
