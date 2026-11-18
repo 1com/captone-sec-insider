@@ -33,6 +33,15 @@ only (V2-71); the one-time test of the three models on the answers from 2023 on 
 - Q: Does the README's front page present the two models? → A (the researcher, 17 Nov: "A"):
   no; one plain line in the map of the repository says what they are (FR-013).
 
+### Session 2026-11-18
+
+- Q: What story does the talk tell? → A (the researcher, 18 Nov): "why is the presentation
+  still not focusing on the entire project? why doesnt it show that this product helps research
+  stocks, all the data it gathers to show it, and then some of that data is used to predict
+  dilution". The slides tell the whole product: the research app, the data it gathers, how that
+  data is built and kept right, then the dilution forecast from part of it (FR-002, V2-80; deck
+  version 26).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Follow the talk and judge the work (Priority: P1)
@@ -146,16 +155,18 @@ can name the question and the dilution model's one-time test result.
 
 - **FR-001**: The slides MUST be 8-10 for about 10 minutes, so that slides and demo fit in 15
   minutes with a minute spare.
-- **FR-002**: The slides MUST cover, in this order: the problem with an example; what was built
-  (the data platform from free public data plus one paid month of prices, updated every weekday;
-  the dilution question; the app); how the data stays right (the daily update, identical
-  rebuilds, the named cases, problems searched for); the rules that keep the forecasts honest
-  (no look-ahead; definitions fixed and tagged before any model; the test on 2023 on sealed and
-  run once); how the dilution model was chosen (levels from base rates up, test years 2019-2022,
-  the simplest level within one standard error); its one-time test results; the limits; the
-  lessons; the demo. The focus is the data engineering and the dilution model: the volatility and
-  results-day models are not presented (amended 17 Nov, V2-78; was "the four questions" and "the
-  three questions"; the slide on how the data stays right added the same day).
+- **FR-002**: The slides MUST tell the whole product, in this order: the problem (researching a
+  stock means reading scattered sources); the product (the stock research app, one page per
+  stock, its tabs); the data it gathers (its sources and their size, from the number sheet); how
+  the data is built and kept right (the six layers, the daily update, identical rebuilds, the
+  named cases, problems searched for); the dilution forecast made from part of that data (the
+  question with an example, its inputs, the rules that keep it honest: no look-ahead,
+  definitions fixed and tagged before any model, the test on 2023 on sealed and run once); how
+  the model was chosen (levels from base rates up, test years 2019-2022, the simplest level
+  within one standard error) and its one-time test results; the bands' record; the limits and
+  the lessons; the demo, the research features first. The volatility and results-day models are
+  not presented (V2-78). Amended 18 Nov (V2-80, the researcher); was, from 17 Nov, "the data
+  engineering and the dilution model" with the dilution question first.
 - **FR-003**: Every number on the slides MUST come from a generated report in the repository or a
   count the platform computes, be an aggregate over many companies, and have its source named in
   the speaker notes; no price or other value derived from the private price source may appear.

@@ -17,7 +17,9 @@ every weekday; the three forecasting models are built and were tested once on th
 16 Nov): a presentation with a live demo, 15 minutes in all, dry run on **18 November 2026**, final presentation on **Friday 20 November 2026** (the researcher, 18 Nov),
 and the GitHub repository; no written report. **For the hand-in the project is the data
 engineering and the dilution forecast** (the researcher, 17 Nov, V2-78): the volatility and
-results-day models are the researcher's own later extensions and are not presented.
+results-day models are the researcher's own later extensions and are not presented. **The talk
+tells the whole product** (the researcher, 18 Nov, V2-80): the stock research app, the data it
+gathers, how that data is built and kept right, then the dilution forecast made from part of it.
 
 ## 2. Read these first, in this order
 
@@ -66,7 +68,7 @@ results-day models are the researcher's own later extensions and are not present
 - **The hand-in's focus is the data engineering and the dilution model** (the researcher, 17 Nov,
   V2-78: the other two models were "for myself to enhance the project later on"). Never present
   the volatility or results-day models as the project's results in the slides, the demo or the
-  README's front page.
+  README's front page. The story runs product, data, engineering, then dilution (V2-80, 18 Nov).
 - `data/exports/` is shared with the teammate by the researcher, privately; do not raise it.
 
 ## 4. Rules that must never be broken
@@ -379,6 +381,16 @@ holds and what does not:
   no prices, dollar amounts or file paths; copies in the researcher's Downloads folder as the
   offline copy; linked from the README's front page. For the final version (T021), draw them
   again the same way from the deck's live files. Merged into `main` by #114 (18 Nov).
+  **The talk tells the whole product (V2-80, the researcher, 18 Nov: "why doesnt it show that
+  this product helps research stocks, all the data it gathers to show it, and then some of that
+  data is used to predict dilution"):** deck version 26, still 10 slides (about 8 minutes, then
+  the 5-minute demo): the problem (scattered sources), the product (one page per stock, five
+  tabs), the data it gathers (sizes from the number sheet's new data section,
+  `sentinel.presentation.from_data`), six layers rebuilt and checked every weekday, part of the
+  data predicts dilution, the result, the bands, limits and lessons ("part of a yes had already
+  happened"), the demo with the research features first. The number sheet regenerated on
+  17 Nov's data (3,663 forecasts); the PDF and PowerPoint drawn again and replaced in
+  `docs/presentation/` and the Downloads folder; `specs/019-hand-in/slides-check.md` section 4.
   Proposed by the researcher the same day, for after the hand-in (V2-79, `docs/decisions.md`,
   "Proposed, not decided yet"): answer the dilution question at the announcement, a 10%+ sale of
   new shares filed in the six months after the forecast date, since investors react to the
