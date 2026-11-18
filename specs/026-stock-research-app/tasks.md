@@ -144,3 +144,19 @@ The researcher asked for a presentable MVP first (10 Nov); tasks after the MVP a
   and the page script never asks for it. 333 tests pass; the app restarted on port 8100: its first
   page shows the search and the two figures (3,669 companies with a forecast, made on 16 Nov 2026)
   and no list, `/api/top` answers 404, the company pages are unchanged
+
+## Phase 12: Each factor explained (FR-027, the researcher, 18 Nov)
+
+- [X] T032 FR-027 (18 Nov, the researcher: "can you also add an explanation of all the features
+  and factors used in dilution model ... maybe a question mark that open a lil pop up"): a "?"
+  beside each factor in "What drives this forecast" and in "Every factor" opens a short
+  plain-English note on what the input measures (`ABOUT` in `forecast.py`, written from
+  `sentinel.features`: what it counts or compares, its source and its window; the factors carry
+  it as `about`; `static/app.js` draws it with the page's own tooltip, which in the scrolling
+  table opens to the right, `static/app.css`). Two labels matched to their values: the share of
+  days without trading is a share, shown in percent (it showed 0.05), and the "daily high-low
+  range" is a yearly rate of price swings from each day's high and low. Tests in
+  `tests/unit/test_web_app.py`: the model's own input rule over the feature modules' columns
+  gives 66 inputs, each with a label and a note of 40-330 characters, and the page script draws
+  the "?" in both lists. The app restarted on port 8100: Alaunos's 66 factors each carry a note.
+  Merged by #115
