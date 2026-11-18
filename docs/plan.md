@@ -78,8 +78,50 @@ branch `NNN-name`), so two people specifying at once never collide.
    slide on the other two models removed, a data-engineering slide added, deck version 23; the
    README's front page without them; merged by #113). The slides as PDF and PowerPoint (with the
    speaker notes) in `docs/presentation/` (18 Nov, #114). Left: the researcher's review of the
-   deck (T008), the dry run's feedback (T021), #71 after the final presentation (Fri 20 Nov).
+   deck (T008), the dry run's feedback (T021), #71 after the final presentation (Fri 20 Nov). The talk's limits
+   and lessons slide was taken off on 18 Nov; its content is in "To improve the product" below.
    **020** before the Tiingo plan ends (25 Nov).
+
+## To improve the product (internal notes)
+
+Kept from the talk's slide "Limits and lessons", taken off the slides on 18 Nov (the researcher:
+"remove slide 9. but make sure we have this in our internal notes to further imrpove the
+product"). The README's limits section keeps the limits for readers; each item here says what
+would lift it.
+
+**Limits**
+
+1. **Part of a "yes" had already happened** (V2-70, `docs/report/dilution_catching_up.md`). The
+   answer compares published share counts, so a sale filed before the forecast date but not yet
+   in a published count still counts as dilution: 41% of the answers of 1 (2012 to mid-2022) had
+   such a filing; without one, the AUC on 2019-2022 is 0.87, not 0.89. *To improve:* answer at
+   the announcement (V2-79, proposed): a 10%+ sale of new shares filed in the six months after the
+   forecast date. Meanwhile a page could say when a sale was filed after the latest published
+   share count.
+2. **Foreign companies are left out** (V2-27): they file annual or half-year reports (20-F,
+   40-F), not quarterly ones, so their share counts are too sparse for a six-month answer.
+   *To improve:* a question of their own on their own reporting rhythm, if their counts allow it.
+3. **The prices of companies that no longer trade come from a paid source** (Tiingo, one month),
+   so the app runs on this computer only (V2-71). *To improve:* a publishable source for those
+   prices, or charts from Yahoo only, before the app is ever shared.
+4. **Share counts filed per class or in thousands** (V2-75): today a guard withholds the forecast.
+   *To improve:* the repair at the source (each class's cover count added up, averages given in
+   thousands rescaled, placeholders dropped, then a rebuild; about 1.5-2 days, with the
+   researcher's agreement, V2-33). The other findings for after the hand-in (implausible market
+   values, the ticker-change gap, former funds without prices) are in AGENTS.md, section 7.
+
+**Lessons to keep**
+
+5. **Audit the data, not only the model.** Matching prices to companies had cut 51,441
+   company-months of 2012-2022; after the repair (027), 11,973, many of them months when the
+   company was still an empty shell (SPAC), left out on purpose. Keep running `sentinel audit`
+   and symptom scans over all companies, not only value checks on named cases.
+6. **Check every result, an AI assistant's too.** A daily update reported as fixed and verified
+   had stopped on three mornings in a row (the audit of 4 Nov); read the logs and rerun before
+   believing a claim.
+7. **Write the rules down first.** The pre-registered question and the sealed test made the
+   one-time test a real test; every new question (V2-79) gets a logged decision before any of
+   its results.
 
 ## Notebooks and code
 
@@ -180,7 +222,7 @@ the results move, `eligible_dilution`: V2-26, V2-27) and the answer is present. 
 |---|---|---|---|---|---|---|---|
 | 010 | **Risk holdout test**: The one test of the chosen models on windows starting in 2023 or later: a guarded, logged run (constitution IV); the results go into the report as they came out. | researcher (1com) triggers; teammate and coding agent build | Thu 12 Nov (planned Mon 16 Nov) | 008 | the guard log shows a single run; the report shows the results | built 10 Nov, merged by #100: `sentinel holdout --check / --freeze-levels / --run`, the frozen models (V2-59) with every simpler level (V2-60); run once on 12 Nov (V2-69), the results in the model report | #69 |
 | 027 | **Price history repair, then retrain and test** (V2-65, V2-66; researcher, 11 Nov): a company's price history spans every ticker it used (joined where its own evidence and the price level at the switch agree); cut only where another company really held the ticker, before a hole of over a year, or on its blank-check (SPAC) days; one ticker-day, one company; US companies priced from their common stock; old tickers' prices downloaded once from Tiingo; `sentinel audit` measures the problem families after every build. Then rebuild, retrain the three models by their unchanged notebooks, approval, new kept rows and levels, the holdout test | coding agent; researcher approves the models | Wed 11 – Tue 17 Nov | 001, 005–007, 010 | the named cases pass; no ticker-day twice; `sentinel verify` identical; the three models approved again; `sentinel holdout --check` passes | repair built and rebuilt (11 Nov): 18 of 18 named cases, no ticker-day twice in one series, `sentinel audit` before and after; `sentinel verify` identical; the three model notebooks and the EDA re-run on the kept export of 11 Nov (the same levels chosen); approved again (V2-68), the levels frozen again and `--check` passing (11 Nov); merged by #103 (11 Nov); the holdout test run once on 12 Nov (V2-69) | — |
-| 019 | **Hand-in: presentation, live demo, repository** (the researcher, 16 Nov: no written report): about 10 slides telling the whole product: the stock research app, the data it gathers, how it is built and kept right, and the dilution forecast from part of that data (V2-78, V2-80, #116) whose every number comes from a generated number sheet (`python -m sentinel.presentation`); a 5-minute demo path through the stock research app (026), which shows the one-time test's record; a README front page for graders; 15 minutes for presentation and demo | researcher (1com), coding agent | Mon 16 – Wed 18 Nov (dry run); final presentation Fri 20 Nov | 008, 010, 026 | the dry run given; the front page and a fresh copy checked | started 16 Nov: spec, plan, tasks; the number sheet; the app shows the one-time test; the slides and the demo checked (16-17 Nov); the README's front page and a fresh copy checked (17 Nov); merged into `main` by #112 and #113 (17 Nov); the slides as PDF and PowerPoint in `docs/presentation/` (18 Nov, #114); left: the deck's review (T008), the dry run's feedback (T021) | #71 |
+| 019 | **Hand-in: presentation, live demo, repository** (the researcher, 16 Nov: no written report): about 10 slides telling the whole product: the stock research app, the data it gathers, how it is built and kept right, and the dilution forecast from part of that data (V2-78, V2-80, #116) whose every number comes from a generated number sheet (`python -m sentinel.presentation`); a 5-minute demo path through the stock research app (026), which shows the one-time test's record; a README front page for graders; 15 minutes for presentation and demo | researcher (1com), coding agent | Mon 16 – Wed 18 Nov (dry run); final presentation Fri 20 Nov | 008, 010, 026 | the dry run given; the front page and a fresh copy checked | started 16 Nov: spec, plan, tasks; the number sheet; the app shows the one-time test; the slides and the demo checked (16-17 Nov); the README's front page and a fresh copy checked (17 Nov; product-first since 18 Nov, V2-80); merged into `main` by #112 and #113 (17 Nov); the slides as PDF and PowerPoint in `docs/presentation/` (18 Nov, #114); left: the deck's review (T008), the dry run's feedback (T021) | #71 |
 
 ### v2 · 5 Before Tiingo ends (due 2026-11-25)
 

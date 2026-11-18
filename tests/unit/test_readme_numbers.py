@@ -5,7 +5,8 @@ The results table and the sentences under it are compared with `docs/report/mode
 (`sentinel.presentation.from_card`), so the hand-written page cannot drift from the generated
 report. The model card is in git, so this runs without the data, in CI as well. Since 17 Nov the
 front page presents the dilution model only: the volatility and results-day models are the
-researcher's later extensions (V2-78)."""
+researcher's later extensions (V2-78). Since 18 Nov it opens with the product and the data it
+gathers, whose counts are the number sheet's (V2-80)."""
 
 import json
 import re
@@ -98,3 +99,21 @@ def test_the_front_page_presents_the_dilution_model_only():
     named = [line for line in front.splitlines() if pattern.search(line)]
     assert len(named) == 1 and named[0].startswith("| `src/sentinel/models/` |")
     assert "not part of the course project and not served" in named[0]
+
+
+def test_the_opening_and_the_app_section_quote_the_number_sheet():
+    """V2-80 (the researcher, 18 Nov): the front page opens with the research app and the data it
+    gathers, then the dilution forecast made from part of it. Its counts and those of "The app"
+    are the generated number sheet's (`docs/presentation/numbers.md`, `sentinel.presentation`)."""
+    sheet = (ROOT / presentation.OUT).read_text(encoding="utf-8")
+    shown = dict(re.findall(r"^\| `([\w.]+)` \| [^|]* \| ([^|]*?) \|", sheet, re.MULTILINE))
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    opening = " ".join(readme[: readme.index(SECTION)].split())
+    assert opening.startswith("# EDGAR-SENTINEL **Research any US stock from public data.**")
+    assert opening.index("research app") < opening.index("dilution")
+    for number_id in ("app.date", "data.companies", "data.filings", "data.financials",
+                      "data.insider", "data.prices"):  # fmt: skip
+        assert shown[number_id] in opening, number_id
+    app = " ".join(readme[readme.index("## The app") : readme.index("## How it works")].split())
+    for number_id in ("app.date", "app.companies", "app.forecasts"):
+        assert shown[number_id] in app, number_id

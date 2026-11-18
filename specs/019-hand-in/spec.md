@@ -41,6 +41,14 @@ only (V2-71); the one-time test of the three models on the answers from 2023 on 
   dilution". The slides tell the whole product: the research app, the data it gathers, how that
   data is built and kept right, then the dilution forecast from part of it (FR-002, V2-80; deck
   version 26).
+- Q: Does the README's front page tell the same story? → A (the researcher, 18 Nov: "yes"): it
+  opens with the research app and the data it gathers, with the number sheet's counts, then the
+  dilution forecast made from part of that data (FR-012).
+- Q: Do the limits and lessons stay on the slides? → A (the researcher, 18 Nov): "remove slide 9.
+  but make sure we have this in our internal notes to further imrpove the product"; they are
+  in `docs/plan.md`, "To improve the product" (FR-002). The three rules and the model levels,
+  briefly merged into other slides, are their own slides again (the researcher: "you removed
+  some content that was previously there for the dilution part like no look ahead bias etc").
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -160,13 +168,15 @@ can name the question and the dilution model's one-time test result.
   stock, its tabs); the data it gathers (its sources and their size, from the number sheet); how
   the data is built and kept right (the six layers, the daily update, identical rebuilds, the
   named cases, problems searched for); the dilution forecast made from part of that data (the
-  question with an example, its inputs, the rules that keep it honest: no look-ahead,
-  definitions fixed and tagged before any model, the test on 2023 on sealed and run once); how
-  the model was chosen (levels from base rates up, test years 2019-2022, the simplest level
-  within one standard error) and its one-time test results; the bands' record; the limits and
-  the lessons; the demo, the research features first. The volatility and results-day models are
-  not presented (V2-78). Amended 18 Nov (V2-80, the researcher); was, from 17 Nov, "the data
-  engineering and the dilution model" with the dilution question first.
+  question with an example, its inputs); the rules that keep the forecasts honest (no
+  look-ahead; definitions fixed and tagged before any model; the test on 2023 on sealed and run
+  once); how the model was chosen (levels from base rates up, test years 2019-2022, the
+  simplest level within one standard error); its one-time test results; the bands' record; the
+  demo, the research features first. The volatility and results-day models are not presented
+  (V2-78). The limits and the lessons are not on the slides (the researcher, 18 Nov): they stay
+  in the README's limits section and in `docs/plan.md`, "To improve the product". Amended
+  18 Nov (V2-80, the researcher); was, from 17 Nov, "the data engineering and the dilution
+  model" with the dilution question first.
 - **FR-003**: Every number on the slides MUST come from a generated report in the repository or a
   count the platform computes, be an aggregate over many companies, and have its source named in
   the speaker notes; no price or other value derived from the private price source may appear.
@@ -192,7 +202,9 @@ can name the question and the dilution model's one-time test result.
 
 **Repository (User Story 3)**
 
-- **FR-012**: The front page MUST open, for a newcomer, with what the project answers, the dilution
+- **FR-012**: The front page MUST open, for a newcomer, with the product (the stock research app)
+  and the data it gathers, with the number sheet's counts, then the dilution forecast made from
+  part of that data (amended 18 Nov, V2-80; was "what the project answers"), the dilution
   model's one-time test results as the model report gives them, the app and how to run it,
   installation and the main commands, a map of the folders, the rules and the limits; the notes
   for coding agents and the working history MUST come after these or live in AGENTS.md.
