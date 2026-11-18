@@ -184,7 +184,7 @@ def test_a_report_without_its_table_is_refused():
         pres.from_audit(AUDIT.replace("Named cases: 18 of 18 pass.", ""))
 
 
-def _serving(path: Path, scores: bool = True) -> None:
+def _serving(path: Path, scores: bool = True, data: bool = True) -> None:
     with duckdb.connect(str(path)) as con:
         con.execute("create schema app")
         con.execute("create table app.company_card (cik varchar, as_of date)")
@@ -197,6 +197,27 @@ def _serving(path: Path, scores: bool = True) -> None:
             con.execute(
                 "insert into app.daily_score values ('1', '2026-11-13', 'dilution'), "
                 "('2', '2026-11-12', 'dilution'), ('9', '2026-11-13', 'volatility')"
+            )
+        con.execute("create table app.stock (cik varchar)")
+        con.execute("create table app.filings (cik varchar, form varchar)")
+        con.execute("create table app.financials (cik varchar, filed date)")
+        con.execute(
+            "create table app.insider_activity (cik varchar, accession varchar, filing_date date)"
+        )
+        con.execute("create table app.price_daily (cik varchar, session date)")
+        if data:
+            con.execute("insert into app.stock values ('1'), ('2'), ('3'), ('4')")
+            con.execute("insert into app.filings values ('1', '10-K'), ('1', '8-K'), ('2', '8-K')")
+            con.execute(
+                "insert into app.financials values ('1', '2009-04-15'), ('2', '2012-01-03')"
+            )
+            con.execute(  # report a: a buy and a sell, two rows of one report
+                "insert into app.insider_activity values ('1', 'a', '2006-01-03'), "
+                "('1', 'a', '2006-01-03'), ('2', 'b', '2010-05-01')"
+            )
+            con.execute(
+                "insert into app.price_daily values ('1', '2010-01-04'), ('1', '2010-01-05'), "
+                "('2', '2011-03-01')"
             )
 
 
@@ -214,6 +235,26 @@ def test_the_app_counts_come_from_the_serving_copy(tmp_path):
         pytest.raises(pres.Refused, match="no dilution forecast"),
     ):
         pres.from_serving(con)
+
+
+def test_the_data_counts_come_from_the_serving_copy(tmp_path):
+    """V2-80: the size of the data the app gathers, counts only, each source with its first
+    year; a serving copy without one of them is refused."""
+    _serving(tmp_path / "serving.duckdb")
+    with duckdb.connect(str(tmp_path / "serving.duckdb"), read_only=True) as con:
+        got = _by_id(pres.from_data(con))
+    assert {k: v.value for k, v in got.items()} == {
+        "data.companies": 4, "data.priced": 2, "data.filings": 3, "data.forms": 2,
+        "data.financials": 2, "data.financials_from": 2009, "data.insider": 2,
+        "data.insider_from": 2006, "data.prices": 3, "data.prices_from": 2010,
+    }  # fmt: skip
+    assert pres.millions(13_468_507) == "13.5 million" and got["data.forms"].shown == "2"
+    _serving(tmp_path / "empty.duckdb", data=False)
+    with (
+        duckdb.connect(str(tmp_path / "empty.duckdb"), read_only=True) as con,
+        pytest.raises(pres.Refused, match="lacks companies"),
+    ):
+        pres.from_data(con)
 
 
 def test_the_sheet_is_identical_on_identical_inputs_and_refused_without_one(tmp_path):

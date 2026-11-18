@@ -137,7 +137,9 @@ dilution model's one-time test result.
   committed to `docs/presentation/` if the researcher wishes (aggregates only). 18 Nov, before the
   dry run: the researcher wants the presentation in the repository, so the dry run's version
   (deck version 23) is in `docs/presentation/` (`slides.pdf`, `slides.pptx`); after the feedback
-  the final version replaces it
+  the final version replaces it. 18 Nov, V2-80: the deck restructured to tell the whole product
+  (version 26; the number sheet's data section; `slides-check.md` section 4); the PDF and the
+  PowerPoint drawn again and replaced; merged by #116
 
 ## Dependencies
 

@@ -3,9 +3,9 @@
 Every number the slides, the demo path and the README quote, each with an id, its source and its
 meaning: the one-time test of the three approved models and the dilution model's test years (the
 model card that `sentinel report` writes), the dilution answer's catching-up effect (V2-70) and the
-price repair's audit (027) from their generated reports, and three counts of the app today from
-the serving copy, read-only. The slides take numbers by id only, so each one can be checked here
-(`specs/019-hand-in`, SC-002).
+price repair's audit (027) from their generated reports, and from the serving copy, read-only,
+three counts of the app today and the size of the data it gathers (V2-80). The slides take
+numbers by id only, so each one can be checked here (`specs/019-hand-in`, SC-002).
 
     uv run python -m sentinel.presentation      # seconds; writes docs/presentation/numbers.md
 
@@ -56,6 +56,7 @@ GROUPS = (
     ("vol.", "Volatility: the one-time test"),
     ("cu.", "Dilution: forecasts that catch up with an announced sale (V2-70)"),
     ("audit.", "Price histories: the repair's audit (027)"),
+    ("data.", "The data the app gathers"),
     ("app.", "The app today"),
 )
 # the audit's measures quoted: id stem, the measure's text in the audit's table, meaning
@@ -134,6 +135,11 @@ def pct(x: float) -> str:
 
 def count(n: int) -> str:
     return f"{n:,}"
+
+
+def millions(n: int) -> str:
+    """13468507 -> '13.5 million'."""
+    return f"{n / 1e6:.1f} million"
 
 
 def ratio(x: float) -> str:
@@ -553,6 +559,50 @@ def from_serving(con: duckdb.DuckDBPyConnection) -> list[Number]:
     ]
 
 
+def from_data(con: duckdb.DuckDBPyConnection) -> list[Number]:
+    """What the app holds and shows (V2-80): the companies it tracks, those with daily prices,
+    the SEC filings it lists, the financial values as first filed, the insider-trade reports and
+    the company-days of prices, each with the year it starts. Counts only."""
+    src = "serving.duckdb"
+    companies = con.execute("select count(distinct cik) from app.stock").fetchone()[0]
+    filings, forms = con.execute(
+        "select count(*), count(distinct form) from app.filings"
+    ).fetchone()
+    values, values_from = con.execute(
+        "select count(*), min(year(filed)) from app.financials"
+    ).fetchone()
+    insider, insider_from = con.execute(
+        "select count(distinct accession), min(year(filing_date)) from app.insider_activity"
+    ).fetchone()
+    days, priced, prices_from = con.execute(
+        "select count(*), count(distinct cik), min(year(session)) from app.price_daily"
+    ).fetchone()
+    if not all((companies, filings, values, insider, days)):
+        raise Refused("the serving copy lacks companies, filings, financials, insider or prices")
+    return [
+        Number("data.companies", companies, count(companies), f"{src} → app.stock",
+               "companies the app can open: SEC registrants, current and former"),
+        Number("data.priced", priced, count(priced), f"{src} → app.price_daily",
+               "of them, companies with daily prices"),
+        Number("data.filings", filings, millions(filings), f"{src} → app.filings",
+               "SEC filings listed on the companies' pages, each with its plain-English name"),
+        Number("data.forms", forms, count(forms), f"{src} → app.filings",
+               "different SEC forms among those filings"),
+        Number("data.financials", values, millions(values), f"{src} → app.financials",
+               "financial values as first filed (the SEC's XBRL facts)"),
+        Number("data.financials_from", values_from, str(values_from), f"{src} → app.financials",
+               "the year the first of them was filed"),
+        Number("data.insider", insider, millions(insider), f"{src} → app.insider_activity",
+               "insider-trade reports (Form 4) with buys or sells"),
+        Number("data.insider_from", insider_from, str(insider_from),
+               f"{src} → app.insider_activity", "the year the first of them was filed"),
+        Number("data.prices", days, millions(days), f"{src} → app.price_daily",
+               "company-days of daily prices and volumes"),
+        Number("data.prices_from", prices_from, str(prices_from), f"{src} → app.price_daily",
+               "the year the prices start"),
+    ]  # fmt: skip
+
+
 # ---------- the sheet ----------
 
 
@@ -606,7 +656,7 @@ def main(p: config.Paths | None = None, out: Path | None = None, echo=print) -> 
     with duckdb.connect(
         str(p.serving_db), read_only=True, config={"memory_limit": db.MEMORY_LIMIT}
     ) as con:
-        app = from_serving(con)
+        app = from_serving(con) + from_data(con)
     text = render(from_card(card) + from_catching_up(catching_up) + from_audit(audit) + app)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text, encoding="utf-8")

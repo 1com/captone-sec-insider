@@ -47,6 +47,9 @@ private.*
   so the slide says the rule checks every company, not that it catches every such count).
 - **Times in the notes:** slides 1-9 take 8:30 (0:15, 1:00, 1:00, 1:15, 0:45, 1:30, 0:45, 0:45,
   1:15), the demo 5:00 and the close 0:10. That makes **13:40 of the 15 minutes**.
+- **18 Nov, after V2-80:** the talk tells the whole product (deck version 26; section 4). The
+  sheet was regenerated on 17 Nov's data with a new data section (`data.*`); the deck's numbers
+  were checked against it again: section 4.
 
 ## 1. Numbers from the sheet
 
@@ -157,6 +160,25 @@ Sheet ids not on the slides, kept for questions: `mov.rows`, `mov.ll.base_rate`,
 
 Left for the researcher's review (T008): who presents which slide; the lessons slide; any text too
 long for its box (sizes were checked by font and width only, not on screen).
+
+## 4. Version 26 (18 Nov, V2-80): the product-first deck
+
+Every number on version 26 compared with the sheet of 18 Nov (data to 17 Nov 2026, `app.date`
+17 Nov 2026). Slides 5 and 8 are unchanged in their numbers; section 2 holds the sources of the
+numbers that are not on the sheet (10:00, 0, 231, 21, 1,000×, the worked example).
+
+| Slide | ids | sheet (as shown) | on the slide |
+|---|---|---|---|
+| 2 The problem | `data.filings`, `data.forms`, `app.date` | 13.5 million, 602, 17 Nov 2026 | 13.5 million, 602, "counts of 17 Nov 2026" |
+| 3 The product | `app.companies`, `app.forecasts`, `app.date` | 6,915, 3,663, 17 Nov 2026 | 6,915, 3,663 (slide and notes), "counts of 17 Nov 2026" |
+| 4 The data it gathers | `data.companies`, `data.filings`, `data.financials`, `data.financials_from`, `data.insider`, `data.insider_from`, `data.prices`, `data.priced`, `data.prices_from` | 26,706; 13.5 million; 8.2 million; 2009; 1.2 million; 2006; 26.0 million; 11,416; 2010 | 26,706; 13.5 M; 8.2 M; since 2009; 1.2 M; since 2006; 26.0 M (notes: "26 million"); 11,416; since 2010 ("M: million" in the footer) |
+| 6 Part of the data predicts dilution | `dil.rate`, `dil.rows` | 12%, 148,067 | 12%, 148,067 (footer) |
+| 7 The result | `dil.rows`, `dil.first`, `dil.last`, `dil.ll.*`, `dil.test_ll.lightgbm`, `dil.best_years`, `dil.auc.lightgbm`, `dil.lift10.lightgbm` | 148,067; 31 Jan 2023; 30 Apr 2026; 0.369, 0.311, 0.256, 0.229; 0.226; 4 of 4; 0.91; 5.1× | the same; 0.226 moved here from the merged slide "choosing the model" |
+| 8 The bands | `dil.band1`–`dil.band5` | unchanged | unchanged |
+| 9 Limits and lessons | `cu.announced`, `cu.auc_none`, `cu.auc_all`, `audit.months_before`, `audit.months_after` | 41%, 0.87, 0.89, 51,441, 11,973 | the same; the first limit reworded ("part of a yes had already happened") |
+
+No longer on the deck: `dil.test_ll.base_rate`, `dil.test_ll.rule`, `dil.test_ll.logistic` (the
+merged slide's table). 0 differences.
 
 ## How this was checked
 
