@@ -391,6 +391,7 @@ holds and what does not:
   happened"), the demo with the research features first. The number sheet regenerated on
   17 Nov's data (3,663 forecasts); the PDF and PowerPoint drawn again and replaced in
   `docs/presentation/` and the Downloads folder; `specs/019-hand-in/slides-check.md` section 4.
+  Merged into `main` by #116 (18 Nov), with V2-79 and the final presentation's date.
   Proposed by the researcher the same day, for after the hand-in (V2-79, `docs/decisions.md`,
   "Proposed, not decided yet"): answer the dilution question at the announcement, a 10%+ sale of
   new shares filed in the six months after the forecast date, since investors react to the

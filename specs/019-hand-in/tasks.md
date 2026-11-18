@@ -139,7 +139,7 @@ dilution model's one-time test result.
   (deck version 23) is in `docs/presentation/` (`slides.pdf`, `slides.pptx`); after the feedback
   the final version replaces it. 18 Nov, V2-80: the deck restructured to tell the whole product
   (version 26; the number sheet's data section; `slides-check.md` section 4); the PDF and the
-  PowerPoint drawn again and replaced
+  PowerPoint drawn again and replaced; merged by #116
 
 ## Dependencies
 
