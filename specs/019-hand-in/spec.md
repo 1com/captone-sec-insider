@@ -49,6 +49,10 @@ only (V2-71); the one-time test of the three models on the answers from 2023 on 
   in `docs/plan.md`, "To improve the product" (FR-002). The three rules and the model levels,
   briefly merged into other slides, are their own slides again (the researcher: "you removed
   some content that was previously there for the dilution part like no look ahead bias etc").
+- Q: Do the slides show their sources? → A (the researcher, 18 Nov): "remove the footer notes
+  from the presentation. every slide has something in the footer". No: the source line at the
+  foot of each slide was removed (deck version 31; each slide keeps its page number). Every
+  number's source stays in `slides-check.md` (FR-003, SC-002).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -178,8 +182,10 @@ can name the question and the dilution model's one-time test result.
   18 Nov (V2-80, the researcher); was, from 17 Nov, "the data engineering and the dilution
   model" with the dilution question first.
 - **FR-003**: Every number on the slides MUST come from a generated report in the repository or a
-  count the platform computes, be an aggregate over many companies, and have its source named in
-  the speaker notes; no price or other value derived from the private price source may appear.
+  count the platform computes, be an aggregate over many companies, and have its source listed in
+  `slides-check.md` (slide, number and source); no price or other value derived from the private
+  price source may appear. Amended 18 Nov (the researcher: the slides carry no source line); was
+  "have its source named in the speaker notes", done by a footer on each slide until version 30.
 - **FR-004**: Each slide MUST have speaker notes in plain words with its time; every market or
   statistics term MUST be explained the first time it appears.
 - **FR-005**: A one-page sheet of the key numbers and terms, each with its source, MUST be prepared
